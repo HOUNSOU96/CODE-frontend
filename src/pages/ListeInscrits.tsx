@@ -1,0 +1,264 @@
+// 📁 ListeInscrits.tsx
+import React, { useEffect, useState, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import api from "@/utils/axios";
+import { useAuth } from "@/hooks/useAuth";
+import { motion } from "framer-motion";
+
+interface UserInscrit {
+  id: number;
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone: string;
+  date_inscription: string;
+  is_validated: boolean;
+  is_blocked?: boolean;
+  status?: "pending" | "validated" | "refused";
+  last_warning?: string;
+  is_online?: boolean; // ✅ nouveau champ
+}
+
+const PAGE_SIZE = 10;
+
+const ListeInscrits: React.FC = () => {
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+
+  const [inscrits, setInscrits] = useState<UserInscrit[]>([]);
+  const [loadingListe, setLoadingListe] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+
+  const observer = useRef<IntersectionObserver | null>(null);
+  const lastInscritRef = useCallback(
+    (node: HTMLTableRowElement) => {
+      if (loadingListe) return;
+      if (observer.current) observer.current.disconnect();
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          setPage((prev) => prev + 1);
+        }
+      });
+      if (node) observer.current.observe(node);
+    },
+    [loadingListe, hasMore]
+  );
+
+  // 🔹 Redirection si pas admin
+  useEffect(() => {
+    if (!authLoading) {
+      if (!user) navigate("/login");
+      else if (!user.is_admin) navigate("/page2");
+    }
+  }, [authLoading, user]);
+
+  // 🔹 Récupération paginée des inscrits
+  useEffect(() => {
+    if (!user?.is_admin || !hasMore) return;
+
+    const fetchInscrits = async () => {
+      setLoadingListe(true);
+      try {
+        const response = await api.get("/api/admin/liste-inscrits", {
+          params: { page, page_size: PAGE_SIZE },
+        });
+
+        let nouvelleListe: UserInscrit[] = response.data.inscrits
+          .filter((i: any) => i.email !== "deogratiashounsou@gmail.com")
+          .map((i: any) => ({
+            ...i,
+            status: i.is_validated
+              ? "validated"
+              : i.status === "SUSPENDED"
+              ? "refused"
+              : "pending",
+              is_online: i.is_online,
+          }));
+
+        setInscrits((prev) => {
+          const ids = new Set(prev.map(u => u.id));
+          const filtered = nouvelleListe.filter(u => !ids.has(u.id));
+          return [...prev, ...filtered];
+        });
+
+        if (inscrits.length + nouvelleListe.length >= response.data.total) {
+          setHasMore(false);
+        }
+      } catch (err) {
+        console.error("Erreur récupération inscrits :", err);
+      } finally {
+        setLoadingListe(false);
+      }
+    };
+
+    fetchInscrits();
+  }, [page, user]);
+
+  // 🔹 Actions utilisateur
+  const handleValider = async (id: number) => {
+    try {
+      const res = await api.post(`/api/admin/valider-inscrit/${id}`);
+      setInscrits(prev =>
+        prev.map(u => (u.id === id ? { ...u, status: "validated", is_validated: true } : u))
+      );
+      alert(res.data.message);
+    } catch (err) {
+      console.error(err);
+      alert("Erreur lors de la validation.");
+    }
+  };
+
+  const handleRefuser = async (id: number) => {
+    try {
+      const res = await api.post(`/api/admin/refuser-inscrit/${id}`);
+      setInscrits(prev => prev.filter(u => u.id !== id));
+      alert(res.data.message);
+    } catch (err) {
+      console.error(err);
+      alert("Erreur lors du refus.");
+    }
+  };
+
+  const handleBlock = async (id: number, blocked?: boolean) => {
+    try {
+      const action = blocked ? "reactivate" : "block";
+      const res = await api.post(`/api/admin/${action}-user/${id}`);
+      setInscrits(prev =>
+        prev.map(u => (u.id === id ? { ...u, is_blocked: !blocked } : u))
+      );
+      alert(res.data.message);
+    } catch (err) {
+      console.error(err);
+      alert("Erreur lors du blocage/réactivation.");
+    }
+  };
+
+  const pendingCount = inscrits.filter((i) => i.status === "pending").length;
+
+  if (authLoading) return <div>Chargement...</div>;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -30 }}
+      transition={{ duration: 0.5 }}
+      className="min-h-screen p-6 bg-gray-100 dark:bg-gray-900"
+    >
+      <h1 className="text-3xl font-bold text-center text-blue-700 dark:text-white mb-4">
+        Liste des Apprenants Inscrits
+      </h1>
+
+      <p className="text-center text-gray-600 dark:text-gray-300 mb-4">
+        Inscription(s) en attente : <span className="font-semibold">{pendingCount}</span>
+      </p>
+
+      {inscrits.length === 0 ? (
+        <p className="text-center text-gray-600 dark:text-gray-300">
+          Aucun inscrit pour le moment.
+        </p>
+      ) : (
+        <div className="overflow-x-auto mb-6">
+          <table className="min-w-full bg-white dark:bg-gray-800 rounded-xl shadow-md">
+            <thead>
+              <tr className="bg-blue-600 text-white">
+                <th className="px-4 py-2">Nom</th>
+                <th className="px-4 py-2">Prénom</th>
+                <th className="px-4 py-2">Email</th>
+                <th className="px-4 py-2">Téléphone</th>
+                <th className="px-4 py-2">Date inscription</th>
+                <th className="px-4 py-2">Statut</th>
+                <th className="px-4 py-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {inscrits.map((i, index) => {
+                const isLast = inscrits.length === index + 1;
+                return (
+                  <tr
+                    key={i.id}
+                    ref={isLast ? lastInscritRef : null}
+                    className="border-b dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    <td className="px-4 py-2 flex items-center gap-2">
+                      {i.nom}
+                      {i.is_online && (
+                        <button className="px-2 py-0.5 bg-green-500 text-white rounded-full text-xs">
+                          Connecté
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-4 py-2">{i.prenom}</td>
+                    <td className="px-4 py-2">{i.email}</td>
+                    <td className="px-4 py-2">{i.telephone}</td>
+                    <td className="px-4 py-2">{new Date(i.date_inscription).toLocaleDateString()}</td>
+                    <td className="px-4 py-2">
+                      {i.status === "validated" && "✅"}
+                      {i.status === "pending" && "⏳"}
+                      {i.status === "refused" && "❌"}
+                      {i.is_blocked && " 🚫"}
+                    </td>
+                    <td className="px-4 py-2">
+                      {i.status === "pending" && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleValider(i.id)}
+                            className="px-3 py-1 bg-green-600 text-white rounded-xl hover:bg-green-700 transition"
+                          >
+                            Valider
+                          </button>
+                          <button
+                            onClick={() => handleRefuser(i.id)}
+                            className="px-3 py-1 bg-red-600 text-white rounded-xl hover:bg-red-700 transition"
+                          >
+                            Refuser
+                          </button>
+                        </div>
+                      )}
+
+                      {i.status === "validated" && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleBlock(i.id, i.is_blocked)}
+                            className={`px-3 py-1 rounded-xl text-white ${
+                              i.is_blocked ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
+                            } transition`}
+                          >
+                            {i.is_blocked ? "Réactiver" : "Bloquer"}
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {loadingListe && <p className="text-center mt-4">Chargement...</p>}
+        </div>
+      )}
+
+      <div className="text-center">
+        <button
+          onClick={() => navigate("/page2")}
+          disabled={pendingCount > 0}
+          className={`px-6 py-3 font-semibold rounded-xl transition ${
+            pendingCount > 0
+              ? "bg-gray-400 text-gray-700 cursor-not-allowed"
+              : "bg-blue-600 text-white hover:bg-blue-700"
+          }`}
+        >
+          CONTINUER
+        </button>
+        {pendingCount > 0 && (
+          <p className="text-sm text-red-600 mt-2">
+            ⚠️ Vous devez traiter toutes les inscriptions avant de continuer.
+          </p>
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
+export default ListeInscrits;

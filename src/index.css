@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ✨ Brillance dorée */
+@keyframes shine {
+  0% {
+    filter: brightness(1) drop-shadow(0 0 0 transparent);
+  }
+  50% {
+    filter: brightness(1.8) drop-shadow(0 0 15px gold);
+  }
+  100% {
+    filter: brightness(1) drop-shadow(0 0 0 transparent);
+  }
+}
+
+.animate-shine {
+  animation: shine 2s ease-in-out infinite;
+  will-change: filter;
+}
+
+/* 🌌 Défilement lent du fond */
+@keyframes dreamy-scroll {
+  0% {
+    background-position: center center;
+  }
+  100% {
+    background-position: center top;
+  }
+}
+
+/* 👻 Apparition douce */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 🌠 Application sur le body */
+body {
+  background-color: black; /* important pour ta demande */
+  background-image: url('/images/background.jpg');
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-attachment: fixed;
+  min-height: 100vh;
+
+  animation:
+    fade-in 1.5s ease-out,
+    dreamy-scroll 60s linear infinite;
+}
+
+/* Animation gradient-x (si utile) */
+@keyframes gradient-x {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
