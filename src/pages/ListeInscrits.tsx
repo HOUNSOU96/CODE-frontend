@@ -17,6 +17,9 @@ interface UserInscrit {
   status?: "pending" | "validated" | "refused";
   last_warning?: string;
   is_online?: boolean; // ✅ nouveau champ
+  is_admin?: boolean;   // ✅ nouveau champ
+  parrain_email?: string; // ✅ nouveau champ
+  lieu_naissance?: string; // ✅ nouveau champ
 }
 
 const PAGE_SIZE = 10;
@@ -74,6 +77,9 @@ const ListeInscrits: React.FC = () => {
               ? "refused"
               : "pending",
               is_online: i.is_online,
+              is_admin: i.is_admin,              // ✅ ajouté
+              parrain_email: i.parrain_email,    // ✅ ajouté
+              lieu_naissance: i.lieu_naissance,  // ✅ ajouté
           }));
 
         setInscrits((prev) => {
@@ -162,78 +168,94 @@ const ListeInscrits: React.FC = () => {
         <div className="overflow-x-auto mb-6">
           <table className="min-w-full bg-white dark:bg-gray-800 rounded-xl shadow-md">
             <thead>
-              <tr className="bg-blue-600 text-white">
-                <th className="px-4 py-2">Nom</th>
-                <th className="px-4 py-2">Prénom</th>
-                <th className="px-4 py-2">Email</th>
-                <th className="px-4 py-2">Téléphone</th>
-                <th className="px-4 py-2">Date inscription</th>
-                <th className="px-4 py-2">Statut</th>
-                <th className="px-4 py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {inscrits.map((i, index) => {
-                const isLast = inscrits.length === index + 1;
-                return (
-                  <tr
-                    key={i.id}
-                    ref={isLast ? lastInscritRef : null}
-                    className="border-b dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  >
-                    <td className="px-4 py-2 flex items-center gap-2">
-                      {i.nom}
-                      {i.is_online && (
-                        <button className="px-2 py-0.5 bg-green-500 text-white rounded-full text-xs">
-                          Connecté
-                        </button>
-                      )}
-                    </td>
-                    <td className="px-4 py-2">{i.prenom}</td>
-                    <td className="px-4 py-2">{i.email}</td>
-                    <td className="px-4 py-2">{i.telephone}</td>
-                    <td className="px-4 py-2">{new Date(i.date_inscription).toLocaleDateString()}</td>
-                    <td className="px-4 py-2">
-                      {i.status === "validated" && "✅"}
-                      {i.status === "pending" && "⏳"}
-                      {i.status === "refused" && "❌"}
-                      {i.is_blocked && " 🚫"}
-                    </td>
-                    <td className="px-4 py-2">
-                      {i.status === "pending" && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleValider(i.id)}
-                            className="px-3 py-1 bg-green-600 text-white rounded-xl hover:bg-green-700 transition"
-                          >
-                            Valider
-                          </button>
-                          <button
-                            onClick={() => handleRefuser(i.id)}
-                            className="px-3 py-1 bg-red-600 text-white rounded-xl hover:bg-red-700 transition"
-                          >
-                            Refuser
-                          </button>
-                        </div>
-                      )}
+  <tr className="bg-blue-600 text-white">
+    <th className="px-4 py-2">Nom</th>
+    <th className="px-4 py-2">Prénom</th>
+    <th className="px-4 py-2">Email</th>
+    <th className="px-4 py-2">Téléphone</th>
+    <th className="px-4 py-2">Date inscription</th>
+    <th className="px-4 py-2">Statut</th>
+    <th className="px-4 py-2">Blocage</th> {/* ✅ nouvelle colonne */}
+    <th className="px-4 py-2">Actions</th>
+  </tr>
+</thead>
 
-                      {i.status === "validated" && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleBlock(i.id, i.is_blocked)}
-                            className={`px-3 py-1 rounded-xl text-white ${
-                              i.is_blocked ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
-                            } transition`}
-                          >
-                            {i.is_blocked ? "Réactiver" : "Bloquer"}
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
+<tbody>
+  {inscrits.map((i, index) => {
+    const isLast = inscrits.length === index + 1;
+    return (
+      <tr
+        key={i.id}
+        ref={isLast ? lastInscritRef : null}
+        className="border-b dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+      >
+        <td className="px-4 py-2 flex items-center gap-2">
+          {i.nom}
+          {i.is_online && (
+            <button className="px-2 py-0.5 bg-green-500 text-white rounded-full text-xs">
+              Connecté
+            </button>
+          )}
+        </td>
+        <td className="px-4 py-2">{i.prenom}</td>
+        <td className="px-4 py-2">{i.email}</td>
+        <td className="px-4 py-2">{i.telephone}</td>
+        <td className="px-4 py-2">
+          {new Date(i.date_inscription).toLocaleDateString()}
+        </td>
+        <td className="px-4 py-2">
+          {i.status === "validated" && "✅ Validé"}
+          {i.status === "pending" && "⏳ En attente"}
+          {i.status === "refused" && "❌ Refusé"}
+        </td>
+
+        {/* ✅ Colonne Blocage */}
+        <td className="px-4 py-2 text-center">
+          {i.is_blocked ? (
+            <span className="text-red-600 font-semibold">🚫 Bloqué</span>
+          ) : (
+            <span className="text-green-600 font-semibold">✅ Actif</span>
+          )}
+        </td>
+
+        {/* ✅ Colonne Actions */}
+        <td className="px-4 py-2">
+          {i.status === "pending" ? (
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleValider(i.id)}
+                className="px-3 py-1 bg-green-600 text-white rounded-xl hover:bg-green-700 transition"
+              >
+                Valider
+              </button>
+              <button
+                onClick={() => handleRefuser(i.id)}
+                className="px-3 py-1 bg-red-600 text-white rounded-xl hover:bg-red-700 transition"
+              >
+                Refuser
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleBlock(i.id, i.is_blocked)}
+                className={`px-3 py-1 rounded-xl text-white ${
+                  i.is_blocked
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-red-600 hover:bg-red-700"
+                } transition`}
+              >
+                {i.is_blocked ? "Réactiver" : "Bloquer"}
+              </button>
+            </div>
+          )}
+        </td>
+      </tr>
+    );
+  })}
+</tbody>
+
+
           </table>
           {loadingListe && <p className="text-center mt-4">Chargement...</p>}
         </div>

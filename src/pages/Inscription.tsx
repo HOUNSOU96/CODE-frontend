@@ -20,9 +20,31 @@ type FormulaireInscription = {
   email: string;
   password: string;
   confirmPassword: string;
+  parrain_email: string;
 };
 
+
+
 const codesPays = ['+229', '+225', '+221', '+33', '+234', '+1', '+44', '+237'];
+const countryCodes: Record<string, string> = {
+  Bénin: '+229',
+  Togo: '+228',
+  Sénégal: '+221',
+  Cameroun: '+237',
+  Nigeria: '+234',
+  France: '+33',
+  Belgique: '+32',
+  Canada: '+1',
+  Côte_d_Ivoire: '+225',
+  Maroc: '+212',
+  Tunisie: '+216',
+  Italie: '+39',
+  Espagne: '+34',
+  Allemagne: '+49',
+  Suisse: '+41',
+  Royaume_Uni: '+44',
+};
+
 
 // Playlist identique à Accueil.tsx
 const videoPlaylist = [
@@ -35,7 +57,7 @@ const Inscription: React.FC = () => {
   const navigate = useNavigate();
   const videoRef1 = useRef<HTMLVideoElement>(null);
   const videoRef2 = useRef<HTMLVideoElement>(null);
-
+  const [villesDisponibles, setVillesDisponibles] = useState<string[]>([]);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [fadeVideo1, setFadeVideo1] = useState(true);
   const [videoFinished, setVideoFinished] = useState(false);
@@ -46,7 +68,7 @@ const Inscription: React.FC = () => {
 
   const [formData, setFormData] = useState<FormulaireInscription>({
     nom: '', prenom: '', sexe: '', dateNaissance: null, lieuNaissance: '', nationalite: '', paysResidence: '',
-    codePays: '+229', numero: '', email: '', password: '', confirmPassword: '',
+    codePays: '+229', numero: '', email: '', password: '', confirmPassword: '', parrain_email: '',
   });
   
 
@@ -173,6 +195,7 @@ const Inscription: React.FC = () => {
           telephone: formData.codePays + formData.numero,
           email: formData.email,
           password: formData.password,
+          parrain_email: formData.parrain_email || null,
         }),
       });
       const data = await response.json();
@@ -271,97 +294,247 @@ const Inscription: React.FC = () => {
       {videoFinished && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} className="bg-white dark:bg-gray-900 w-full max-w-3xl p-6 sm:p-8 rounded-2xl shadow-xl z-20">
        <h1 className="text-3xl font-bold text-center text-blue-700 dark:text-white mb-2">
-            INSCRIPTION DE L'APPRENANT
+            INSCRIPTION DE L'APPRENANT SUR CODE
           </h1>
           <p className="text-center text-gray-600 dark:text-gray-300 mb-6">
             Remplissez les champs ci-dessous pour vous inscrire ! Veuillez mettre vos vraies informations afin que nous puissions voir comment vous orienter en son temps,merci ! 
           </p>
+        
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
-            {champ('Nom', 'nom')}
-            {champ('Prénom', 'prenom')}
+  {/* Nom */}
+  <div>{champ('Nom', 'nom')}</div>
 
-            <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-white">Sexe <span className="text-red-600">*</span></label>
-              <select
-                name="sexe"
-                value={formData.sexe}
-                onChange={handleChange}
-                className={`w-full mt-1 p-2 rounded-xl border transition focus:ring-2 focus:outline-none ${erreurs.sexe ? 'border-red-500' : 'border-gray-300 focus:ring-blue-500'}`}
-              >
-                <option value="">-- Choisir --</option>
-                <option value="F">Féminin</option>
-                <option value="M">Masculin</option>
-                <option value="A">Autre</option>
-              </select>
-              {erreurs.sexe && <p className="text-red-600 text-sm mt-1">{erreurs.sexe}</p>}
-            </div>
+  {/* Prénom */}
+  <div>{champ('Prénom', 'prenom')}</div>
 
-            <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-white">Date de naissance <span className="text-red-600">*</span></label>
-              <DatePicker
-  selected={formData.dateNaissance}
-  onChange={(date: Date | null) => setFormData({ ...formData, dateNaissance: date as Date | null })}
-  dateFormat="dd/MM/yyyy"
-  className={`w-full mt-1 p-2 rounded-xl border transition focus:ring-2 focus:outline-none ${erreurs.dateNaissance ? 'border-red-500' : 'border-gray-300 focus:ring-blue-500'}`}
-  placeholderText="JJ/MM/AAAA"
-/>
+  {/* Sexe */}
+  <div>
+    <label className="block text-sm font-medium text-gray-700 dark:text-white">
+      Sexe <span className="text-red-600">*</span>
+    </label>
+    <select
+      name="sexe"
+      value={formData.sexe}
+      onChange={handleChange}
+      className={`w-full mt-1 p-2 rounded-xl border transition focus:ring-2 focus:outline-none ${
+        erreurs.sexe ? 'border-red-500' : 'border-gray-300 focus:ring-blue-500'
+      }`}
+    >
+      <option value="">-- Choisir --</option>
+      <option value="F">Féminin</option>
+      <option value="M">Masculin</option>
+      <option value="A">Autre</option>
+    </select>
+    {erreurs.sexe && <p className="text-red-600 text-sm mt-1">{erreurs.sexe}</p>}
+  </div>
+
+  {/* Date de naissance */}
+  <div>
+    <label className="block text-sm font-medium text-gray-700 dark:text-white">
+      Date de naissance <span className="text-red-600">*</span>
+    </label>
+    <DatePicker
+      selected={formData.dateNaissance}
+      onChange={(date: Date | null) => setFormData({ ...formData, dateNaissance: date })}
+      dateFormat="dd/MM/yyyy"
+      className={`w-full mt-1 p-2 rounded-xl border transition focus:ring-2 focus:outline-none ${
+        erreurs.dateNaissance ? 'border-red-500' : 'border-gray-300 focus:ring-blue-500'
+      }`}
+      placeholderText="JJ/MM/AAAA"
+      wrapperClassName="w-full"
+    />
+    {erreurs.dateNaissance && <p className="text-red-600 text-sm mt-1">{erreurs.dateNaissance}</p>}
+  </div>
+
+  {/* Nationalité */}
+  <div>
+    <label className="text-sm font-medium text-gray-700 dark:text-white">
+      Nationalité <span className="text-red-600">*</span>
+    </label>
+    <select
+      name="nationalite"
+      value={formData.nationalite}
+      onChange={(e) => {
+        const country = e.target.value;
+        const villesParPays: Record<string, string[]> = {
+          Bénin: ['Cotonou', 'Porto-Novo', 'Parakou', 'Abomey', 'Autre'],
+          Togo: ['Lomé', 'Sokodé', 'Kara', 'Autre'],
+          Sénégal: ['Dakar', 'Thiès', 'Saint-Louis', 'Autre'],
+          Côte_d_Ivoire: ['Abidjan', 'Yamoussoukro', 'Bouaké', 'Autre'],
+          France: ['Paris', 'Lyon', 'Marseille', 'Autre'],
+          Belgique: ['Bruxelles', 'Anvers', 'Liège', 'Autre'],
+          Nigeria: ['Lagos', 'Abuja', 'Kano', 'Autre'],
+          Cameroun: ['Yaoundé', 'Douala', 'Garoua', 'Autre'],
+          Maroc: ['Rabat', 'Casablanca', 'Marrakech', 'Autre'],
+          Tunisie: ['Tunis', 'Sfax', 'Sousse', 'Autre'],
+          Canada: ['Montréal', 'Toronto', 'Vancouver', 'Autre'],
+          Italie: ['Rome', 'Milan', 'Naples', 'Autre'],
+          Espagne: ['Madrid', 'Barcelone', 'Valence', 'Autre'],
+          Allemagne: ['Berlin', 'Munich', 'Hambourg', 'Autre'],
+          Suisse: ['Genève', 'Zurich', 'Lausanne', 'Autre'],
+          Royaume_Uni: ['Londres', 'Manchester', 'Édimbourg', 'Autre'],
+        };
+        setFormData({
+          ...formData,
+          nationalite: country,
+          lieuNaissance: '',
+        });
+        setVillesDisponibles(villesParPays[country] || []);
+      }}
+      className={`w-full mt-1 p-2 rounded-xl border ${
+        erreurs.nationalite ? 'border-red-500' : 'border-gray-300 focus:ring-blue-500'
+      } transition focus:outline-none`}
+    >
+      <option value="">Sélectionner une nationalité</option>
+      {[
+        'Bénin', 'Togo', 'Sénégal', 'Côte_d_Ivoire', 'France', 'Belgique',
+        'Nigeria', 'Cameroun', 'Maroc', 'Tunisie', 'Canada', 'Italie',
+        'Espagne', 'Allemagne', 'Suisse', 'Royaume_Uni'
+      ].map((pays) => (
+        <option key={pays} value={pays}>{pays.replace('_', ' ')}</option>
+      ))}
+    </select>
+    {erreurs.nationalite && <p className="text-red-600 text-sm mt-1">{erreurs.nationalite}</p>}
+  </div>
+
+  {/* Lieu de naissance */}
+  <div>
+    <label className="text-sm font-medium text-gray-700 dark:text-white">
+      Lieu de naissance <span className="text-red-600">*</span>
+    </label>
+    <select
+      name="lieuNaissance"
+      value={formData.lieuNaissance}
+      onChange={handleChange}
+      className={`w-full mt-1 p-2 rounded-xl border ${
+        erreurs.lieuNaissance ? 'border-red-500' : 'border-gray-300 focus:ring-blue-500'
+      } transition focus:outline-none`}
+      disabled={!formData.nationalite}
+    >
+      <option value="">Sélectionner une ville</option>
+      {villesDisponibles.map((ville) => (
+        <option key={ville} value={ville}>
+          {ville}
+        </option>
+      ))}
+    </select>
+    {erreurs.lieuNaissance && <p className="text-red-600 text-sm mt-1">{erreurs.lieuNaissance}</p>}
+  </div>
+
+  {/* Pays de résidence */}
+  <div>
+    <label className="text-sm font-medium text-gray-700 dark:text-white">
+      Pays de résidence <span className="text-red-600">*</span>
+    </label>
+    <select
+      name="paysResidence"
+      value={formData.paysResidence}
+      onChange={(e) => {
+        const country = e.target.value;
+        const countryCodes: Record<string, string> = {
+          Benin: '+229',
+          Togo: '+228',
+          Sénégal: '+221',
+          Cameroun: '+237',
+          Nigeria: '+234',
+          France: '+33',
+          Belgique: '+32',
+          Canada: '+1',
+          Côte_d_Ivoire: '+225',
+          Maroc: '+212',
+          Tunisie: '+216',
+          Italie: '+39',
+          Espagne: '+34',
+          Allemagne: '+49',
+          Suisse: '+41',
+          Royaume_Uni: '+44',
+        };
+        setFormData({
+          ...formData,
+          paysResidence: country,
+          codePays: countryCodes[country] || '',
+        });
+      }}
+      className={`w-full mt-1 p-2 rounded-xl border ${
+        erreurs.paysResidence ? 'border-red-500' : 'border-gray-300 focus:ring-blue-500'
+      } transition focus:outline-none`}
+    >
+      <option value="">Sélectionner un pays</option>
+      {[
+        'Benin', 'Togo', 'Sénégal', 'Cameroun', 'Nigeria', 'Côte_d_Ivoire',
+        'Maroc', 'Tunisie', 'France', 'Belgique', 'Suisse', 'Italie',
+        'Espagne', 'Allemagne', 'Royaume_Uni', 'Canada'
+      ].map((pays) => (
+        <option key={pays} value={pays}>{pays.replace('_', ' ')}</option>
+      ))}
+    </select>
+    {erreurs.paysResidence && <p className="text-red-600 text-sm mt-1">{erreurs.paysResidence}</p>}
+  </div>
+
+  {/* Numéro WhatsApp */}
+  <div>
+    <label className="text-sm font-medium text-gray-700 dark:text-white">
+      Numéro WhatsApp <span className="text-red-600">*</span>
+    </label>
+    <div className="flex space-x-2 mt-1 w-full">
+      <input
+        type="text"
+        readOnly
+        value={formData.codePays}
+        placeholder="+Code"
+        className="w-24 text-center p-2 rounded-xl border border-gray-300 bg-gray-100 focus:ring-2 focus:outline-none focus:ring-blue-500"
+      />
+      <input
+        type="tel"
+        name="numero"
+        placeholder="Ex: 0112345678"
+        value={formData.numero}
+        onChange={handleChange}
+        className={`flex-1 p-2 rounded-xl border transition focus:ring-2 focus:outline-none ${
+          erreurs.numero ? 'border-red-500' : 'border-gray-300 focus:ring-blue-500'
+        }`}
+      />
+    </div>
+    {erreurs.numero && <p className="text-red-600 text-sm mt-1">{erreurs.numero}</p>}
+  </div>
+
+  {/* Email */}
+  <div>{champ('Email', 'email', 'email')}</div>
+
+  {/* Mot de passe */}
+  <div>{champ('Mot de passe', 'password', 'password')}</div>
+
+  {/* Confirmer mot de passe */}
+  <div>{champ('Confirmer mot de passe', 'confirmPassword', 'password')}</div>
+
+  {/* Email parrain */}
+  <div>{champ('Email du parrain (facultatif)', 'parrain_email', 'email', false)}</div>
+
+  {/* Info mot de passe */}
+  {infoMotDePasse && (
+    <p className="sm:col-span-2 text-sm text-yellow-600 font-medium bg-yellow-50 p-2 rounded-xl">
+      {infoMotDePasse}
+    </p>
+  )}
+
+  {/* Bouton submit */}
+  <div className="sm:col-span-2">
+    <motion.button
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.97 }}
+      type="submit"
+      disabled={loadingForm}
+      className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-xl font-semibold shadow-md transition duration-300 disabled:opacity-50"
+    >
+      {loadingForm ? 'Enregistrement...' : "Valider l'inscription"}
+    </motion.button>
+  </div>
+
+</form>
 
 
 
-
-              {erreurs.dateNaissance && <p className="text-red-600 text-sm mt-1">{erreurs.dateNaissance}</p>}
-            </div>
-
-            {champ('Lieu de naissance', 'lieuNaissance')}
-            {champ('Nationalité', 'nationalite')}
-            {champ('Pays de résidence', 'paysResidence')}
-
-            <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-white">Numéro WhatsApp <span className="text-red-600">*</span></label>
-              <div className="flex space-x-2 mt-1">
-                <select
-                  name="codePays"
-                  value={formData.codePays}
-                  onChange={handleChange}
-                  className="rounded-xl border border-gray-300 p-2"
-                >
-                  {codesPays.map(code => <option key={code} value={code}>{code}</option>)}
-                </select>
-                <input
-                  type="tel"
-                  name="numero"
-                  placeholder="Ex: 0112345678"
-                  value={formData.numero}
-                  onChange={handleChange}
-                  className={`flex-1 p-2 rounded-xl border transition focus:ring-2 focus:outline-none ${erreurs.numero ? 'border-red-500' : 'border-gray-300 focus:ring-blue-500'}`}
-                />
-              </div>
-              {erreurs.numero && <p className="text-red-600 text-sm mt-1">{erreurs.numero}</p>}
-            </div>
-
-            {champ('Email', 'email', 'email')}
-            {champ('Mot de passe', 'password', 'password')}
-            {champ('Confirmer mot de passe', 'confirmPassword', 'password')}
-
-            {infoMotDePasse && (
-              <p className="sm:col-span-2 text-sm text-yellow-600 font-medium bg-yellow-50 p-2 rounded-xl">
-                {infoMotDePasse}
-              </p>
-            )}
-
-            <div className="sm:col-span-2">
-        <motion.button
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97 }}
-          type="submit"
-          disabled={loadingForm}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-xl font-semibold shadow-md transition duration-300 disabled:opacity-50"
-        >
-          {loadingForm ? 'Enregistrement...' : "Valider l'inscription"}
-        </motion.button>
-      </div>
-    </form>
 
     {messageServeur && typeof messageServeur === 'string' && (
       <p className="text-center mt-4 text-sm font-semibold text-red-600 dark:text-red-400">
