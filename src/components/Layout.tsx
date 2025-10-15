@@ -1,8 +1,9 @@
 // 📁 Layout.tsx
 import React, { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";    
-import { useExitNotifier } from "@/hooks/useExitNotifier";   
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { useExitNotifier } from "@/hooks/useExitNotifier";
+import { LogOut } from "lucide-react"; // ✅ Icône de déconnexion
 import api from "@/utils/axios";
 
 const images = [
@@ -27,12 +28,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
   const location = useLocation();
-  const { loading, user } = useAuth();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   useExitNotifier({ eventType: "connect" });
   useExitNotifier({ eventType: "disconnect" });
 
-  // 🔹 Notifier connect/disconnect automatiquement
+  // 🔹 Notification de connexion/déconnexion
   useEffect(() => {
     if (!user?.email) return;
 
@@ -44,30 +46,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       }
     };
 
-    const isInternalUrl = (url: string) => {
-      const appOrigin = window.location.origin;
-      return url.startsWith(appOrigin);
-    };
+    const isInternalUrl = (url: string) => window.location.origin && url.startsWith(window.location.origin);
 
     const handleBeforeUnload = () => notify("disconnect");
-
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        notify("disconnect");
-      } else if (document.visibilityState === "visible" && isInternalUrl(window.location.href)) {
-        notify("connect");
-      }
+      if (document.visibilityState === "hidden") notify("disconnect");
+      else if (document.visibilityState === "visible" && isInternalUrl(window.location.href)) notify("connect");
     };
-
-    const handleBlur = () => {
-      if (!document.hidden) notify("disconnect");
-    };
-
-    const handleFocus = () => {
-      if (!document.hidden && isInternalUrl(window.location.href)) {
-        notify("connect");
-      }
-    };
+    const handleBlur = () => !document.hidden && notify("disconnect");
+    const handleFocus = () => !document.hidden && isInternalUrl(window.location.href) && notify("connect");
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -84,7 +71,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const hideFooter = location.pathname.toLowerCase() === "/page1";
 
-  // 🔹 Slideshow du fond
+  // 🔹 Diaporama d'arrière-plan
   useEffect(() => {
     const interval = setInterval(() => {
       setIsVisible(false);
@@ -96,11 +83,26 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return () => clearInterval(interval);
   }, []);
 
+  // ✅ Fonction de déconnexion
+  const handleLogout = async () => {
+    if (user?.email) {
+      try {
+        await api.post(`/api/notify/disconnect`, { email: user.email });
+      } catch (err) {
+        console.error("Erreur lors de la déconnexion :", err);
+      }
+    }
+    logout();
+    navigate("/");
+  };
+
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col">
-      {/* Fond dynamique responsive */}
+      {/* Fond dynamique */}
       <div
-        className={`absolute inset-0 transition-opacity duration-1000 z-0 ${isVisible ? "opacity-50" : "opacity-0"}`}
+        className={`absolute inset-0 transition-opacity duration-1000 z-0 ${
+          isVisible ? "opacity-50" : "opacity-0"
+        }`}
         style={{
           backgroundImage: `url(${images[currentIndex]})`,
           backgroundSize: "cover",
@@ -111,10 +113,41 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         }}
       />
 
+      {/* ✅ Bouton de déconnexion responsive */}
+      {user && (
+        <>
+          {/* 💻 Version bureau (haut à droite) */}
+          <div className="hidden sm:block fixed top-4 right-4 z-40 group">
+            <button
+              onClick={handleLogout}
+              className="bg-red-600 hover:bg-red-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-red-500"
+            >
+              <LogOut size={22} />
+            </button>
+            <span className="absolute right-14 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 bg-black/80 text-white text-xs rounded-md px-2 py-1 transition-opacity duration-300">
+              Déconnexion
+            </span>
+          </div>
+
+          {/* 📱 Version mobile (bas à droite, flottant) */}
+          <div className="sm:hidden fixed bottom-6 right-6 z-40 group">
+            <button
+              onClick={handleLogout}
+              className="bg-red-600 hover:bg-red-700 text-white p-4 rounded-full shadow-xl transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-red-500"
+            >
+              <LogOut size={24} />
+            </button>
+            <span className="absolute right-16 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 bg-black/80 text-white text-xs rounded-md px-2 py-1 transition-opacity duration-300">
+              Déconnexion
+            </span>
+          </div>
+        </>
+      )}
+
       {/* Contenu principal */}
       <main className="relative z-20 flex-grow pb-16 px-4 sm:px-6 lg:px-12">{children}</main>
 
-      {/* Footer fixe */}
+      {/* Footer */}
       {!hideFooter && (
         <footer className="hidden sm:block fixed bottom-0 left-0 right-0 z-30 select-none bg-black/70 overflow-hidden h-6 md:h-7 lg:h-8">
           <div className="relative h-full w-[300%] flex animate-scrollX">
