@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Eye, EyeOff } from "lucide-react";
+import InstallPWA from "@/components/InstallPWA";
 import { motion } from "framer-motion";
 
 const ADMINS = [
@@ -196,6 +197,8 @@ const Login: React.FC = () => {
           </Link>
         </div>
       </footer>
+      {/* ✅ Bannière d'installation PWA */}
+    <InstallPWA />
     </div>
   );
 };
