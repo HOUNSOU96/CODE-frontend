@@ -69,8 +69,7 @@ const InstallPWA: React.FC = () => {
             </h1>
             <p className="text-sm opacity-90 mb-6">
               Pour continuer, installez l’application <strong>CODE</strong> sur
-              votre appareil et profitez d’une expérience fluide, rapide et
-              sans connexion.
+              votre appareil et profitez d’une expérience fluide et rapide.
             </p>
           </motion.div>
 
