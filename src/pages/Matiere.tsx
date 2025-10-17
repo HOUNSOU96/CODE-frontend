@@ -46,17 +46,17 @@ const Matiere: React.FC = () => {
   const handleChoice = (matiere: string) => {
     switch (matiere) {
       case "maths": navigate("/home/homemaths"); break;
-      case "pct": navigate("/matieres/matierespct"); break;
-      case "svt": navigate("/home/homesvt"); break;
-      case "langue": navigate("/matieres/matiereslangue"); break;
-      case "histoire": navigate("/matieres/matiereshistoire"); break;
-      case "geographie": navigate("/matieres/matieresgeographie"); break;
-      case "philosophie": navigate("/home/homephilosophie"); break;
-      case "informatique": navigate("/matieres/matieresinformatique"); break;
-      case "intelligenceartificielle": navigate("/home/homeintelligenceartificielle"); break;
-      case "musique": navigate("/matieres/matieresmusique"); break;
-      case "eps": navigate("/matieres/matiereseps"); break;
-      case "divertissement": navigate("/matieres/matieresdivertissement"); break;
+     // case "pct": navigate("/matieres/matierespct"); break;
+     // case "svt": navigate("/home/homesvt"); break;
+      //case "langue": navigate("/matieres/matiereslangue"); break;
+      //case "histoire": navigate("/matieres/matiereshistoire"); break;
+      //case "geographie": navigate("/matieres/matieresgeographie"); break;
+     // case "philosophie": navigate("/home/homephilosophie"); break;
+     // case "informatique": navigate("/matieres/matieresinformatique"); break;
+      //case "intelligenceartificielle": navigate("/home/homeintelligenceartificielle"); break;
+     // case "musique": navigate("/matieres/matieresmusique"); break;
+     // case "eps": navigate("/matieres/matiereseps"); break;
+     // case "divertissement": navigate("/matieres/matieresdivertissement"); break;
       default: break;
     }
   };

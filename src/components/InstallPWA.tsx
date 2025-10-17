@@ -1,16 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Download, CheckCircle } from "lucide-react";
+import { Download, CheckCircle } from "lucide-react";
 
 const InstallPWA: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isIos, setIsIos] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
-  const [showBanner, setShowBanner] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
-    // Détection iOS
     const userAgent = window.navigator.userAgent.toLowerCase();
     const ios = /iphone|ipad|ipod/.test(userAgent);
     setIsIos(ios);
@@ -21,16 +19,10 @@ const InstallPWA: React.FC = () => {
       return;
     }
 
-    // Détection Android/Desktop via beforeinstallprompt
+    // Détection Android/Desktop
     const handler = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setShowBanner(true);
-
-      // ⏳ Masquer automatiquement la bannière après 10 secondes
-      setTimeout(() => {
-        setShowBanner(false);
-      }, 10000);
     };
 
     window.addEventListener("beforeinstallprompt", handler);
@@ -42,14 +34,10 @@ const InstallPWA: React.FC = () => {
       deferredPrompt.prompt();
       const choice = await deferredPrompt.userChoice;
       if (choice.outcome === "accepted") {
-        console.log("✅ PWA installée !");
-        setShowBanner(false);
+        setIsInstalled(true);
         setShowToast(true);
-
-        // Masquer le toast après 5 secondes
-        setTimeout(() => {
-          setShowToast(false);
-        }, 5000);
+        console.log("✅ PWA installée !");
+        setTimeout(() => setShowToast(false), 4000);
       }
       setDeferredPrompt(null);
     }
@@ -59,60 +47,75 @@ const InstallPWA: React.FC = () => {
 
   return (
     <>
-      {/* 🔹 Bannière d'installation */}
+      {/* 🔒 Overlay flou bloquant toute la page */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="fixed inset-0 z-50 backdrop-blur-md bg-black/60 flex items-center justify-center px-6"
+      >
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.6 }}
+          className="bg-gradient-to-b from-blue-800 to-blue-600 text-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center border border-blue-400/30"
+        >
+          <motion.div
+            initial={{ y: -10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <h1 className="text-2xl font-extrabold mb-3 tracking-wide text-gold">
+              🚀 Installez <span className="text-yellow-400">CODE</span>
+            </h1>
+            <p className="text-sm opacity-90 mb-6">
+              Pour continuer, installez l’application <strong>CODE</strong> sur
+              votre appareil et profitez d’une expérience fluide, rapide et
+              sans connexion.
+            </p>
+          </motion.div>
+
+          {isIos ? (
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="text-sm leading-relaxed"
+            >
+              📱 Sur iPhone : Ouvrez Safari →{" "}
+              <strong className="text-yellow-300">Partager</strong> →{" "}
+              <strong className="text-yellow-300">
+                Ajouter à l’écran d’accueil
+              </strong>
+              .
+            </motion.div>
+          ) : (
+            <motion.button
+              initial={{ y: 30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              onClick={handleInstallClick}
+              className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-blue-900 font-bold px-6 py-3 rounded-full shadow-lg hover:scale-105 hover:shadow-yellow-200/50 transition-all duration-300 w-full mt-3 flex items-center justify-center gap-2"
+            >
+              <Download size={18} />
+              Installer CODE
+            </motion.button>
+          )}
+
+          <p className="mt-6 text-xs opacity-70 italic">
+            L’installation est nécessaire pour accéder à votre espace.
+          </p>
+        </motion.div>
+      </motion.div>
+
+      {/* ✅ Toast de confirmation */}
       <AnimatePresence>
-        {showBanner && (
-          <motion.div
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            transition={{ duration: 0.6 }}
-            className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 bg-blue-600 text-white rounded-2xl shadow-lg w-[90%] max-w-md px-4 py-3 flex items-center justify-between"
-          >
-            <div className="flex items-center space-x-3">
-              <Download size={22} />
-              <span className="text-sm font-medium">
-                Installer <strong>CODE</strong> pour un accès rapide 📱
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={handleInstallClick}
-                className="bg-white text-blue-600 px-3 py-1 rounded-lg font-semibold text-sm hover:bg-blue-100 transition"
-              >
-                Installer
-              </button>
-              <button
-                onClick={() => setShowBanner(false)}
-                className="p-1 text-white hover:text-gray-200"
-              >
-                <X size={18} />
-              </button>
-            </div>
-          </motion.div>
-        )}
-
-        {/* 🔹 Message spécial iPhone */}
-        {isIos && !isInstalled && (
-          <motion.div
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.6 }}
-            className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 bg-blue-600 text-white rounded-2xl shadow-lg w-[90%] max-w-md px-4 py-3 text-center"
-          >
-            📱 Sur iPhone : Ouvrez Safari → <strong>Partager</strong> →{" "}
-            <strong>Ajouter à l’écran d’accueil</strong> pour installer CODE.
-          </motion.div>
-        )}
-
-        {/* 🔹 Toast de confirmation */}
         {showToast && (
           <motion.div
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}
             transition={{ duration: 0.5 }}
-            className="fixed bottom-16 left-1/2 transform -translate-x-1/2 bg-green-600 text-white rounded-xl px-4 py-2 shadow-md flex items-center space-x-2 z-50"
+            className="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-green-600 text-white rounded-2xl px-4 py-2 shadow-lg flex items-center space-x-2 z-50"
           >
             <CheckCircle size={18} />
             <span className="text-sm font-medium">

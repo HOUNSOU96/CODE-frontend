@@ -60,35 +60,51 @@ const Questions = () => {
 
   // Récupération de la génération du test + questions + testId
   useEffect(() => {
-    const fetchTest = async () => {
-      try {
-        let url = `/api/questions/${niveau}/generation`;
-        if (serie && serie.toLowerCase() !== "none") {
-          url += `?serie=${serie}`;
-        }
+  const fetchTest = async () => {
+    try {
+      // Déterminer les niveaux à inclure
+      let niveauxAInclure: string[] = [];
 
-        const res = await api.get(url);
-        const { test_id, questions: questionsRecues } = res.data;
+      const generalLevels = ['6e', '5e', '4e', '3e'];
+      const lyceeLevels = ['2nde', '1ere', 'tle'];
 
-        setTestId(test_id);
-
-        setQuestions(questionsRecues);
-        setReponses(
-          questionsRecues.map((q: Question) => ({
-            questionId: q.id,
-            reponse: null,
-            notion: q.notion,
-          }))
-        );
-        setLoading(false);
-      } catch (error) {
-        console.error("Erreur lors du chargement des questions :", error);
-        setLoading(false);
+      if (generalLevels.includes(niveau!)) {
+        const index = generalLevels.indexOf(niveau!);
+        niveauxAInclure = generalLevels.slice(0, index + 1);
+      } else if (lyceeLevels.includes(niveau!)) {
+        const index = lyceeLevels.indexOf(niveau!);
+        // Ajouter aussi les niveaux du collège
+        niveauxAInclure = [...generalLevels, ...lyceeLevels.slice(0, index + 1)];
       }
-    };
 
-    if (niveau) fetchTest();
-  }, [niveau, serie]);
+      // Construire l’URL avec plusieurs niveaux
+      let url = `/api/questions/multiples?niveaux=${niveauxAInclure.join(",")}`;
+      if (serie && serie.toLowerCase() !== "none") {
+        url += `&serie=${serie}`;
+      }
+
+      const res = await api.get(url);
+      const { test_id, questions: questionsRecues } = res.data;
+
+      setTestId(test_id);
+      setQuestions(questionsRecues);
+      setReponses(
+        questionsRecues.map((q: Question) => ({
+          questionId: q.id,
+          reponse: null,
+          notion: q.notion,
+        }))
+      );
+      setLoading(false);
+    } catch (error) {
+      console.error("Erreur lors du chargement des questions :", error);
+      setLoading(false);
+    }
+  };
+
+  if (niveau) fetchTest();
+}, [niveau, serie]);
+
 
   const playClickSound = () => {
     questionSoundRef.current?.play().catch((e) => console.warn("Son non joué :", e));
