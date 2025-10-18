@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Download, CheckCircle } from "lucide-react";
+import { Download, CheckCircle, Info } from "lucide-react";
 
 const InstallPWA: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -10,8 +10,7 @@ const InstallPWA: React.FC = () => {
 
   useEffect(() => {
     const userAgent = window.navigator.userAgent.toLowerCase();
-    const ios = /iphone|ipad|ipod/.test(userAgent);
-    setIsIos(ios);
+    setIsIos(/iphone|ipad|ipod/.test(userAgent));
 
     // Vérifie si la PWA est déjà installée
     if (window.matchMedia("(display-mode: standalone)").matches) {
@@ -40,6 +39,10 @@ const InstallPWA: React.FC = () => {
         setTimeout(() => setShowToast(false), 4000);
       }
       setDeferredPrompt(null);
+    } else {
+      alert(
+        "🚫 Installation non supportée sur ce navigateur. Testez sur Android/Chrome."
+      );
     }
   };
 
@@ -47,7 +50,6 @@ const InstallPWA: React.FC = () => {
 
   return (
     <>
-      {/* 🔒 Overlay flou bloquant toute la page */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -106,7 +108,6 @@ const InstallPWA: React.FC = () => {
         </motion.div>
       </motion.div>
 
-      {/* ✅ Toast de confirmation */}
       <AnimatePresence>
         {showToast && (
           <motion.div

@@ -5,10 +5,14 @@ import AnimatedRoutes from "./AnimatedRoutes";
 import DarkModeToggle from "./components/DarkModeToggle";
 import AudioManager from "./components/AudioManager";
 import AnnouncementBanner from "./components/AnnouncementBanner";
+import InstallPWA from "./components/InstallPWA"; // <-- import
 
 const App: React.FC = () => {
   return (
     <Router>
+      {/* Installation PWA */}
+      <InstallPWA />
+
       {/* Bandeau d'annonces affiché partout */}
       <AnnouncementBanner />
 
