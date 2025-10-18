@@ -69,7 +69,7 @@ const Matiere: React.FC = () => {
       exit={{ opacity: 0, y: -30 }}
       transition={{ duration: 0.5 }}
     >
-      <h1 className="text-3xl font-bold text-center mb-10 text-white">CHOISISSEZ UNE MATIÈRE</h1>
+      <h1 className="text-3xl font-bold text-center mb-10 text-white">CHOISISSEZ LA MATIÈRE</h1>
 
       <div className="flex flex-wrap justify-center gap-6 max-w-5xl">
         {matieres.map((m) => {
