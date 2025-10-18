@@ -197,8 +197,7 @@ const Login: React.FC = () => {
           </Link>
         </div>
       </footer>
-      {/* ✅ Bannière d'installation PWA */}
-    <InstallPWA />
+      
     </div>
   );
 };
