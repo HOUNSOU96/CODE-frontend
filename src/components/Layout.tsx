@@ -116,8 +116,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* ✅ Bouton de déconnexion responsive */}
       {user && (
         <>
-          {/* 💻 Version bureau (haut à droite) */}
-          <div className="hidden sm:block fixed top-4 right-4 z-40 group">
+          {/* 💻 Version bureau (haut à gauche) */}
+          <div className="hidden sm:block fixed top-4 left-4 z-40 group">
             <button
               onClick={handleLogout}
               className="bg-red-600 hover:bg-red-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -130,7 +130,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
 
           {/* 📱 Version mobile (bas à droite, flottant) */}
-          <div className="sm:hidden fixed bottom-6 right-6 z-40 group">
+          <div className="sm:hidden fixed bottom-6 left-6 z-40 group">
             <button
               onClick={handleLogout}
               className="bg-red-600 hover:bg-red-700 text-white p-4 rounded-full shadow-xl transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-red-500"

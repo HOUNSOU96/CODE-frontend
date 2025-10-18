@@ -71,6 +71,7 @@ const ListeInscrits: React.FC = () => {
           .filter((i: any) => i.email !== "deogratiashounsou@gmail.com")
           .map((i: any) => ({
             ...i,
+            telephone: i.telephone,
             status: i.is_validated
               ? "validated"
               : i.status === "SUSPENDED"
