@@ -37,15 +37,13 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   console.log("✅ Service Worker activé");
   event.waitUntil(
-    Promise.all([
-      caches.keys().then((cacheNames) =>
-        Promise.all(
-          cacheNames
-            .filter((name) => name !== CACHE_NAME && name !== ICONS_CACHE_NAME)
-            .map((name) => caches.delete(name))
-        )
+    caches.keys().then((cacheNames) =>
+      Promise.all(
+        cacheNames
+          .filter((name) => name !== CACHE_NAME && name !== ICONS_CACHE_NAME)
+          .map((name) => caches.delete(name))
       )
-    ])
+    )
   );
   self.clients.claim();
 });
@@ -60,11 +58,14 @@ self.addEventListener("fetch", (event) => {
   if (iconsToCache.includes(requestURL.pathname)) {
     event.respondWith(
       caches.match(event.request).then((cached) => {
-        return cached || fetch(event.request).then((response) => {
-          const clone = response.clone();
-          caches.open(ICONS_CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          return response;
-        });
+        return (
+          cached ||
+          fetch(event.request).then((response) => {
+            const clone = response.clone();
+            caches.open(ICONS_CACHE_NAME).then((cache) => cache.put(event.request, clone));
+            return response;
+          })
+        );
       })
     );
     return;
@@ -84,20 +85,9 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-// 🔔 Gestion des mises à jour pour UpdateBanner
-self.addEventListener("install", (event) => {
-  self.skipWaiting();
-});
-
+// 🔔 Gestion des messages depuis la page
 self.addEventListener("message", (event) => {
   if (event.data === "SKIP_WAITING") {
     self.skipWaiting();
   }
-});
-
-// 🔁 Notifier les clients quand une nouvelle version est disponible
-self.addEventListener("updatefound", () => {
-  self.clients.matchAll().then((clients) => {
-    clients.forEach((client) => client.postMessage("NEW_VERSION_AVAILABLE"));
-  });
 });
