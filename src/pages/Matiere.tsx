@@ -105,13 +105,14 @@ const Matiere: React.FC = () => {
         })}
       </div>
 
-      <Link
-        to="/etudiant"
-        className="mt-10 inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 transition text-white font-semibold shadow-lg"
-      >
-        <PlayCircle className="w-5 h-5" />
-        ...
-      </Link>
+      {/* <Link
+  to="/etudiant"
+  className="mt-10 inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 transition text-white font-semibold shadow-lg"
+>
+  <PlayCircle className="w-5 h-5" />
+  Cliquez ici si vous etes étudiant
+</Link> */}
+
 
       <style>{`
         .perspective { perspective: 1000px; }
