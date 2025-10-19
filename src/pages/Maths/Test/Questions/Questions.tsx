@@ -78,7 +78,7 @@ const Questions = () => {
       }
 
       // Construire l’URL avec plusieurs niveaux
-      let url = `/api/questions/multiples?niveaux=${niveauxAInclure.join(",")}`;
+      let url = `/api/questions/${niveau}/generation${serie ? `?serie=${serie}` : ''}`;
       if (serie && serie.toLowerCase() !== "none") {
         url += `&serie=${serie}`;
       }
