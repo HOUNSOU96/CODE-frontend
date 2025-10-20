@@ -445,6 +445,15 @@ useEffect(() => {
 }, [currentIndex, orderedVideos]);
 
 
+useEffect(() => {
+  const handleFullscreenChange = () => {
+    if (!document.fullscreenElement) {
+      setIsLandscape(false);
+    }
+  };
+  document.addEventListener("fullscreenchange", handleFullscreenChange);
+  return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+}, []);
 
 
   // group by notion for sidebar
@@ -460,6 +469,45 @@ useEffect(() => {
   const notionOrder = Object.keys(videosByNotion);
 
   /* -------------------- ACTIONS -------------------- */
+  // ====== Gestion orientation et plein écran mobile ======
+  const videoContainerRef = useRef<HTMLDivElement | null>(null);
+  const [isLandscape, setIsLandscape] = useState(false);
+
+  const requestFullscreenLandscape = async () => {
+  try {
+    const videoElement = videoContainerRef.current;
+    if (!videoElement) return;
+
+    if (videoElement.requestFullscreen) {
+      await videoElement.requestFullscreen();
+    } else if ((videoElement as any).webkitRequestFullscreen) {
+      (videoElement as any).webkitRequestFullscreen();
+    }
+
+    if (screen.orientation && (screen.orientation as any).lock) {
+      await (screen.orientation as any).lock("landscape");
+    }
+
+    setIsLandscape(true);
+  } catch (err) {
+    console.warn("Impossible de passer en plein écran :", err);
+  }
+};
+
+const exitFullscreenPortrait = async () => {
+  try {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    }
+    if (screen.orientation && screen.orientation.unlock) {
+      await screen.orientation.unlock();
+    }
+    setIsLandscape(false);
+  } catch (err) {
+    console.warn("Impossible de quitter le plein écran :", err);
+  }
+};
+
 
   const startVideo = () => {
     setFeedback(null);
@@ -471,6 +519,13 @@ useEffect(() => {
     setShuffledQuestions(shuffleQuestionsWithChoices(currentVideo?.questions || []));
     setAnswerStatus("none");
     setFadeKey((p) => p + 1);
+
+
+
+  // ⚡ DEMANDE DE PLEIN ÉCRAN SUR MOBILE
+    if (window.innerWidth < 768) {
+    requestFullscreenLandscape();
+  }
   };
 
 // ✅ Fonction corrigée : affiche les questions du quiz quand on clique sur “Passez au quiz”
@@ -666,6 +721,9 @@ const handleGoToQuestions = () => {
     {accessMessage}
   </motion.div>
 )}
+
+
+
 
 
       {/* Sidebar desktop */}
@@ -918,6 +976,45 @@ const handleGoToQuestions = () => {
       transition={{ duration: 0.6 }}
       className="relative rounded-xl overflow-hidden shadow-2xl w-full my-4"
     >
+
+
+
+    <div ref={videoContainerRef} className="relative w-full h-full bg-black">
+        {isYouTubeUrl(videoUrl) ? (
+          <iframe
+            key={fadeKey}
+            src={safeUrl}
+            title={currentVideoTitle}
+            allowFullScreen
+            className="w-full h-full"
+          />
+        ) : (
+          <video
+            key={fadeKey}
+            ref={videoRef}
+            src={videoUrl}
+            controls
+            autoPlay
+            className="w-full h-full"
+          />
+        )}
+
+        {/* Bouton orientation mobile */}
+        {window.innerWidth < 768 && (
+          <button
+            onClick={() => {
+              if (isLandscape) exitFullscreenPortrait();
+              else requestFullscreenLandscape();
+            }}
+            className="absolute bottom-4 right-4 bg-gray-800 text-white p-2 rounded-full shadow-lg hover:bg-gray-700"
+          >
+            {isLandscape ? "↩️ Portrait" : "↔️ Paysage"}
+          </button>
+        )}
+      </div>
+
+
+
       {/* Countdown vidéo toujours visible au centre */}
       <div className="absolute top-4 right-4 pointer-events-none z-50">
   <CountdownCircle

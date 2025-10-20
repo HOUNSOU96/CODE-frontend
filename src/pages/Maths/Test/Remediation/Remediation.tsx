@@ -70,7 +70,7 @@ const Remediation = () => {
         {notions.length > 0 ? (
           <section className="bg-blue-50 dark:bg-blue-900 p-6 rounded-xl shadow-md">
             <h2 className="text-xl font-semibold text-blue-700 dark:text-white mb-3">
-              📌 Les prérequis qui vous vous dérangent
+              📌 Les notions qui vous dérangent
             </h2>
             <ul className="list-disc list-inside text-blue-800 dark:text-blue-200 space-y-1">
               {notions.map((notion, index) => (
