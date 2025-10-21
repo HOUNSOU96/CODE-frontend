@@ -935,17 +935,37 @@ const handleGoToQuestions = () => {
       transition={{ duration: 0.6 }}
       className="relative rounded-xl overflow-hidden shadow-2xl w-full my-4"
     >
+      {/* 🎬 Titre de la vidéo */}
+      <h2 className="text-xl font-semibold text-center text-white mb-2">
+        {currentVideoTitle}
+      </h2>
 
+      {/* 🕒 Countdown placé sous le titre, au-dessus de la vidéo */}
+      <div className="flex flex-col items-center mb-3">
+        <CountdownCircle
+          key={`${fadeKey}-${timerResetCounter}`}
+          duration={180}        // durée du timer
+          size={80}              // taille du cercle
+          strokeWidth={6}        // épaisseur du cercle
+          onComplete={() => setTimerEnded(true)}
+        />
+        <span className="text-sm text-gray-400 mt-1">Temps restant</span>
+      </div>
 
-
-    <div ref={videoContainerRef} className="relative w-full h-full bg-black">
+      {/* 🎥 Zone vidéo unique */}
+      <div
+        ref={videoContainerRef}
+        className="relative w-full h-full bg-black rounded-xl overflow-hidden"
+      >
         {isYouTubeUrl(videoUrl) ? (
           <iframe
             key={fadeKey}
             src={safeUrl}
             title={currentVideoTitle}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
-            className="w-full h-full"
+            sandbox="allow-scripts allow-same-origin"
+            className="w-full aspect-video rounded-2xl shadow-lg border border-gray-700"
           />
         ) : (
           <video
@@ -954,11 +974,32 @@ const handleGoToQuestions = () => {
             src={videoUrl}
             controls
             autoPlay
-            className="w-full h-full"
+            className="w-full rounded-xl shadow-md border border-gray-300"
+            onTimeUpdate={() => {
+              if (!currentVideo) return;
+              localStorage.setItem(
+                `lastVideo_${matiere}_${currentVideo.id}`,
+                JSON.stringify({ position: videoRef.current?.currentTime || 0 })
+              );
+            }}
+            onEnded={() => {
+              setVideoPlaying(false);
+              setFadeKey((p) => p + 1);
+            }}
+            onLoadedMetadata={() => {
+              if (!currentVideo) return;
+              const saved = localStorage.getItem(`lastVideo_${matiere}_${currentVideo.id}`);
+              if (saved) {
+                const parsed = JSON.parse(saved);
+                if (parsed.position && videoRef.current) {
+                  videoRef.current.currentTime = parsed.position;
+                }
+              }
+            }}
           />
         )}
 
-        {/* Bouton orientation mobile */}
+        {/* 🔘 Bouton orientation mobile */}
         {window.innerWidth < 768 && (
           <button
             onClick={() => {
@@ -967,68 +1008,13 @@ const handleGoToQuestions = () => {
             }}
             className="absolute bottom-4 right-4 bg-gray-800 text-white p-2 rounded-full shadow-lg hover:bg-gray-700"
           >
-            {isLandscape ? "↩️ Portrait" : "↔️ Paysage"}
+            {isLandscape ? "↩️ Réduire l'écran" : "↔️ Plein écran"}
           </button>
         )}
       </div>
+   
 
 
-
-      {/* Countdown vidéo toujours visible au centre */}
-      <div className="absolute top-4 right-4 pointer-events-none z-50">
-  <CountdownCircle
-    key={`${fadeKey}-${timerResetCounter}`}
-    duration={180}         // Durée du timer
-    size={80}             // Taille du cercle
-    strokeWidth={6}       // Épaisseur du cercle
-    onComplete={() => setTimerEnded(true)}
-  />
-</div>
-
-
-      {/* Contenu vidéo */}
-      {isYouTubeUrl(videoUrl) ? (
-        <iframe
-          key={fadeKey}
-          src={safeUrl}
-          title={currentVideoTitle}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-          sandbox="allow-scripts allow-same-origin"
-          className="w-full aspect-video rounded-2xl shadow-lg border border-gray-700"
-        />
-      ) : (
-        <video
-  ref={videoRef}
-  src={videoUrl}
-  controls
-  autoPlay
-  className="w-full rounded-xl shadow-md border border-gray-300"
-  onTimeUpdate={() => {
-    if (!currentVideo) return;
-    localStorage.setItem(
-      `lastVideo_${matiere}_${currentVideo.id}`,
-      JSON.stringify({ position: videoRef.current?.currentTime || 0 })
-    );
-  }}
-  onEnded={() => {
-    setVideoPlaying(false);
-    setFadeKey((p) => p + 1);
-  }}
-  onLoadedMetadata={() => {
-    // Restauration de la position si sauvegardée
-    if (!currentVideo) return;
-    const saved = localStorage.getItem(`lastVideo_${matiere}_${currentVideo.id}`);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed.position && videoRef.current) {
-        videoRef.current.currentTime = parsed.position;
-      }
-    }
-  }}
-/>
-
-      )}
 
       {/* Bouton passer au quiz */}
       {timerEnded && (
