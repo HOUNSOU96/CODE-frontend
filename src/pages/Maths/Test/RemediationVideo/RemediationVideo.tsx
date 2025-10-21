@@ -362,6 +362,12 @@ const handleTimeUp = () => {
   }, [currentIndex, user]);
 
  
+// ====== ÉTAT PLEIN ÉCRAN ======
+const [isFullscreen, setIsFullscreen] = useState(false);
+const [isLandscape, setIsLandscape] = useState(false);
+
+// Ref pour la zone vidéo
+const videoContainerRef = useRef<HTMLDivElement | null>(null);
 
   // helper to compute current month normalized
   const currentMonth = normalize(new Date().toLocaleString("fr-FR", { month: "long" }));
@@ -414,6 +420,11 @@ useEffect(() => {
   return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
 }, []);
 
+// État plein écran
+
+
+// Ref pour la zone vidéo
+
 
   // group by notion for sidebar
   const videosByNotion: Record<string, VideoData[]> = {};
@@ -429,18 +440,17 @@ useEffect(() => {
 
   /* -------------------- ACTIONS -------------------- */
   // ====== Gestion orientation et plein écran mobile ======
-  const videoContainerRef = useRef<HTMLDivElement | null>(null);
-  const [isLandscape, setIsLandscape] = useState(false);
+  
 
-  const requestFullscreenLandscape = async () => {
+  const requestFullscreenLandscape = async (videoElement?: HTMLDivElement | null) => {
+  const el = videoElement || videoContainerRef.current;
+  if (!el) return;
+
   try {
-    const videoElement = videoContainerRef.current;
-    if (!videoElement) return;
-
-    if (videoElement.requestFullscreen) {
-      await videoElement.requestFullscreen();
-    } else if ((videoElement as any).webkitRequestFullscreen) {
-      (videoElement as any).webkitRequestFullscreen();
+    if (el.requestFullscreen) {
+      await el.requestFullscreen();
+    } else if ((el as any).webkitRequestFullscreen) {
+      (el as any).webkitRequestFullscreen();
     }
 
     if (screen.orientation && (screen.orientation as any).lock) {
@@ -452,6 +462,7 @@ useEffect(() => {
     console.warn("Impossible de passer en plein écran :", err);
   }
 };
+
 
 const exitFullscreenPortrait = async () => {
   try {
@@ -466,6 +477,20 @@ const exitFullscreenPortrait = async () => {
     console.warn("Impossible de quitter le plein écran :", err);
   }
 };
+
+useEffect(() => {
+  const handleFullscreenChange = () => {
+    if (!document.fullscreenElement) {
+      setIsLandscape(false);
+      setIsFullscreen(false);
+    }
+  };
+  document.addEventListener("fullscreenchange", handleFullscreenChange);
+  return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+}, []);
+
+
+
 
 
   const startVideo = () => {
@@ -482,9 +507,12 @@ const exitFullscreenPortrait = async () => {
 
 
   // ⚡ DEMANDE DE PLEIN ÉCRAN SUR MOBILE
-    if (window.innerWidth < 768) {
-    requestFullscreenLandscape();
-  }
+   
+if (window.innerWidth < 768) {
+  requestFullscreenLandscape(videoContainerRef.current);
+  setIsFullscreen(true);
+}
+
   };
 
 // ✅ Fonction corrigée : affiche les questions du quiz quand on clique sur “Passez au quiz”
@@ -952,66 +980,72 @@ const handleGoToQuestions = () => {
         <span className="text-sm text-gray-400 mt-1">Temps restant</span>
       </div>
 
-      {/* 🎥 Zone vidéo unique */}
-      <div
-        ref={videoContainerRef}
-        className="relative w-full h-full bg-black rounded-xl overflow-hidden"
-      >
-        {isYouTubeUrl(videoUrl) ? (
-          <iframe
-            key={fadeKey}
-            src={safeUrl}
-            title={currentVideoTitle}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            sandbox="allow-scripts allow-same-origin"
-            className="w-full aspect-video rounded-2xl shadow-lg border border-gray-700"
-          />
-        ) : (
-          <video
-            key={fadeKey}
-            ref={videoRef}
-            src={videoUrl}
-            controls
-            autoPlay
-            className="w-full rounded-xl shadow-md border border-gray-300"
-            onTimeUpdate={() => {
-              if (!currentVideo) return;
-              localStorage.setItem(
-                `lastVideo_${matiere}_${currentVideo.id}`,
-                JSON.stringify({ position: videoRef.current?.currentTime || 0 })
-              );
-            }}
-            onEnded={() => {
-              setVideoPlaying(false);
-              setFadeKey((p) => p + 1);
-            }}
-            onLoadedMetadata={() => {
-              if (!currentVideo) return;
-              const saved = localStorage.getItem(`lastVideo_${matiere}_${currentVideo.id}`);
-              if (saved) {
-                const parsed = JSON.parse(saved);
-                if (parsed.position && videoRef.current) {
-                  videoRef.current.currentTime = parsed.position;
-                }
-              }
-            }}
-          />
-        )}
+     {/* 🎥 Zone vidéo unique */}
 
-        {/* 🔘 Bouton orientation mobile */}
-        {window.innerWidth < 768 && (
-          <button
-            onClick={() => {
-              if (isLandscape) exitFullscreenPortrait();
-              else requestFullscreenLandscape();
-            }}
-            className="absolute bottom-4 right-4 bg-gray-800 text-white p-2 rounded-full shadow-lg hover:bg-gray-700"
-          >
-            {isLandscape ? "↩️ Réduire l'écran" : "↔️ Plein écran"}
-          </button>
-        )}
-      </div>
+<div
+  ref={videoContainerRef}
+  className="relative w-full h-full bg-black rounded-xl overflow-hidden"
+>
+  {isYouTubeUrl(videoUrl) ? (
+    <iframe
+      key={fadeKey}
+      src={safeUrl}
+      title={currentVideoTitle}
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowFullScreen
+      sandbox="allow-scripts allow-same-origin"
+      className="w-full aspect-video rounded-xl shadow-lg border border-gray-700"
+    />
+  ) : (
+    <video
+      key={fadeKey}
+      ref={videoRef}
+      src={videoUrl}
+      controls
+      autoPlay
+      className="w-full rounded-xl shadow-md border border-gray-300"
+      onTimeUpdate={() => {
+        if (!currentVideo || !videoRef.current) return;
+        localStorage.setItem(
+          `lastVideo_${matiere}_${currentVideo.id}`,
+          JSON.stringify({ position: videoRef.current.currentTime })
+        );
+      }}
+      onEnded={() => {
+        setVideoPlaying(false);
+        setFadeKey((p) => p + 1);
+      }}
+      onLoadedMetadata={() => {
+        if (!currentVideo || !videoRef.current) return;
+        const saved = localStorage.getItem(`lastVideo_${matiere}_${currentVideo.id}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.position) videoRef.current.currentTime = parsed.position;
+        }
+      }}
+    />
+  )}
+
+  {/* 🔘 Bouton plein écran / réduire */}
+  <div className="absolute bottom-4 right-4">
+  <button
+    onClick={() => {
+      if (isFullscreen) {
+        exitFullscreenPortrait();
+        setIsFullscreen(false);
+      } else {
+        requestFullscreenLandscape(videoContainerRef.current);
+        setIsFullscreen(true);
+      }
+    }}
+    className="bg-gray-800 text-white p-2 rounded-full shadow-lg hover:bg-gray-700"
+  >
+    {isFullscreen ? "↩️ Réduire l'écran" : "↔️ Plein écran"}
+  </button>
+</div>
+
+</div>
+
    
 
 
