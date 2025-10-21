@@ -963,10 +963,7 @@ const handleGoToQuestions = () => {
       transition={{ duration: 0.6 }}
       className="relative rounded-xl overflow-hidden shadow-2xl w-full my-4"
     >
-      {/* 🎬 Titre de la vidéo */}
-      <h2 className="text-xl font-semibold text-center text-white mb-2">
-        {currentVideoTitle}
-      </h2>
+     
 
       {/* 🕒 Countdown placé sous le titre, au-dessus de la vidéo */}
       <div className="flex flex-col items-center mb-3">
