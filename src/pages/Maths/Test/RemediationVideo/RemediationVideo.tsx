@@ -361,48 +361,7 @@ const handleTimeUp = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIndex, user]);
 
-  // fetch vidéos depuis backend
-  useEffect(() => {
-    if (!niveau) {
-      navigate("/", { replace: true });
-      return;
-    }
-
-    const fetchVideos = async () => {
-      try {
-        setLoading(true);
-        const res = await api.get<VideoData[]>(`/api/videos/remediation?niveau=${niveau}`);
-        const allVideos = Array.isArray(res.data) ? res.data : [];
-
-        const cleaned = allVideos.map((v) => ({
-          ...v,
-          videoUrl: cleanUrl(v.videoUrl),
-          fichier: v["fichier"] || v["videoUrl"] || v["fichier"], // compatibilité
-          notions: Array.isArray(v.notions) ? v.notions : [],
-          prerequis: Array.isArray(v.prerequis) ? v.prerequis : [],
-          questions: Array.isArray(v.questions) ? v.questions : [],
-          mois: Array.isArray(v.mois) ? v.mois : [],
-          matiere: v.matiere,
-        }));
-
-        // Filtrer par matière si renseignée
-        const filtered = cleaned
-          .filter((v) => (v.matiere ? v.matiere.toLowerCase() === matiere.toLowerCase() : true))
-          .filter((v) => isVideoForLevel(v.niveau, niveau, serieEffective));
-
-        const queue = buildLearningQueue(filtered, niveau);
-        setOrderedVideos(queue);
-        setLoading(false);
-      } catch (err) {
-        console.error("Erreur fetch vidéos remediation:", err);
-        setOrderedVideos([]);
-        setLoading(false);
-      }
-    };
-
-    fetchVideos();
-    // include matiere & serieEffective so we refetch when they change
-  }, [niveau, matiere, serieEffective, navigate]);
+ 
 
   // helper to compute current month normalized
   const currentMonth = normalize(new Date().toLocaleString("fr-FR", { month: "long" }));
