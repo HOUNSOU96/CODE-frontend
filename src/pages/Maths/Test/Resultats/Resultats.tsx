@@ -328,7 +328,7 @@ const niveauComplet =
           <p className="text-sm text-gray-600 mb-2">Scanne le QR code ci-dessous pour visiter CODE</p>
           <div className="flex justify-center">
             <div className="flex justify-center">
-               <QRCode value="https://code.com" size={128} />
+               <QRCode value="https://code-education.com" size={128} />
             </div>
 
           </div>
