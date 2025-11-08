@@ -192,7 +192,7 @@ const Questions = () => {
     if (isUnanswered) {
       alert("Temps écoulé sans réponse. L'évaluation va recommencer.");
       // Recharger la page actuelle pour relancer l'évaluation
-      navigate(0); // ou window.location.reload();
+      navigate("/matiere"); // ou window.location.reload();
       return;
     }
 
