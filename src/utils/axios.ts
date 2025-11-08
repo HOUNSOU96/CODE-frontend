@@ -1,7 +1,8 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://code-backend-iuol.onrender.com", // adapte si ton backend est sur un autre host/port
+  baseURL: import.meta.env.VITE_API_URL || "https://code-backend-iuol.onrender.com", // adapte si ton backend est sur un autre host/port
+  withCredentials: true,
 });
 
 // Intercepteur de requêtes : ajoute automatiquement le token dans les headers Authorization
