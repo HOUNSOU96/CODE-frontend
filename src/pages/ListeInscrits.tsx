@@ -168,11 +168,12 @@ const ListeInscrits: React.FC = () => {
       ) : (
         <div className="overflow-x-auto mb-6">
           <table className="min-w-full bg-white dark:bg-gray-800 rounded-xl shadow-md">
-            <thead>
+<thead>
   <tr className="bg-blue-600 text-white">
     <th className="px-4 py-2">Nom</th>
     <th className="px-4 py-2">Prénom</th>
     <th className="px-4 py-2">Email</th>
+    <th className="px-4 py-2">Parrain</th> 
     <th className="px-4 py-2">Téléphone</th>
     <th className="px-4 py-2">Date inscription</th>
     <th className="px-4 py-2">Statut</th>
@@ -191,15 +192,22 @@ const ListeInscrits: React.FC = () => {
         className="border-b dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
       >
         <td className="px-4 py-2 flex items-center gap-2">
-          {i.nom}
-          {i.is_online && (
-            <button className="px-2 py-0.5 bg-green-500 text-white rounded-full text-xs">
-              Connecté
-            </button>
-          )}
+  {i.nom}
+  {i.is_online ? (
+    <button className="px-2 py-0.5 bg-green-500 text-white rounded-full text-xs">
+      Connecté
+    </button>
+  ) : (
+    <button className="px-2 py-0.5 bg-red-500 text-white rounded-full text-xs">
+      Déconnecté
+    </button>
+  )}
         </td>
+
         <td className="px-4 py-2">{i.prenom}</td>
         <td className="px-4 py-2">{i.email}</td>
+        <td className="px-4 py-2">{i.parrain_email ? i.parrain_email : <span className="text-gray-400 italic">Aucun</span>}</td>
+
         <td className="px-4 py-2">{i.telephone}</td>
         <td className="px-4 py-2">
           {new Date(i.date_inscription).toLocaleDateString()}
