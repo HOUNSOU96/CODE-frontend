@@ -82,7 +82,7 @@ const ListeInscrits: React.FC = () => {
             is_admin: i.is_admin,
             parrain_email: i.parrain_email,
             lieu_naissance: i.lieu_naissance,
-            filleuls_emails: i.filleuls_emails || [], // ✅ ajouté
+            filleuls_emails: i.filleuls_emails || [],
           }));
 
         setInscrits((prev) => {
@@ -179,7 +179,7 @@ const ListeInscrits: React.FC = () => {
                 <th className="px-4 py-2">Prénom</th>
                 <th className="px-4 py-2">Email</th>
                 <th className="px-4 py-2">Parrain</th>
-                <th className="px-4 py-2">Filleuls</th> {/* ✅ nouvelle colonne */}
+                <th className="px-4 py-2">Filleuls</th>
                 <th className="px-4 py-2">Téléphone</th>
                 <th className="px-4 py-2">Date inscription</th>
                 <th className="px-4 py-2">Statut</th>
@@ -213,7 +213,6 @@ const ListeInscrits: React.FC = () => {
                     <td className="px-4 py-2">{i.prenom}</td>
                     <td className="px-4 py-2">{i.email}</td>
 
-                    {/* ✅ Parrain cliquable */}
                     <td className="px-4 py-2">
                       {i.parrain_email ? (
                         <button
@@ -233,7 +232,6 @@ const ListeInscrits: React.FC = () => {
                       )}
                     </td>
 
-                    {/* ✅ Filleuls cliquables */}
                     <td className="px-4 py-2">
                       {i.filleuls_emails && i.filleuls_emails.length > 0 ? (
                         <div className="flex flex-col gap-1">
@@ -318,11 +316,19 @@ const ListeInscrits: React.FC = () => {
         </div>
       )}
 
-      <div className="text-center">
+      {/* 🔹 Bloc boutons centré avec espacement uniforme */}
+      <div className="flex flex-col items-center space-y-4 mt-6">
+        <button
+          onClick={() => navigate("/admin/historique-connections")}
+          className="px-6 py-3 font-semibold rounded-xl bg-green-600 text-white hover:bg-green-700 transition w-64 text-center"
+        >
+          Voir l'historique des connexions
+        </button>
+
         <button
           onClick={() => navigate("/page2")}
           disabled={pendingCount > 0}
-          className={`px-6 py-3 font-semibold rounded-xl transition ${
+          className={`px-6 py-3 font-semibold rounded-xl transition w-64 text-center ${
             pendingCount > 0
               ? "bg-gray-400 text-gray-700 cursor-not-allowed"
               : "bg-blue-600 text-white hover:bg-blue-700"
@@ -330,8 +336,9 @@ const ListeInscrits: React.FC = () => {
         >
           CONTINUER
         </button>
+
         {pendingCount > 0 && (
-          <p className="text-sm text-red-600 mt-2">
+          <p className="text-sm text-red-600 mt-2 text-center">
             ⚠️ Vous devez traiter toutes les inscriptions avant de continuer.
           </p>
         )}

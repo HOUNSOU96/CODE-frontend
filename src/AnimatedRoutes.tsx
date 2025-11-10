@@ -5,6 +5,7 @@ import { AnimatePresence } from "framer-motion";
 import Layout from "@/components/Layout";
 import RequireAuth from "@/components/RequireAuth";
 import ParrainDetails from "@/pages/admin/ParrainDetails";
+import HistoriqueConnections from "@/pages/admin/HistoriqueConnections";
 
 // Pages publiques
 import Page1 from "./pages/Page1";
@@ -262,6 +263,18 @@ const AnimatedRoutes: React.FC = () => {
             <RequireAuth>
               <Layout>
                 <ParrainDetails />
+              </Layout>
+            </RequireAuth>
+          }
+        />
+
+
+         <Route
+          path="/admin/historique-connections"
+          element={
+            <RequireAuth>
+              <Layout>
+                <HistoriqueConnections />
               </Layout>
             </RequireAuth>
           }
