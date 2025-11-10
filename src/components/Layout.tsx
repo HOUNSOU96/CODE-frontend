@@ -96,13 +96,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     navigate("/");
   };
 
+  // 🔹 Masquer le bouton Filleuls sur les pages publiques
+  const hideFilleulsButton = ["/", "/login", "/inscription"].includes(location.pathname.toLowerCase());
+
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col">
       {/* Fond dynamique */}
       <div
-        className={`absolute inset-0 transition-opacity duration-1000 z-0 ${
-          isVisible ? "opacity-50" : "opacity-0"
-        }`}
+        className={`absolute inset-0 transition-opacity duration-1000 z-0 ${isVisible ? "opacity-50" : "opacity-0"}`}
         style={{
           backgroundImage: `url(${images[currentIndex]})`,
           backgroundSize: "cover",
@@ -113,10 +114,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         }}
       />
 
-      {/* ✅ Bouton de déconnexion responsive */}
+      {/* ✅ Boutons utilisateur */}
       {user && (
         <>
-          {/* 💻 Version bureau (haut à gauche) */}
+          {/* 💻 Version bureau - déconnexion */}
           <div className="hidden sm:block fixed top-4 left-4 z-40 group">
             <button
               onClick={handleLogout}
@@ -129,8 +130,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </span>
           </div>
 
-          {/* 📱 Version mobile (bas à droite, flottant) */}
-          <div className="sm:hidden fixed bottom-6 left-6 z-40 group">
+          {/* 🖥 Version bureau - Filleuls */}
+          {!hideFilleulsButton && (
+            <div className="hidden sm:block fixed bottom-4 right-4 z-40 group">
+              <button
+                onClick={() => navigate(`/admin/parrain/${encodeURIComponent(user.email)}`)}
+                className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                Filleuls
+              </button>
+              <span className="absolute left-14 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 bg-black/80 text-white text-xs rounded-md px-2 py-1 transition-opacity duration-300">
+                Accéder aux filleuls
+              </span>
+            </div>
+          )}
+
+          {/* 📱 Version mobile */}
+          <div className="sm:hidden fixed bottom-6 left-6 z-40 group flex flex-col gap-3">
             <button
               onClick={handleLogout}
               className="bg-red-600 hover:bg-red-700 text-white p-4 rounded-full shadow-xl transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -140,6 +156,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <span className="absolute right-16 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 bg-black/80 text-white text-xs rounded-md px-2 py-1 transition-opacity duration-300">
               Déconnexion
             </span>
+
+            {!hideFilleulsButton && (
+              <>
+                <button
+                  onClick={() => navigate(`/admin/parrain/${encodeURIComponent(user.email)}`)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-xl transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  Filleuls
+                </button>
+                <span className="absolute right-16 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 bg-black/80 text-white text-xs rounded-md px-2 py-1 transition-opacity duration-300">
+                  Accéder aux filleuls
+                </span>
+              </>
+            )}
           </div>
         </>
       )}

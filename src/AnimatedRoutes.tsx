@@ -4,6 +4,7 @@ import { Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import Layout from "@/components/Layout";
 import RequireAuth from "@/components/RequireAuth";
+import ParrainDetails from "@/pages/admin/ParrainDetails";
 
 // Pages publiques
 import Page1 from "./pages/Page1";
@@ -254,7 +255,17 @@ const AnimatedRoutes: React.FC = () => {
             </RequireAuth>
           }
         />
-
+        
+        <Route
+          path="/admin/parrain/:email"
+          element={
+            <RequireAuth>
+              <Layout>
+                <ParrainDetails />
+              </Layout>
+            </RequireAuth>
+          }
+        />
 
 
         <Route path="/video/:matiere" element={<VideoPlayer />} />
