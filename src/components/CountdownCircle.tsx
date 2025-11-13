@@ -7,15 +7,20 @@ type CountdownCircleProps = {
   strokeWidth?: number;
   playEndSound?: boolean;
   onComplete?: () => void;
+  initialRemainingTime?: number; // temps restant pour reprendre
+  onTick?: (timeLeft: number) => void; // callback chaque seconde
 };
+
 
 const CountdownCircle: React.FC<CountdownCircleProps> = ({
   duration,
   size = 80,
   playEndSound = true,
   onComplete,
+  initialRemainingTime,
+  onTick,
 }) => {
-  const [timeLeft, setTimeLeft] = useState(duration);
+  const [timeLeft, setTimeLeft] = useState(initialRemainingTime ?? duration);
   const radius = size / 2 - 5;
   const circumference = 2 * Math.PI * radius;
   const progress = (timeLeft / duration) * circumference;
@@ -23,6 +28,7 @@ const CountdownCircle: React.FC<CountdownCircleProps> = ({
   const soundRef = useRef<HTMLAudioElement | null>(null);
   const hasTriggeredRef = useRef(false);
   const warningThreshold = Math.floor(duration / 4);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (playEndSound) {
@@ -31,18 +37,25 @@ const CountdownCircle: React.FC<CountdownCircleProps> = ({
   }, [playEndSound]);
 
   useEffect(() => {
-    setTimeLeft(duration);
-    const interval = setInterval(() => {
+    // Remise à jour si duration ou initialRemainingTime change
+    setTimeLeft(initialRemainingTime ?? duration);
+
+    if (intervalRef.current) clearInterval(intervalRef.current);
+
+    intervalRef.current = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
+        const next = prev - 1;
+        onTick?.(next > 0 ? next : 0);
+        if (next <= 0) {
+          clearInterval(intervalRef.current!);
           return 0;
         }
-        return prev - 1;
+        return next;
       });
     }, 1000);
-    return () => clearInterval(interval);
-  }, [duration]);
+
+    return () => clearInterval(intervalRef.current!);
+  }, [duration, initialRemainingTime, onTick]);
 
   useEffect(() => {
     if (timeLeft === 0 && !hasTriggeredRef.current) {

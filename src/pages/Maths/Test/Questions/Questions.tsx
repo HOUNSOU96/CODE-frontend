@@ -44,6 +44,7 @@ const Questions = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [timersEnded, setTimersEnded] = useState<TimerStatus>({});
   const [testId, setTestId] = useState<string | null>(null);
+  const [remainingTime, setRemainingTime] = useState<{ [key: string]: number }>({});
 
   const questionSoundRef = useRef<HTMLAudioElement | null>(null);
 
@@ -268,10 +269,15 @@ const Questions = () => {
                 dangerouslySetInnerHTML={{ __html: currentQuestion.question }}
               />
               <CountdownCircle
-                key={currentIndex}
-                duration={currentQuestion.duree ?? 60}
-                onComplete={handleTimeUp}
-              />
+  key={currentQuestion.id} // utiliser l'ID pour éviter reset quand on reste sur la même question
+  duration={currentQuestion.duree ?? 60}
+  initialRemainingTime={remainingTime[currentQuestion.id]} // temps restant s'il existe
+  onTick={(timeLeft) =>
+    setRemainingTime((prev) => ({ ...prev, [currentQuestion.id]: timeLeft }))
+  }
+  onComplete={handleTimeUp}
+/>
+
             </div>
 
             {/* ** CORRECTION AJOUTÉE ICI ** */}

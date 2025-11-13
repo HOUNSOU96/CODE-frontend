@@ -1081,7 +1081,7 @@ const handleGoToQuestions = () => {
         onComplete={() => {
           setFeedback({
             type: "error",
-            message: "⏰ Temps écoulé ! Vous devez revoir la vidéo pour continuer",
+            message: "⏰ Temps prévu écoulé!",
           });
           setVideoPlaying(true);
           setShowQuiz(true);
