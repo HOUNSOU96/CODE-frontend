@@ -1,4 +1,3 @@
-// 📁 AudioManager.tsx
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 
@@ -11,7 +10,7 @@ const audioPlaylist = [
 ];
 
 // Pages où la musique doit s’arrêter automatiquement
-const shouldPauseAudio = ["/accueil","/inscription","/remediationvideo"];
+const shouldPauseAudio = ["/accueil", "/inscription", "/remediationvideo"];
 
 // Global audio partagé
 let globalAudio: HTMLAudioElement | null = null;
@@ -19,67 +18,106 @@ let globalAudio: HTMLAudioElement | null = null;
 const AudioManager: React.FC = () => {
   const location = useLocation();
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
 
-  const showNotification = (message: string) => {
-    setNotification(message);
-    setTimeout(() => setNotification(null), 2500);
+  const showNotification = (msg: string) => {
+    setNotification(msg);
+    setTimeout(() => setNotification(null), 2300);
   };
 
-  // Fonction pour choisir un morceau aléatoire
+  /** Choisir un morceau aléatoire */
   const playRandomTrack = () => {
     if (!globalAudio) return;
     const randomIndex = Math.floor(Math.random() * audioPlaylist.length);
     globalAudio.src = audioPlaylist[randomIndex];
-    globalAudio
-      .play()
-      .then(() => setIsPlaying(true))
-      .catch(() => setIsPlaying(false));
+    globalAudio.play().then(() => setIsPlaying(true)).catch(() => {});
   };
 
-  // Initialisation audio et événement fin de morceau
+  /** Initialisation unique de l’audio */
   useEffect(() => {
     if (!globalAudio) {
-      globalAudio = new Audio(audioPlaylist[Math.floor(Math.random() * audioPlaylist.length)]);
+      globalAudio = new Audio(
+        audioPlaylist[Math.floor(Math.random() * audioPlaylist.length)]
+      );
       globalAudio.loop = false;
       globalAudio.addEventListener("ended", playRandomTrack);
     }
     audioRef.current = globalAudio;
   }, []);
 
-  // Auto play / pause selon la page
+  /** --- 🎧 Auto pause selon la page --- */
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
     const path = location.pathname.toLowerCase();
-    const shouldPause = shouldPauseAudio.some((p) => path.includes(p.toLowerCase()));
+    const mustPause = shouldPauseAudio.some((p) => path.includes(p));
 
-    if (shouldPause && !audio.paused) {
+    if (mustPause && !audio.paused) {
       audio.pause();
       setIsPlaying(false);
-    } else if (!shouldPause && audio.paused) {
-      audio
-        .play()
-        .then(() => setIsPlaying(true))
-        .catch(() => setIsPlaying(false));
+    } else if (!mustPause && audio.paused) {
+      audio.play().then(() => setIsPlaying(true)).catch(() => {});
     }
   }, [location.pathname]);
 
-  // Bouton Play/Pause manuel
+  /** --- 🛑 Pause AUTOMATIQUE quand l'utilisateur quitte CODE --- */
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const pauseAudio = () => {
+      if (!audio.paused) {
+        audio.pause();
+        setIsPlaying(false);
+      }
+    };
+
+    const resumeAudio = () => {
+      const path = location.pathname.toLowerCase();
+      const mustPause = shouldPauseAudio.some((p) => path.includes(p));
+      if (!mustPause && audio.paused) {
+        audio.play().then(() => setIsPlaying(true)).catch(() => {});
+      }
+    };
+
+    // Onglet réduit / caché
+    const handleVisibility = () => {
+      if (document.visibilityState === "hidden") pauseAudio();
+      else resumeAudio();
+    };
+
+    // Quand l’utilisateur clique ailleurs
+    const handleBlur = () => pauseAudio();
+    const handleFocus = () => resumeAudio();
+
+    // Fermeture de l’onglet
+    const handleUnload = () => pauseAudio();
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("blur", handleBlur);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("beforeunload", handleUnload);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("beforeunload", handleUnload);
+    };
+  }, [location.pathname]);
+
+  /** --- Bouton manuel --- */
   const handleToggleAudio = () => {
     const audio = audioRef.current;
     if (!audio) return;
 
     if (audio.paused) {
-      audio
-        .play()
-        .then(() => {
-          setIsPlaying(true);
-          showNotification("▶️ Musique reprise");
-        })
-        .catch(() => showNotification("⚠️ Lecture impossible"));
+      audio.play().then(() => {
+        setIsPlaying(true);
+        showNotification("▶️ Musique reprise");
+      });
     } else {
       audio.pause();
       setIsPlaying(false);
@@ -87,10 +125,8 @@ const AudioManager: React.FC = () => {
     }
   };
 
-  // Le bouton n’apparaît **que sur Page2**
-  const path = location.pathname.toLowerCase();
-  const isVisible = path === "/page2";
-
+  /** --- Le bouton n’apparait que sur /page2 --- */
+  const isVisible = location.pathname.toLowerCase() === "/page2";
   if (!isVisible) return null;
 
   return (

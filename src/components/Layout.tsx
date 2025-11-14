@@ -3,8 +3,9 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useExitNotifier } from "@/hooks/useExitNotifier";
-import { LogOut } from "lucide-react"; // ✅ Icône de déconnexion
+import { LogOut } from "lucide-react";
 import api from "@/utils/axios";
+import AudioManager from "@/components/AudioManager"; // ✅ on utilise maintenant AudioManager
 
 const images = [
   "/images/b1.jpg", "/images/b2.jpg", "/images/b3.webp", "/images/b4.jpg",
@@ -34,7 +35,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   useExitNotifier({ eventType: "connect" });
   useExitNotifier({ eventType: "disconnect" });
 
-  // 🔹 Notification de connexion/déconnexion
+  // 🔹 Notifications connexion/déconnexion API
   useEffect(() => {
     if (!user?.email) return;
 
@@ -46,15 +47,26 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       }
     };
 
-    const isInternalUrl = (url: string) => window.location.origin && url.startsWith(window.location.origin);
+    const isInternalUrl = (url: string) =>
+      window.location.origin && url.startsWith(window.location.origin);
 
     const handleBeforeUnload = () => notify("disconnect");
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") notify("disconnect");
-      else if (document.visibilityState === "visible" && isInternalUrl(window.location.href)) notify("connect");
+      else if (
+        document.visibilityState === "visible" &&
+        isInternalUrl(window.location.href)
+      )
+        notify("connect");
     };
+
     const handleBlur = () => !document.hidden && notify("disconnect");
-    const handleFocus = () => !document.hidden && isInternalUrl(window.location.href) && notify("connect");
+
+    const handleFocus = () =>
+      !document.hidden &&
+      isInternalUrl(window.location.href) &&
+      notify("connect");
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -69,9 +81,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     };
   }, [user]);
 
-  const hideFooter = location.pathname.toLowerCase() === "/page1";
-
-  // 🔹 Diaporama d'arrière-plan
+  // 🔹 Diaporama background
   useEffect(() => {
     const interval = setInterval(() => {
       setIsVisible(false);
@@ -83,7 +93,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // ✅ Fonction de déconnexion
+  // 🔹 Déconnexion
   const handleLogout = async () => {
     if (user?.email) {
       try {
@@ -96,14 +106,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     navigate("/");
   };
 
-  // 🔹 Masquer le bouton Filleuls sur les pages publiques
-  const hideFilleulsButton = ["/", "/login", "/inscription"].includes(location.pathname.toLowerCase());
+  const hideFooter = location.pathname.toLowerCase() === "/page1";
+  const hideFilleulsButton = ["/", "/login", "/inscription"].includes(
+    location.pathname.toLowerCase()
+  );
 
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col">
-      {/* Fond dynamique */}
+      {/* 🌆 Fond dynamique */}
       <div
-        className={`absolute inset-0 transition-opacity duration-1000 z-0 ${isVisible ? "opacity-50" : "opacity-0"}`}
+        className={`absolute inset-0 transition-opacity duration-1000 z-0 ${
+          isVisible ? "opacity-50" : "opacity-0"
+        }`}
         style={{
           backgroundImage: `url(${images[currentIndex]})`,
           backgroundSize: "cover",
@@ -114,10 +128,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         }}
       />
 
-      {/* ✅ Boutons utilisateur */}
+      {/* 🎵 Gestion complète via AudioManager */}
+      <AudioManager />
+
+      {/* Boutons utilisateur */}
       {user && (
         <>
-          {/* 💻 Version bureau - déconnexion */}
+          {/* 💻 Desktop logout */}
           <div className="hidden sm:block fixed top-4 left-4 z-40 group">
             <button
               onClick={handleLogout}
@@ -130,11 +147,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </span>
           </div>
 
-          {/* 🖥 Version bureau - Filleuls */}
+          {/* 🖥 Bureau - Filleuls */}
           {!hideFilleulsButton && (
             <div className="hidden sm:block fixed bottom-4 right-4 z-40 group">
               <button
-                onClick={() => navigate(`/admin/parrain/${encodeURIComponent(user.email)}`)}
+                onClick={() =>
+                  navigate(`/admin/parrain/${encodeURIComponent(user.email)}`)
+                }
                 className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 Filleuls
@@ -145,7 +164,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
           )}
 
-          {/* 📱 Version mobile */}
+          {/* 📱 Mobile */}
           <div className="sm:hidden fixed bottom-6 left-6 z-40 group flex flex-col gap-3">
             <button
               onClick={handleLogout}
@@ -153,29 +172,25 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             >
               <LogOut size={24} />
             </button>
-            <span className="absolute right-16 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 bg-black/80 text-white text-xs rounded-md px-2 py-1 transition-opacity duration-300">
-              Déconnexion
-            </span>
 
             {!hideFilleulsButton && (
-              <>
-                <button
-                  onClick={() => navigate(`/admin/parrain/${encodeURIComponent(user.email)}`)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-xl transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  Filleuls
-                </button>
-                <span className="absolute right-16 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 bg-black/80 text-white text-xs rounded-md px-2 py-1 transition-opacity duration-300">
-                  Accéder aux filleuls
-                </span>
-              </>
+              <button
+                onClick={() =>
+                  navigate(`/admin/parrain/${encodeURIComponent(user.email)}`)
+                }
+                className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-xl transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                Filleuls
+              </button>
             )}
           </div>
         </>
       )}
 
       {/* Contenu principal */}
-      <main className="relative z-20 flex-grow pb-16 px-4 sm:px-6 lg:px-12">{children}</main>
+      <main className="relative z-20 flex-grow pb-16 px-4 sm:px-6 lg:px-12">
+        {children}
+      </main>
 
       {/* Footer */}
       {!hideFooter && (
