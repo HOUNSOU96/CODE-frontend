@@ -4,10 +4,10 @@ import { useLocation } from "react-router-dom";
 
 // Playlist de musiques
 const audioPlaylist = [
-  "/sounds/hymne.mp3",
-  "/sounds/hymnefon.mp3",
-  "/sounds/hymneadja.mp3",
-  "/sounds/conference.mp3",
+  //"/sounds/hymne.mp3",
+  //"/sounds/hymnefon.mp3",
+  //"/sounds/hymneadja.mp3",
+  "/sounds/conferee.mp3",
 ];
 
 // Pages où la musique doit s’arrêter automatiquement

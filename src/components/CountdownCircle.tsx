@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 type CountdownCircleProps = {
   duration: number;
   size?: number;
+  strokeWidth?: number;
   playEndSound?: boolean;
   onComplete?: () => void;
 };

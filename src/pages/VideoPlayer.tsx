@@ -1,3 +1,4 @@
+// 📁 VideoPlayer.tsx
 import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import ReactPlayer from "react-player";
@@ -19,21 +20,20 @@ const VideoPlayer: React.FC = () => {
   const [startProgress, setStartProgress] = useState(0);
   const [ready, setReady] = useState(false);
 
-  // ---------------------- FETCH VIDEOS ----------------------
   useEffect(() => {
     if (!matiere) return;
 
-    axios.get<Video[]>(`/api/videos/remediation?niveau=${matiere}`)
-      .then(res => {
+    axios
+      .get<Video[]>(`/api/videos/remediation?niveau=${matiere}`)
+      .then((res) => {
         setVideos(res.data);
-
         let startIndex = 0;
         let startPos = 0;
 
         const saved = localStorage.getItem(`lastVideo_${matiere}`);
         if (saved) {
           const parsed = JSON.parse(saved);
-          const idx = res.data.findIndex(v => v.id === parsed.videoId);
+          const idx = res.data.findIndex((v) => v.id === parsed.videoId);
           if (idx >= 0) {
             startIndex = idx;
             startPos = parsed.position || 0;
@@ -41,7 +41,7 @@ const VideoPlayer: React.FC = () => {
         }
 
         if (videoId) {
-          const idx = res.data.findIndex(v => v.id === videoId);
+          const idx = res.data.findIndex((v) => v.id === videoId);
           if (idx >= 0) {
             startIndex = idx;
             startPos = 0;
@@ -51,14 +51,14 @@ const VideoPlayer: React.FC = () => {
         setCurrentIndex(startIndex);
         setStartProgress(startPos);
       })
-      .catch(err => console.error(err));
+      .catch((err) => console.error(err));
   }, [matiere, videoId]);
 
   if (!videos.length) return <div>Chargement des vidéos...</div>;
 
   const currentVideo = videos[currentIndex];
+  const isExternalUrl = currentVideo?.fichier.startsWith("http");
 
-  // ---------------------- PROGRESS ----------------------
   const handleProgress = (state: { playedSeconds: number }) => {
     localStorage.setItem(
       `lastVideo_${matiere}`,
@@ -66,7 +66,6 @@ const VideoPlayer: React.FC = () => {
     );
   };
 
-  // ---------------------- VIDEO END ----------------------
   const handleEnded = () => {
     if (currentIndex + 1 < videos.length) {
       const nextIndex = currentIndex + 1;
@@ -81,7 +80,6 @@ const VideoPlayer: React.FC = () => {
     }
   };
 
-  // ---------------------- SEEK ON READY ----------------------
   const handleReady = () => {
     if (startProgress > 0) {
       playerRef.current?.seekTo(startProgress, "seconds");
@@ -90,20 +88,36 @@ const VideoPlayer: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-4">
-      <h1 className="text-2xl font-bold mb-6">{currentVideo?.titre}</h1>
-      <ReactPlayer
-        ref={playerRef}
-        url={`/RemediationVideos/${currentVideo?.niveau}/${currentVideo?.fichier}`}
-        controls
-        playing
-        width="100%"
-        height="100%"
-        onProgress={handleProgress}
-        onReady={handleReady}
-        onEnded={handleEnded}
-        progressInterval={5000} // TS devrait maintenant accepter
-      />
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-gray-900 to-black text-white p-4">
+      <h1 className="text-2xl font-bold mb-4">{currentVideo?.titre}</h1>
+      <div className="w-full max-w-4xl aspect-video rounded-2xl overflow-hidden shadow-lg border border-gray-700">
+        <ReactPlayer
+          ref={playerRef}
+          url={
+            isExternalUrl
+              ? currentVideo.fichier
+              : `/RemediationVideos/${currentVideo.niveau}/${currentVideo.fichier}`
+          }
+          controls
+          playing
+          width="100%"
+          height="100%"
+          onProgress={handleProgress}
+          onReady={handleReady}
+          onEnded={handleEnded}
+          progressInterval={5000}
+          config={{
+            youtube: {
+              playerVars: {
+                modestbranding: 1,
+                rel: 0,
+                disablekb: 1,
+                controls: 1,
+              },
+            },
+          }}
+        />
+      </div>
       {!ready && <p className="mt-4 text-gray-400">Préparation de la vidéo...</p>}
     </div>
   );

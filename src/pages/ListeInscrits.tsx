@@ -16,7 +16,13 @@ interface UserInscrit {
   is_blocked?: boolean;
   status?: "pending" | "validated" | "refused";
   last_warning?: string;
-  is_online?: boolean; // ✅ nouveau champ
+
+  // Champs fusionnés
+  is_online?: boolean;
+  is_admin?: boolean;
+  parrain_email?: string;
+  lieu_naissance?: string;
+  filleuls_emails?: string[];
 }
 
 const PAGE_SIZE = 10;
@@ -45,15 +51,15 @@ const ListeInscrits: React.FC = () => {
     [loadingListe, hasMore]
   );
 
-  // 🔹 Redirection si pas admin
+  // Redirection si pas admin
   useEffect(() => {
     if (!authLoading) {
       if (!user) navigate("/login");
-      else if (!user.is_admin) navigate("/page2");
+      else if (!user.is_admin) navigate("/home");
     }
   }, [authLoading, user]);
 
-  // 🔹 Récupération paginée des inscrits
+  // Récupération paginée
   useEffect(() => {
     if (!user?.is_admin || !hasMore) return;
 
@@ -68,17 +74,24 @@ const ListeInscrits: React.FC = () => {
           .filter((i: any) => i.email !== "deogratiashounsou@gmail.com")
           .map((i: any) => ({
             ...i,
+            telephone: i.telephone,
             status: i.is_validated
               ? "validated"
               : i.status === "SUSPENDED"
               ? "refused"
               : "pending",
-              is_online: i.is_online,
+
+            // Champs fusionnés
+            is_online: i.is_online,
+            is_admin: i.is_admin,
+            parrain_email: i.parrain_email,
+            lieu_naissance: i.lieu_naissance,
+            filleuls_emails: i.filleuls_emails || [],
           }));
 
         setInscrits((prev) => {
-          const ids = new Set(prev.map(u => u.id));
-          const filtered = nouvelleListe.filter(u => !ids.has(u.id));
+          const ids = new Set(prev.map((u) => u.id));
+          const filtered = nouvelleListe.filter((u) => !ids.has(u.id));
           return [...prev, ...filtered];
         });
 
@@ -95,12 +108,14 @@ const ListeInscrits: React.FC = () => {
     fetchInscrits();
   }, [page, user]);
 
-  // 🔹 Actions utilisateur
+  // Actions
   const handleValider = async (id: number) => {
     try {
       const res = await api.post(`/api/admin/valider-inscrit/${id}`);
-      setInscrits(prev =>
-        prev.map(u => (u.id === id ? { ...u, status: "validated", is_validated: true } : u))
+      setInscrits((prev) =>
+        prev.map((u) =>
+          u.id === id ? { ...u, status: "validated", is_validated: true } : u
+        )
       );
       alert(res.data.message);
     } catch (err) {
@@ -112,7 +127,7 @@ const ListeInscrits: React.FC = () => {
   const handleRefuser = async (id: number) => {
     try {
       const res = await api.post(`/api/admin/refuser-inscrit/${id}`);
-      setInscrits(prev => prev.filter(u => u.id !== id));
+      setInscrits((prev) => prev.filter((u) => u.id !== id));
       alert(res.data.message);
     } catch (err) {
       console.error(err);
@@ -124,8 +139,8 @@ const ListeInscrits: React.FC = () => {
     try {
       const action = blocked ? "reactivate" : "block";
       const res = await api.post(`/api/admin/${action}-user/${id}`);
-      setInscrits(prev =>
-        prev.map(u => (u.id === id ? { ...u, is_blocked: !blocked } : u))
+      setInscrits((prev) =>
+        prev.map((u) => (u.id === id ? { ...u, is_blocked: !blocked } : u))
       );
       alert(res.data.message);
     } catch (err) {
@@ -151,7 +166,8 @@ const ListeInscrits: React.FC = () => {
       </h1>
 
       <p className="text-center text-gray-600 dark:text-gray-300 mb-4">
-        Inscription(s) en attente : <span className="font-semibold">{pendingCount}</span>
+        Inscriptions en attente :{" "}
+        <span className="font-semibold">{pendingCount}</span>
       </p>
 
       {inscrits.length === 0 ? (
@@ -169,9 +185,11 @@ const ListeInscrits: React.FC = () => {
                 <th className="px-4 py-2">Téléphone</th>
                 <th className="px-4 py-2">Date inscription</th>
                 <th className="px-4 py-2">Statut</th>
+                <th className="px-4 py-2">Blocage</th>
                 <th className="px-4 py-2">Actions</th>
               </tr>
             </thead>
+
             <tbody>
               {inscrits.map((i, index) => {
                 const isLast = inscrits.length === index + 1;
@@ -192,15 +210,29 @@ const ListeInscrits: React.FC = () => {
                     <td className="px-4 py-2">{i.prenom}</td>
                     <td className="px-4 py-2">{i.email}</td>
                     <td className="px-4 py-2">{i.telephone}</td>
-                    <td className="px-4 py-2">{new Date(i.date_inscription).toLocaleDateString()}</td>
                     <td className="px-4 py-2">
-                      {i.status === "validated" && "✅"}
-                      {i.status === "pending" && "⏳"}
-                      {i.status === "refused" && "❌"}
-                      {i.is_blocked && " 🚫"}
+                      {new Date(i.date_inscription).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-2">
-                      {i.status === "pending" && (
+                      {i.status === "validated" && "✅ Validé"}
+                      {i.status === "pending" && "⏳ En attente"}
+                      {i.status === "refused" && "❌ Refusé"}
+                    </td>
+
+                    <td className="px-4 py-2 text-center">
+                      {i.is_blocked ? (
+                        <span className="text-red-600 font-semibold">
+                          🚫 Bloqué
+                        </span>
+                      ) : (
+                        <span className="text-green-600 font-semibold">
+                          ✅ Actif
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-2">
+                      {i.status === "pending" ? (
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleValider(i.id)}
@@ -215,14 +247,16 @@ const ListeInscrits: React.FC = () => {
                             Refuser
                           </button>
                         </div>
-                      )}
-
-                      {i.status === "validated" && (
+                      ) : (
                         <div className="flex gap-2">
                           <button
-                            onClick={() => handleBlock(i.id, i.is_blocked)}
+                            onClick={() =>
+                              handleBlock(i.id, i.is_blocked)
+                            }
                             className={`px-3 py-1 rounded-xl text-white ${
-                              i.is_blocked ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
+                              i.is_blocked
+                                ? "bg-green-600 hover:bg-green-700"
+                                : "bg-red-600 hover:bg-red-700"
                             } transition`}
                           >
                             {i.is_blocked ? "Réactiver" : "Bloquer"}
@@ -235,15 +269,25 @@ const ListeInscrits: React.FC = () => {
               })}
             </tbody>
           </table>
-          {loadingListe && <p className="text-center mt-4">Chargement...</p>}
+
+          {loadingListe && (
+            <p className="text-center mt-4">Chargement...</p>
+          )}
         </div>
       )}
 
-      <div className="text-center">
+      <div className="flex flex-col items-center space-y-4 mt-6">
         <button
-          onClick={() => navigate("/page2")}
+          onClick={() => navigate("/admin/historique-connections")}
+          className="px-6 py-3 font-semibold rounded-xl bg-green-600 text-white hover:bg-green-700 transition w-64 text-center"
+        >
+          Voir l'historique des connexions
+        </button>
+
+        <button
+          onClick={() => navigate("/home")}
           disabled={pendingCount > 0}
-          className={`px-6 py-3 font-semibold rounded-xl transition ${
+          className={`px-6 py-3 font-semibold rounded-xl transition w-64 text-center ${
             pendingCount > 0
               ? "bg-gray-400 text-gray-700 cursor-not-allowed"
               : "bg-blue-600 text-white hover:bg-blue-700"
@@ -251,8 +295,9 @@ const ListeInscrits: React.FC = () => {
         >
           CONTINUER
         </button>
+
         {pendingCount > 0 && (
-          <p className="text-sm text-red-600 mt-2">
+          <p className="text-sm text-red-600 mt-2 text-center">
             ⚠️ Vous devez traiter toutes les inscriptions avant de continuer.
           </p>
         )}

@@ -1,7 +1,8 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:8000", // adapte si ton backend est sur un autre host/port
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000", // adapte si ton backend est sur un autre host/port
+  withCredentials: true,
 });
 
 // Intercepteur de requêtes : ajoute automatiquement le token dans les headers Authorization
@@ -45,11 +46,11 @@ api.interceptors.response.use(
       });
 
       // Gestion automatique du 401 Unauthorized
-      if (error.response.status === 401) {
-        console.warn("Token expiré ou invalide, déconnexion automatique...");
-        localStorage.removeItem("token");
-        window.location.href = "/login"; // redirection vers ta page de login
-      }
+     // if (error.response.status === 401) {
+      //  console.warn("Token expiré ou invalide, déconnexion automatique...");
+      //  localStorage.removeItem("token");
+      //  window.location.href = "/login"; // redirection vers ta page de login
+     // }
     } else if (error.request) {
       console.error("[AXIOS NO RESPONSE]", error.request);
     } else {

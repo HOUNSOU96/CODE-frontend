@@ -7,9 +7,9 @@ const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isVerified } = useAuth();
   const location = useLocation();
 
-  if (!isVerified) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
+  //if (!isVerified) {
+  //  return <Navigate to="/login" state={{ from: location }} replace />;
+//  }
 
   return <>{children}</>;
 };

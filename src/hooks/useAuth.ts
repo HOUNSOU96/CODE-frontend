@@ -12,7 +12,7 @@ export const useAuth = () => {
     const checkToken = async () => {
       if (!token) {
         // Pas de token => redirection login immédiate
-        navigate("/login");
+     //   navigate("/login");
         return;
       }
 
@@ -26,7 +26,7 @@ export const useAuth = () => {
         localStorage.removeItem("token");
         setToken(null);
         setUser(null);
-        navigate("/login");
+     //   navigate("/login");
       }
     };
 

@@ -7,8 +7,12 @@ import RequireAuth from "@/components/RequireAuth";
 
 // Pages publiques
 import Page1 from "./pages/Page1";
-import Page2 from "./pages/Page2";
+import Home from "./pages/Home";
+import ProductPage from "@/pages/ProductPage";
 import Login from "./pages/Login";
+import Produit from "./pages/Produit";
+import Boutique from "./pages/Boutique";
+import Panier from "./pages/Panier";
 import Inscription from "./pages/Inscription";
 import Etudiant from "./pages/Etudiant";
 import RemediationVideo from "./pages/Maths/Test/RemediationVideo/RemediationVideo";
@@ -97,7 +101,7 @@ import Home1xbet from "./pages/Home/Home1xbet";
 
 // 🔹 Définition unique des pages protégées
 const protectedPages = [
-  { path: "/page2", Component: Page2 },
+  
   {
     path: "/accueil",
     Component: () => (
@@ -185,6 +189,13 @@ const protectedPages = [
   { path: "/matieres/matierespct", Component: Matierespct},
 ];
 
+
+
+
+
+
+
+
 const AnimatedRoutes: React.FC = () => {
   const location = useLocation();
 
@@ -192,9 +203,62 @@ const AnimatedRoutes: React.FC = () => {
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         {/* Routes publiques */}
-        <Route path="/" element={<Page1 />} />
+        <Route path="/home" element={<Home />} />
+        <Route path="/page1/:redirect" element={<Page1 />} />
         <Route path="/login" element={<Login />} />
         <Route path="/inscription" element={<Inscription />} />
+         <Route
+  path="/produit/:slug"
+  element={
+    <Layout>
+      <Produit />
+    </Layout>
+  }
+/>
+
+    <Route
+      path="/boutique"
+      element={
+        <Layout>
+          <Boutique />
+        </Layout>
+      }
+    />
+    <Route
+      path="/panier"
+      element={
+        <Layout>
+          <Panier />
+        </Layout>
+      }
+    />
+    
+    <Route
+      path="/"
+      element={
+        <Layout>
+          <Home />
+        </Layout>
+      }
+    />
+
+
+
+    <Route path="/page1/produit/:slug" element={
+        <Layout>
+          <ProductPage />
+        </Layout>
+      } />
+
+
+
+
+      <Route path="/produit/:slug" element={
+        <Layout>
+          <ProductPage />
+        </Layout>
+      } />
+        
         
 
         {/* Routes protégées */}
@@ -254,6 +318,9 @@ const AnimatedRoutes: React.FC = () => {
             </RequireAuth>
           }
         />
+
+
+
 
 
 
