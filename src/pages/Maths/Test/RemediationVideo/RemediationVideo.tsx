@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import api from "@/utils/axios";
-import { useAuth } from "@/hooks/useAuth";
+
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, ChevronDown, ChevronRight, X, List } from "lucide-react";
 import CountdownCircle from "@/components/CountdownCircle";
@@ -26,6 +26,7 @@ interface VideoData {
   videoUrl?: string; // compatibilité avec source actuelle
   notions: string[];
   prerequis: string[];
+  exercices?: string[];
   questions: Question[];
   matiere?: string;
   mois?: string[];
@@ -160,6 +161,10 @@ const buildLearningQueue = (allVideos: VideoData[], niveau: string): VideoData[]
   return result;
 };
 
+
+
+
+
 const shuffleQuestionsWithChoices = (questions: Question[]) =>
   shuffleArray(questions || []).map((q) => ({ ...q, choix: shuffleArray(q.choix || []) }));
 
@@ -169,8 +174,18 @@ const RemediationVideo: React.FC = () => {
   const [timerEnded, setTimerEnded] = useState(false);
   const [timerResetCounter, setTimerResetCounter] = useState(0);
 
+
   
   const location = useLocation();
+const {
+  questionsIncorrectes,
+  niveauActuel,
+  serieActuelle
+} = location.state || {};
+
+
+
+  
   const { niveau: niveauRoute, serie } = useParams<{ niveau: string; serie?: string }>();
   const state = location.state as { niveauActuel?: string; matiere?: string } | undefined;
   const niveauParam = new URLSearchParams(location.search).get("niveau");
@@ -179,7 +194,7 @@ const RemediationVideo: React.FC = () => {
   const matiere = state?.matiere || "maths";
 
   const navigate = useNavigate();
-  const { user } = useAuth();
+ 
 
   useExitNotifier({ eventType: "remediation" });
   useExitNotifier({ eventType: "videofinish" });
@@ -189,6 +204,13 @@ const RemediationVideo: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [accessMessage, setAccessMessage] = useState<string | null>(null);
+
+
+
+
+  
+
+
 
 
   useEffect(() => {
@@ -204,30 +226,113 @@ const RemediationVideo: React.FC = () => {
       const allVideos = Array.isArray(res.data) ? res.data : [];
 
       const cleaned = allVideos.map((v) => ({
-        ...v,
-        videoUrl: cleanUrl(v.videoUrl),
-        fichier: v["fichier"] || v["videoUrl"] || v["fichier"], 
-        notions: Array.isArray(v.notions) ? v.notions : [],
-        prerequis: Array.isArray(v.prerequis) ? v.prerequis : [],
-        questions: Array.isArray(v.questions) ? v.questions : [],
-        mois: Array.isArray(v.mois) ? v.mois : [],
-        matiere: v.matiere,
-      }));
+  ...v,
+  videoUrl: cleanUrl(v.videoUrl),   // garder YouTube !
+  fichier: v.fichier ? v.fichier.trim() : "", 
+  notions: Array.isArray(v.notions) ? v.notions : [],
+  prerequis: Array.isArray(v.prerequis) ? v.prerequis : [],
+  questions: Array.isArray(v.questions) ? v.questions : [],
+  mois: Array.isArray(v.mois) ? v.mois : [],
+  matiere: v.matiere,
+}));
+
+
+
+ 
+
+
+
 
       const filtered = cleaned
         .filter((v) => (v.matiere ? v.matiere.toLowerCase() === matiere.toLowerCase() : true))
         .filter((v) => isVideoForLevel(v.niveau, niveau, serieEffective));
 
       const queue = buildLearningQueue(filtered, niveau);
-      setOrderedVideos(queue);
+      
+      // Séparer les prérequis (niveau différent) et les vidéos normales
+const prereqVideos = cleaned.filter(v => !isVideoForLevel(v.niveau, niveau, serieEffective));
+const mainVideos = queue;
 
-      // 🔑 Reprendre la dernière vidéo visionnée
-      const lastVideoId = localStorage.getItem("lastVideoWatched");
-      if (lastVideoId) {
-        const lastIndex = queue.findIndex((v) => v.id === lastVideoId);
-        if (lastIndex !== -1) setCurrentIndex(lastIndex);
+// Construire la liste finale en respectant l'ordre des notions de la sidebar
+// Regrouper par notion niveau actuel
+const videosByNotion: Record<string, VideoData[]> = {};
+
+filtered.forEach((v) => {
+  (v.notions || []).forEach((n) => {
+    if (!videosByNotion[n]) videosByNotion[n] = [];
+
+    // Ajouter prérequis
+    v.prerequis.forEach((p) => {
+      const prereqVideo = cleaned.find((vid) => vid.notions.includes(p));
+      if (prereqVideo && !videosByNotion[n].some((x) => x.id === prereqVideo.id)) {
+        videosByNotion[n].push(prereqVideo);
       }
+    });
 
+    // Ajouter vidéo principale
+    if (!videosByNotion[n].some((x) => x.id === v.id)) {
+      videosByNotion[n].push(v);
+    }
+  });
+});
+
+
+
+
+// Construire la liste finale dans l’ordre réel des notions
+const finalList: VideoData[] = [];
+for (const notion of Object.keys(videosByNotion)) {
+  for (const v of videosByNotion[notion]) {
+    if (!finalList.some((x) => x.id === v.id)) {
+      finalList.push(v);
+    }
+  }
+}
+
+
+// Ajouter tous les prérequis présents dans la sidebar
+for (const notion in videosByNotion) {
+  for (const prereqVideo of videosByNotion[notion]) {
+    if (!finalList.some(x => x.id === prereqVideo.id)) {
+      finalList.push(prereqVideo);
+    }
+  }
+}
+
+
+setOrderedVideos(finalList);
+
+
+
+
+const mainVideosFromOrdered = orderedVideos.filter(v => 
+  !orderedVideos.some(other => other !== v && other.exercices?.includes(v.titre))
+);
+
+const mainVideosFromQueue = queue.filter(v => 
+  !queue.some(other => other !== v && other.exercices?.includes(v.titre))
+);
+
+
+
+// 🔎 Trouver la première vidéo non visionnée dans finalList
+// 🔥 Charger l'historique localStorage
+const savedCompleted = localStorage.getItem("completedVideos");
+const completedSet: Set<string> = savedCompleted ? new Set(JSON.parse(savedCompleted)) : new Set();
+
+// 🔥 Mettre le state à jour (UI)
+setCompletedVideos(new Set(completedSet));
+
+// 🔥 Trouver la première vidéo non complétée
+let firstUnwatchedIndex = finalList.findIndex(v => !completedSet.has(v.id));
+if (firstUnwatchedIndex === -1) firstUnwatchedIndex = 0;
+
+setCurrentIndex(firstUnwatchedIndex);
+
+
+    
+
+     
       setLoading(false);
     } catch (err) {
       console.error("Erreur fetch vidéos remediation:", err);
@@ -287,7 +392,7 @@ const handleTimeUp = () => {
   // Afficher un message d’avertissement
   setFeedback({
     type: "error",
-    message: "⏰ Temps écoulé ! Vous devez revoir la vidéo avant de retenter le quiz.",
+    message: "⏰ Vous avez épuisé le temps prévu pour cette question!",
   });
 
   // Cacher le quiz et remettre les compteurs à zéro
@@ -325,41 +430,9 @@ const handleTimeUp = () => {
   }, []);
 
   // notifications start (envoie info quand la vidéo change)
-  useEffect(() => {
-    const notify = async () => {
-      if (!user?.email) return;
-      const startMonth = orderedVideos[currentIndex]?.mois?.[0] ?? "";
-      try {
-        await api.post("/api/notify/remediation", {
-          niveau,
-          video_titre: currentVideoTitle,
-          next_video_titre: nextVideoTitle ?? null,
-          start_month: startMonth,
-        });
-      } catch (err) {
-        console.error("Erreur envoi notif RemediationVideo:", err);
-      }
-    };
-    notify();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, currentVideoTitle, nextVideoTitle, niveau, currentIndex]);
+  
 
-  // notification fin de vidéo (appel chaque changement d'index)
-  useEffect(() => {
-    const notifyFinish = async () => {
-      if (!user?.email) return;
-      try {
-        await api.post("/api/notify/videofinish", {
-          video_titre: currentVideoTitle,
-          next_video_titre: nextVideoTitle ?? null,
-        });
-      } catch (err) {
-        console.error("Erreur envoi notif videofinish:", err);
-      }
-    };
-    notifyFinish();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex, user]);
+ 
 
  
 // ====== ÉTAT PLEIN ÉCRAN ======
@@ -374,40 +447,34 @@ const videoContainerRef = useRef<HTMLDivElement | null>(null);
 
   // current video & url
   const currentVideo = orderedVideos[currentIndex];
-  const videoUrl = currentVideo?.fichier || currentVideo?.videoUrl || "";
+  
+  
+  // ✔️ priorité fichier local → sinon YouTube → sinon vide
+const videoUrl = currentVideo?.fichier?.trim()
+  ? currentVideo.fichier
+  : currentVideo?.videoUrl || "";
+
   const isUrlValid = !!videoUrl && /^https?:\/\/.+/.test(videoUrl);
   // Sauvegarder la vidéo courante dans localStorage
 const handleVideoComplete = (videoId: string) => {
   localStorage.setItem("lastVideoWatched", videoId);
 };
 
-  // availability logic (mois)
-  const isAvailable =
-    !currentVideo ||
-    completedVideos.has(currentVideo.id) ||
+const isPrereq = currentVideo ? currentVideo.niveau !== niveau : false;
+
+const isAvailable = !currentVideo
+  ? false
+  : completedVideos.has(currentVideo.id) ||
+    isPrereq ||
     currentVideo.niveau !== niveau ||
     !currentVideo.mois?.length ||
     currentVideo.mois.some((m) => normalize(m) === currentMonth);
 
 
-  useEffect(() => {
-  localStorage.setItem("lastVideoIndex", currentIndex.toString());
-}, [currentIndex]);
-
-useEffect(() => {
-  const savedIndex = localStorage.getItem("lastVideoIndex");
-  if (savedIndex && orderedVideos.length) {
-    const idx = parseInt(savedIndex, 10);
-    if (!isNaN(idx) && idx < orderedVideos.length) setCurrentIndex(idx);
-  }
-}, [orderedVideos]);
+ 
 
 
-useEffect(() => {
-  if (orderedVideos[currentIndex]) {
-    localStorage.setItem("lastVideoWatched", orderedVideos[currentIndex].id);
-  }
-}, [currentIndex, orderedVideos]);
+
 
 
 useEffect(() => {
@@ -420,23 +487,61 @@ useEffect(() => {
   return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
 }, []);
 
-// État plein écran
 
 
-// Ref pour la zone vidéo
+// NOUVEL ALGORITHME :
+// ➜ on ignore totalement les vidéos du niveau de l’apprenant
+// ➜ on garde uniquement les prérequis (niveaux inférieurs)
 
+// NOUVEL ALGORITHME : lister uniquement les prérequis dans la notion de la vidéo principale
+const videosByNotion: Record<string, VideoData[]> = {};
 
-  // group by notion for sidebar
-  const videosByNotion: Record<string, VideoData[]> = {};
-  orderedVideos
-    .filter((v) => v.niveau === niveau)
-    .forEach((v) => {
-      (v.notions || []).forEach((n) => {
-        if (!videosByNotion[n]) videosByNotion[n] = [];
-        videosByNotion[n].push(v);
+// Pour chaque vidéo principale (niveau actuel)
+orderedVideos
+  .filter(v => v.niveau === niveau && v.notions[0] !== "Exercice") // vidéo principale ignorée
+  .forEach((mainVideo) => {
+    (mainVideo.notions || []).forEach((notion) => {
+      if (!videosByNotion[notion]) videosByNotion[notion] = [];
+
+      // 🔹 Ajouter uniquement les prérequis selon le titre
+      (mainVideo.prerequis || []).forEach((prereqTitle) => {
+        const prereqVideo = orderedVideos.find(v => v.titre === prereqTitle);
+        if (prereqVideo && !videosByNotion[notion].some(v => v.id === prereqVideo.id)) {
+          videosByNotion[notion].push(prereqVideo);
+        }
       });
+
+      // 🔹 Ajouter uniquement les exercices associés (niveau actuel)
+      const exerciceVideos = orderedVideos.filter(
+        v =>
+          mainVideo.exercices?.includes(v.titre) &&
+          v.niveau === niveau &&
+          !mainVideo.prerequis?.includes(v.titre) // éviter doublons si un exercice est déjà prérequis
+      );
+
+      exerciceVideos.forEach(exVideo => {
+        if (!videosByNotion[notion].some(v => v.id === exVideo.id)) {
+          videosByNotion[notion].push(exVideo);
+        }
+      });
+
+      
     });
+  });
+
+
+
+
+
+
+
+// ✅ Les vidéos prérequis sont dans orderedVideos mais n'ont pas de notion affichée
+
+
   const notionOrder = Object.keys(videosByNotion);
+
+  const [focusArea, setFocusArea] = useState<"video" | "sidebar">("video");
+
 
   /* -------------------- ACTIONS -------------------- */
   // ====== Gestion orientation et plein écran mobile ======
@@ -488,6 +593,69 @@ useEffect(() => {
   document.addEventListener("fullscreenchange", handleFullscreenChange);
   return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
 }, []);
+
+
+
+
+
+useEffect(() => {
+  const handleKey = (e: KeyboardEvent) => {
+    const tag = (e.target as HTMLElement)?.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+    if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter"].includes(e.key)) return;
+    e.preventDefault();
+
+    const notions = Object.keys(videosByNotion);
+    const currentVideo = orderedVideos[currentIndex];
+    if (!currentVideo) return;
+
+    // Trouver la notion et l'index dans la notion
+    let currentNotionIndex = notions.findIndex(n => videosByNotion[n].some(v => v.id === currentVideo.id));
+    let vidsInNotion = videosByNotion[notions[currentNotionIndex]];
+    let indexInNotion = vidsInNotion.findIndex(v => v.id === currentVideo.id);
+
+    if (e.key === "ArrowDown") {
+      if (indexInNotion < vidsInNotion.length - 1) {
+        // vidéo suivante dans la même notion
+        setCurrentIndex(orderedVideos.findIndex(v => v.id === vidsInNotion[indexInNotion + 1].id));
+      } else {
+        // première vidéo de la notion suivante
+        const nextNotionIndex = (currentNotionIndex + 1) % notions.length;
+        const nextVideo = videosByNotion[notions[nextNotionIndex]][0];
+        setCurrentIndex(orderedVideos.findIndex(v => v.id === nextVideo.id));
+      }
+    }
+
+    if (e.key === "ArrowUp") {
+      if (indexInNotion > 0) {
+        // vidéo précédente dans la même notion
+        setCurrentIndex(orderedVideos.findIndex(v => v.id === vidsInNotion[indexInNotion - 1].id));
+      } else {
+        // dernière vidéo de la notion précédente
+        const prevNotionIndex = (currentNotionIndex - 1 + notions.length) % notions.length;
+        const prevVids = videosByNotion[notions[prevNotionIndex]];
+        const prevVideo = prevVids[prevVids.length - 1];
+        setCurrentIndex(orderedVideos.findIndex(v => v.id === prevVideo.id));
+      }
+    }
+
+    // Navigation horizontale et Enter
+    if (e.key === "ArrowLeft") setFocusArea("video");
+    if (e.key === "ArrowRight") setFocusArea("sidebar");
+    if (e.key === "Enter") setOpenNotion(null);
+
+    // Scroll vers vidéo active
+    setTimeout(() => {
+      const activeElement = document.getElementById(`video-${orderedVideos[currentIndex]?.id}`);
+      activeElement?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
+  };
+
+  window.addEventListener("keydown", handleKey);
+  return () => window.removeEventListener("keydown", handleKey);
+}, [orderedVideos, videosByNotion, currentIndex, focusArea]);
+
 
 
 
@@ -553,10 +721,13 @@ const handleGoToQuestions = () => {
         } else {
           // marque vidéo comme complétée
           setCompletedVideos((prev) => new Set(prev).add(currentVideo.id));
-         localStorage.setItem(
-  "completedVideos",
-  JSON.stringify([...completedVideos, currentVideo.id])
-);
+         setCompletedVideos(prev => {
+  const newSet = new Set(prev);
+  newSet.add(currentVideo.id);
+  localStorage.setItem("completedVideos", JSON.stringify([...newSet]));
+  return newSet;
+});
+
 
          
           // délai pour UX
@@ -771,7 +942,7 @@ const handleGoToQuestions = () => {
                   const index = orderedVideos.findIndex((v) => v.id === vidId);
                   if (index !== -1) {
                   setCurrentIndex(index);
-                  setOpenNotion(null);
+                  
                  }
                   }}
 
@@ -862,7 +1033,7 @@ const handleGoToQuestions = () => {
                     {vids.map((vid) => {
                       const isActive = orderedVideos[currentIndex]?.id === vid.id;
                       const isCompleted = completedVideos.has(vid.id);
-
+                         
                       return (
                         <li
                           key={vid.id}
@@ -1109,6 +1280,113 @@ const handleGoToQuestions = () => {
           const isCorrect = answerStatus === "correct" && isSelected;
           const isWrong = answerStatus === "wrong" && isSelected;
 
+
+
+
+
+
+
+/* -----------------------------------------------------------
+   CONTROLES CLAVIER : navigation vidéo et sidebar
+----------------------------------------------------------- */
+
+// index local sur les vidéos de la sidebar (par notion)
+const [sidebarIndex, setSidebarIndex] = useState(0);
+
+// état : focus dans la sidebar ou sur la zone principale
+const [focusArea, setFocusArea] = useState<"video" | "sidebar">("video");
+
+// Réf pour savoir si la sidebar est ouverte
+const sidebarRef = useRef<HTMLDivElement | null>(null);
+
+useEffect(() => {
+  const handleKey = (e: KeyboardEvent) => {
+    // Empêcher le scroll par défaut
+    if (["ArrowUp", "ArrowDown"].includes(e.key)) {
+      e.preventDefault();
+    }
+
+    /***
+     * ----------------------------------------
+     *   CAS 1 : Flèches HAUT / BAS → Sidebar
+     * ----------------------------------------
+     */
+    if (focusArea === "sidebar") {
+      if (e.key === "ArrowUp") {
+        setSidebarIndex((prev) =>
+          prev > 0 ? prev - 1 : Object.keys(videosByNotion).length - 1
+        );
+      }
+      if (e.key === "ArrowDown") {
+        setSidebarIndex((prev) =>
+          prev < Object.keys(videosByNotion).length - 1 ? prev + 1 : 0
+        );
+      }
+
+      if (e.key === "Enter") {
+        // Changer de vidéo quand on valide dans la sidebar
+        const notion = Object.keys(videosByNotion)[sidebarIndex];
+        const targetVideo = videosByNotion[notion][0];
+        const index = orderedVideos.findIndex((v) => v.id === targetVideo.id);
+        if (index !== -1) setCurrentIndex(index);
+      }
+    }
+
+    /***
+     * ----------------------------------------
+     *   CAS 2 : Flèches GAUCHE / DROITE
+     * ----------------------------------------
+     */
+
+    // → Flèche DROITE : on passe du bouton vidéo → sidebar
+    if (e.key === "ArrowRight" && focusArea === "video") {
+      setFocusArea("sidebar");
+      return;
+    }
+
+    // → Flèche GAUCHE : sidebar → zone vidéo (bouton démarrer/retour)
+    if (e.key === "ArrowLeft" && focusArea === "sidebar") {
+      setFocusArea("video");
+      return;
+    }
+
+    /***
+     * ----------------------------------------
+     *   CAS 3 : Entrée dans la zone vidéo
+     * ----------------------------------------
+     */
+    if (focusArea === "video" && e.key === "Enter") {
+      // Si la vidéo n’est pas encore lancée → on la lance
+      if (!videoPlaying && !showQuiz) {
+        setVideoPlaying(true);
+        setShowCountdown(true);
+      } else if (showQuiz) {
+        // Si on est dans le quiz, valider la réponse
+        if (selectedAnswer) {
+          handleValidateAnswer();
+        }
+      }
+    }
+  };
+
+  window.addEventListener("keydown", handleKey);
+  return () => window.removeEventListener("keydown", handleKey);
+}, [
+  focusArea,
+  sidebarIndex,
+  orderedVideos,
+  videosByNotion,
+  videoPlaying,
+  showQuiz,
+  selectedAnswer,
+]);
+
+
+
+
+
+
+          
           return (
             <motion.label
               key={idx}
@@ -1216,4 +1494,4 @@ const handleGoToQuestions = () => {
   );
 };
 
-export default RemediationVideo;
+export default RemediationVideo; 
