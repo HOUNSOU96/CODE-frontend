@@ -15,6 +15,9 @@ import Inscription from "./pages/Inscription";
 import Etudiant from "./pages/Etudiant";
 import RemediationVideo from "./pages/Maths/Test/RemediationVideo/RemediationVideo";
 import VideoPlayer from "./pages/VideoPlayer";
+
+import Dashboard from "./pages/AdminDashboard/Dashboard";
+
 import ListeInscrits from "./pages/ListeInscrits";
 
 // Pages protégées
@@ -185,6 +188,7 @@ const protectedPages = [
   { path: "/matieres/matiereslangue", Component: Matiereslangue},
   { path: "/matieres/matieresmusique", Component: Matieresmusique},
   { path: "/matieres/matierespct", Component: Matierespct},
+  { path: "/admin/dashboard", Component: Dashboard},
 ];
 
 const AnimatedRoutes: React.FC = () => {
