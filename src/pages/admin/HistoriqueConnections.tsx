@@ -9,8 +9,8 @@ interface ConnectionRecord {
   prenom: string;
   date: string;
   heure_connexion: string;
-  heure_deconnexion: string;
-  last_seen?: string; // ← ajouté pour refléter le backend
+  heure_deconnexion: string | null;
+  last_seen?: string;
 }
 
 type FilterType = "all" | "online" | "offline";
@@ -28,17 +28,21 @@ const HistoriqueConnections: React.FC = () => {
   // 🔹 Vérifie si un utilisateur est en ligne selon last_seen
   const isUserOnline = (r: ConnectionRecord) => {
     if (!r.last_seen) return false;
-    const lastSeen = new Date(r.last_seen);
-    return Date.now() - lastSeen.getTime() <= 1 * 60 * 1000; // 1 minute comme backend
+
+    const lastSeen = new Date(r.last_seen + "Z"); // sécurité UTC
+    return Date.now() - lastSeen.getTime() <= 2 * 60 * 1000;
   };
 
   const getElapsedTime = (r: ConnectionRecord) => {
     const lastConnection = new Date(`${r.date}T${r.heure_connexion}`);
     const diffMs = Date.now() - lastConnection.getTime();
+
     const diffSec = Math.floor(diffMs / 1000);
     if (diffSec < 60) return `${diffSec} sec`;
+
     const diffMin = Math.floor(diffSec / 60);
     if (diffMin < 60) return `${diffMin} min`;
+
     const diffH = Math.floor(diffMin / 60);
     return `${diffH} h`;
   };
@@ -46,14 +50,14 @@ const HistoriqueConnections: React.FC = () => {
   // 🔹 Récupération des logs et mise à jour du nombre en ligne
   const fetchRecords = async () => {
     try {
-      const res = await api.get("/api/admin/historique-connections", {
+      const res = await api.get("/api/admin_dashboard/historique-connections", {
         params: { t: Date.now() },
       });
+
       const data: ConnectionRecord[] = res.data;
 
       setRecords(data);
 
-      // Calcul du nombre actuellement en ligne
       const onlineUsers = new Set(data.filter(isUserOnline).map((r) => r.id));
       setCurrentOnline(onlineUsers.size);
     } catch (err) {
@@ -66,19 +70,27 @@ const HistoriqueConnections: React.FC = () => {
   useEffect(() => {
     setLoading(true);
     fetchRecords();
-    const interval = setInterval(fetchRecords, 5000);
+
+    const interval = setInterval(fetchRecords, 3000);
+
     return () => clearInterval(interval);
   }, []);
 
   const total = records.length;
-  const totalOnline = useMemo(() => records.filter(isUserOnline).length, [records]);
+
+  const totalOnline = useMemo(() => {
+    return records.filter(isUserOnline).length;
+  }, [records]);
+
   const totalOffline = total - totalOnline;
 
   const filteredRecords = useMemo(() => {
     return records.filter((r) => {
       const online = isUserOnline(r);
+
       if (filter === "online" && !online) return false;
       if (filter === "offline" && online) return false;
+
       if (dateFilter && r.date !== dateFilter) return false;
 
       const fullName = `${r.nom} ${r.prenom}`.toLowerCase();
@@ -90,6 +102,7 @@ const HistoriqueConnections: React.FC = () => {
 
   const recordsByDate = useMemo(() => {
     const grouped: Record<string, ConnectionRecord[]> = {};
+
     filteredRecords.forEach((r) => {
       if (!grouped[r.date]) grouped[r.date] = [];
       grouped[r.date].push(r);
@@ -106,7 +119,7 @@ const HistoriqueConnections: React.FC = () => {
           if (!aOnline && bOnline) return 1;
 
           return (
-            new Date(`1970-01-01T${b.heure_connexion}`) as any -
+            (new Date(`1970-01-01T${b.heure_connexion}`) as any) -
             (new Date(`1970-01-01T${a.heure_connexion}`) as any)
           );
         });
@@ -131,12 +144,15 @@ const HistoriqueConnections: React.FC = () => {
         <div className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-xl font-semibold">
           Total : {total}
         </div>
+
         <div className="px-4 py-2 bg-green-200 dark:bg-green-800 rounded-xl font-semibold">
           Connectés : {totalOnline}
         </div>
+
         <div className="px-4 py-2 bg-red-200 dark:bg-red-800 rounded-xl font-semibold">
           Déconnectés : {totalOffline}
         </div>
+
         <div className="px-4 py-2 bg-yellow-200 dark:bg-yellow-800 rounded-xl font-semibold">
           Actuellement en ligne : {currentOnline}
         </div>
@@ -151,6 +167,7 @@ const HistoriqueConnections: React.FC = () => {
           onChange={(e) => setSearch(e.target.value)}
           className="px-4 py-2 rounded-xl border"
         />
+
         <input
           type="date"
           value={dateFilter}
@@ -164,23 +181,31 @@ const HistoriqueConnections: React.FC = () => {
         <button
           onClick={() => setFilter("all")}
           className={`px-4 py-2 rounded-xl font-semibold ${
-            filter === "all" ? "bg-blue-600 text-white" : "bg-gray-300 dark:bg-gray-700"
+            filter === "all"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-300 dark:bg-gray-700"
           }`}
         >
           Tous
         </button>
+
         <button
           onClick={() => setFilter("online")}
           className={`px-4 py-2 rounded-xl font-semibold ${
-            filter === "online" ? "bg-green-600 text-white" : "bg-gray-300 dark:bg-gray-700"
+            filter === "online"
+              ? "bg-green-600 text-white"
+              : "bg-gray-300 dark:bg-gray-700"
           }`}
         >
           Connectés
         </button>
+
         <button
           onClick={() => setFilter("offline")}
           className={`px-4 py-2 rounded-xl font-semibold ${
-            filter === "offline" ? "bg-red-600 text-white" : "bg-gray-300 dark:bg-gray-700"
+            filter === "offline"
+              ? "bg-red-600 text-white"
+              : "bg-gray-300 dark:bg-gray-700"
           }`}
         >
           Déconnectés
@@ -197,10 +222,14 @@ const HistoriqueConnections: React.FC = () => {
           </p>
         ) : (
           recordsByDate.map(([date, recs]) => (
-            <div key={date} className="mb-6 bg-white dark:bg-gray-800 p-4 rounded-xl shadow">
+            <div
+              key={date}
+              className="mb-6 bg-white dark:bg-gray-800 p-4 rounded-xl shadow"
+            >
               <h2 className="text-xl font-semibold mb-2">
                 {date} — {recs.length} connexion{recs.length > 1 ? "s" : ""}
               </h2>
+
               <table className="min-w-full">
                 <thead>
                   <tr className="bg-blue-600 text-white">
@@ -210,9 +239,11 @@ const HistoriqueConnections: React.FC = () => {
                     <th className="px-4 py-2">Déconnexion</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {recs.map((r) => {
                     const online = isUserOnline(r);
+
                     return (
                       <tr
                         key={`${r.id}-${r.date}-${r.heure_connexion}`}
@@ -222,24 +253,31 @@ const HistoriqueConnections: React.FC = () => {
                       >
                         <td className="px-4 py-2 font-semibold flex items-center gap-2">
                           {r.nom}
+
                           {online && (
                             <span className="flex items-center gap-1">
                               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+
                               <span className="text-xs text-green-700 dark:text-green-300">
                                 {getElapsedTime(r)}
                               </span>
                             </span>
                           )}
                         </td>
+
                         <td className="px-4 py-2 font-semibold">{r.prenom}</td>
+
                         <td className="px-4 py-2">{r.heure_connexion}</td>
+
                         <td className="px-4 py-2">
                           {online ? (
                             <span className="px-2 py-0.5 bg-green-500 text-white rounded-full text-xs">
                               Connecté
                             </span>
-                          ) : (
+                          ) : r.heure_deconnexion ? (
                             r.heure_deconnexion
+                          ) : (
+                            "-"
                           )}
                         </td>
                       </tr>
@@ -252,14 +290,15 @@ const HistoriqueConnections: React.FC = () => {
         )}
       </div>
 
-      {/* BOUTONS FIXÉS EN BAS */}
+      {/* BOUTONS BAS */}
       <div className="flex justify-center gap-4 p-4 bg-gray-100 dark:bg-gray-900 sticky bottom-0 shadow-t">
         <button
-          onClick={() => navigate("/admin/dashboard")}
+          onClick={() => navigate("/dashboard")}
           className="px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 shadow-md"
         >
           DASHBOARD
         </button>
+
         <button
           onClick={() => navigate(-1)}
           className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-md"
