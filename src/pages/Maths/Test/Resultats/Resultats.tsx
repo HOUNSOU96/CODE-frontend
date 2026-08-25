@@ -25,9 +25,36 @@ const mentionColors: Record<string, string> = {
 type ResultatType = {
   note: number;
   mention: string;
-  notionsNonAcquises: string[];
+
+  notionsNonAcquises?: string[];
+  notions_non_acquises?: string[];
+
+  nbQuestions?: number;
+  nbBonnesReponses?: number;
+
+  questionsRemediation?: any[];
+  questions_remediation?: any[];
+
   [key: string]: any;
 };
+
+type ResultatsLocationState = {
+  resultats?: ResultatType;
+
+  questionsRemediation?: any[];
+  questionsDuTest?: any[];
+  reponsesDuTest?: any[];
+
+  notionsNonAcquises?: string[];
+
+  niveauActuel?: string;
+  serieActuelle?: string;
+
+  testId?: string;
+
+  [key: string]: any;
+};
+
 
 const Resultats: React.FC = () => {
   const location = useLocation();
@@ -36,6 +63,21 @@ const Resultats: React.FC = () => {
   const resultRef = useRef<HTMLDivElement>(null);
   const sentPDF = useRef(false);
   const { user: apprenant, token, loading: loadingAuth } = useAuth();
+
+  const state =
+  (location.state || {}) as ResultatsLocationState;
+
+  const questionsRemediation =
+    state.questionsRemediation ?? [];
+
+  const questionsDuTest =
+  state.questionsDuTest ?? [];
+
+  const reponsesDuTest =
+  state.reponsesDuTest ?? [];
+
+ 
+
 
   // 🧠 Initialisation robuste
   const [resultats, setResultats] = useState<ResultatType | null>(
@@ -58,9 +100,10 @@ const niveauComplet =
     ? niveau.toUpperCase()
     : `${niveau ?? ""} ${serie ?? ""}`.toUpperCase();
 
-  const notionsNonAcquises = Array.isArray(resultats?.notionsNonAcquises)
+  const notionsNonAcquises =
+  Array.isArray(resultats?.notionsNonAcquises)
     ? resultats.notionsNonAcquises
-    : [];
+    : state.notionsNonAcquises ?? [];
   const notionsTriees = trierNotionsNonAcquises(notionsNonAcquises, niveauComplet);
   const mentionStyle = mentionColors[mention] || "bg-gray-500 text-white shadow-md";
   const dateEmission = new Date().toLocaleDateString("fr-FR");
@@ -171,17 +214,44 @@ const niveauComplet =
     sendPDF();
   }, [token, apprenant, niveauComplet]);
 
-  const handleRemediationStart = () => {
-    if (!niveau || !serie) return;
-    navigate(`/maths/test/remediation/${niveau.toLowerCase()}/${serie.toLowerCase()}`, {
-     replace: true,
-      state: {
-        notions_non_acquises: notionsNonAcquises,
-        niveauActuel: niveau,
-        serieActuelle: serie,
-      },
-    });
-  };
+const handleRemediationStart = () => {
+  if (!niveau) {
+    console.warn(
+      "⚠️ Impossible de démarrer la remédiation : niveau manquant."
+    );
+    return;
+  }
+
+  const serieRoute = serie
+    ? serie.toLowerCase()
+    : "none";
+
+  navigate(
+    `/maths/test/remediation/${niveau.toLowerCase()}/${serieRoute}`,
+    {
+      replace: true,
+
+       state: {
+      resultats: state.resultats,
+
+      questionsRemediation,
+
+      questionsDuTest,
+
+      reponsesDuTest,
+
+      notions_non_acquises:
+        notionsNonAcquises,
+
+      niveauActuel:
+        niveau,
+
+      serieActuelle:
+        serie,
+    },
+    }
+  );
+};
 
   const handleDownloadPDF = async () => {
     if (!resultRef.current) return;

@@ -11,13 +11,15 @@ import HistoriqueConnections from "@/pages/admin/HistoriqueConnections";
 import Page1 from "./pages/Page1";
 import Page2 from "./pages/Page2";
 import Login from "./pages/Login";
+import Activation from "./pages/Activation";
 import Inscription from "./pages/Inscription";
 import Etudiant from "./pages/Etudiant";
 import RemediationVideo from "./pages/Maths/Test/RemediationVideo/RemediationVideo";
 import VideoPlayer from "./pages/VideoPlayer";
 
 import Dashboard from "./pages/AdminDashboard/Dashboard";
-
+import AdminDocuments from "./pages/AdminDocuments";
+import AdminActivationCodes from "./pages/AdminActivationCodes";
 import ListeInscrits from "./pages/ListeInscrits";
 
 // Pages protégées
@@ -201,8 +203,10 @@ const AnimatedRoutes: React.FC = () => {
         <Route path="/" element={<Page1 />} />
         <Route path="/login" element={<Login />} />
         <Route path="/inscription" element={<Inscription />} />
-        
-
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/activation" element={<Activation />} />
+        <Route path="/admin/documents" element={<AdminDocuments />}/>
+        <Route path="/admin/codes-activation" element={<AdminActivationCodes />}/>
         {/* Routes protégées */}
         {protectedPages.map(({ path, Component }) => (
           <Route

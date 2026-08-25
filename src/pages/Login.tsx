@@ -181,6 +181,14 @@ const Login: React.FC = () => {
           >
             {loading ? "Connexion en cours..." : "Se connecter"}
           </button>
+          <Link
+             to="/activation"
+             className="block w-full text-center py-3 rounded-lg
+             border border-blue-600 text-blue-600
+             hover:bg-blue-50 font-semibold transition"
+              >
+          📚 Activer mon document CODE
+         </Link>
         </form>
       </main>
 

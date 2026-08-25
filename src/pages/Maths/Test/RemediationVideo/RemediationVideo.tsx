@@ -2,7 +2,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import api from "@/utils/axios";
-
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, ChevronDown, ChevronRight, X, List } from "lucide-react";
 import CountdownCircle from "@/components/CountdownCircle";
@@ -367,12 +366,79 @@ setCurrentIndex(firstUnwatchedIndex);
   const [seenVideosAtLevel, setSeenVideosAtLevel] = useState<Set<string>>(new Set());
   const [openNotion, setOpenNotion] = useState<string | null>(null);
   const [canShowQuiz, setCanShowQuiz] = useState(false);
+  
+  // ======================================================
+// 🔝 REVENIR EN HAUT DE LA PAGE
+// ======================================================
+const scrollPageToTop = (behavior: ScrollBehavior = "smooth") => {
+  window.scrollTo({
+    top: 0,
+    left: 0,
+    behavior,
+  });
+
+  document.documentElement.scrollTo({
+    top: 0,
+    left: 0,
+    behavior,
+  });
+
+  document.body.scrollTo({
+    top: 0,
+    left: 0,
+    behavior,
+  });
+};
+
+
+useEffect(() => {
+  scrollPageToTop("auto");
+}, []);
+
+
+
+
+
+useEffect(() => {
+  if (!orderedVideos.length) return;
+
+  scrollPageToTop("smooth");
+}, [currentIndex]);
+
+
+
+
+
+useEffect(() => {
+  if (!showQuiz) return;
+
+  scrollPageToTop("smooth");
+}, [currentQuestionIndex, showQuiz]);
+
+
+
+
+
+
+
+
   useEffect(() => {
     const savedCompleted = localStorage.getItem("completedVideos");
     if (savedCompleted) {
       setCompletedVideos(new Set(JSON.parse(savedCompleted)));
     }
   }, []);
+
+
+
+useEffect(() => {
+  if (!videoPlaying || showQuiz) return;
+
+  requestAnimationFrame(() => {
+    scrollPageToTop();
+  });
+}, [videoPlaying, showQuiz, fadeKey]);
+
 
 
   // evaluation
@@ -538,14 +604,90 @@ orderedVideos
 // ✅ Les vidéos prérequis sont dans orderedVideos mais n'ont pas de notion affichée
 
 
-  const notionOrder = Object.keys(videosByNotion);
+const notionOrder = Object.keys(videosByNotion);
 
-  const [focusArea, setFocusArea] = useState<"video" | "sidebar">("video");
+const [focusArea, setFocusArea] =
+  useState<"video" | "sidebar">("video");
 
+const [sidebarIndex, setSidebarIndex] = useState(0);
 
-  /* -------------------- ACTIONS -------------------- */
-  // ====== Gestion orientation et plein écran mobile ======
-  
+const sidebarRef = useRef<HTMLDivElement | null>(null);
+
+useEffect(() => {
+  const handleKey = (e: KeyboardEvent) => {
+    if (["ArrowUp", "ArrowDown"].includes(e.key)) {
+      e.preventDefault();
+    }
+
+    if (focusArea === "sidebar") {
+      if (e.key === "ArrowUp") {
+        setSidebarIndex((prev) =>
+          prev > 0
+            ? prev - 1
+            : Math.max(0, Object.keys(videosByNotion).length - 1)
+        );
+      }
+
+      if (e.key === "ArrowDown") {
+        setSidebarIndex((prev) =>
+          prev < Object.keys(videosByNotion).length - 1
+            ? prev + 1
+            : 0
+        );
+      }
+
+      if (e.key === "Enter") {
+        const notions = Object.keys(videosByNotion);
+        const notion = notions[sidebarIndex];
+
+        if (!notion || !videosByNotion[notion]?.length) return;
+
+        const targetVideo = videosByNotion[notion][0];
+
+        const index = orderedVideos.findIndex(
+          (v) => v.id === targetVideo.id
+        );
+
+        if (index !== -1) {
+          setCurrentIndex(index);
+        }
+      }
+    }
+
+    if (e.key === "ArrowRight" && focusArea === "video") {
+      setFocusArea("sidebar");
+      return;
+    }
+
+    if (e.key === "ArrowLeft" && focusArea === "sidebar") {
+      setFocusArea("video");
+      return;
+    }
+
+    if (focusArea === "video" && e.key === "Enter") {
+      if (!videoPlaying && !showQuiz) {
+        setVideoPlaying(true);
+        setShowCountdown(true);
+      } else if (showQuiz && selectedAnswer) {
+        handleValidateAnswer();
+      }
+    }
+  };
+
+  window.addEventListener("keydown", handleKey);
+
+  return () => {
+    window.removeEventListener("keydown", handleKey);
+  };
+}, [
+  focusArea,
+  sidebarIndex,
+  orderedVideos,
+  videosByNotion,
+  videoPlaying,
+  showQuiz,
+  selectedAnswer,
+]);
 
   const requestFullscreenLandscape = async (videoElement?: HTMLDivElement | null) => {
   const el = videoElement || videoContainerRef.current;
@@ -661,27 +803,27 @@ useEffect(() => {
 
 
 
-  const startVideo = () => {
-    setFeedback(null);
-    setVideoPlaying(true);
-    setShowQuiz(false);
-    setShowCountdown(true); 
-    setCurrentQuestionIndex(0);
-    setSelectedAnswer("");
-    setShuffledQuestions(shuffleQuestionsWithChoices(currentVideo?.questions || []));
-    setAnswerStatus("none");
-    setFadeKey((p) => p + 1);
+const startVideo = () => {
+  // 🔝 Toujours commencer la vidéo depuis le haut de la page
+  scrollPageToTop();
 
+  setFeedback(null);
+  setVideoPlaying(true);
+  setShowQuiz(false);
+  setShowCountdown(true);
+  setCurrentQuestionIndex(0);
+  setSelectedAnswer("");
+  setShuffledQuestions(
+    shuffleQuestionsWithChoices(currentVideo?.questions || [])
+  );
+  setAnswerStatus("none");
+  setFadeKey((p) => p + 1);
 
-
-  // ⚡ DEMANDE DE PLEIN ÉCRAN SUR MOBILE
-   
-if (window.innerWidth < 768) {
-  requestFullscreenLandscape(videoContainerRef.current);
-  setIsFullscreen(true);
-}
-
-  };
+  if (window.innerWidth < 768) {
+    requestFullscreenLandscape(videoContainerRef.current);
+    setIsFullscreen(true);
+  }
+};
 
 // ✅ Fonction corrigée : affiche les questions du quiz quand on clique sur “Passez au quiz”
 const handleGoToQuestions = () => {
@@ -735,18 +877,38 @@ const handleGoToQuestions = () => {
         }
       }, 900);
     } else {
-      setFeedback({ type: "error", message: "❌ Mauvaise réponse ! Vous devez revoir la vidéo" });
-      setAnswerStatus("wrong");
-      setTimeout(() => {
-        setFeedback(null);
-        setVideoPlaying(false);
-        setShowQuiz(false);
-        setCurrentQuestionIndex(0);
-        setSelectedAnswer("");
-        setAnswerStatus("none");
-        setShuffledQuestions(shuffleQuestionsWithChoices(currentVideo?.questions || []));
-      }, 1400);
-    }
+  setFeedback({
+    type: "error",
+    message: "❌ Mauvaise réponse ! Vous devez revoir la vidéo",
+  });
+
+  setAnswerStatus("wrong");
+
+  setTimeout(() => {
+    setFeedback(null);
+
+    // 🔄 Quitter le quiz
+    setVideoPlaying(false);
+    setShowQuiz(false);
+
+    // 🔄 Réinitialiser le quiz
+    setCurrentQuestionIndex(0);
+    setSelectedAnswer("");
+    setAnswerStatus("none");
+
+    setShuffledQuestions(
+      shuffleQuestionsWithChoices(currentVideo?.questions || [])
+    );
+
+    // 🔝 Revenir complètement en haut
+    scrollPageToTop();
+
+    // Petite sécurité après le rendu React
+    requestAnimationFrame(() => {
+      scrollPageToTop();
+    });
+  }, 1400);
+}
   };
 
   const startEvaluationForNotion = (notion: string) => {
@@ -1140,7 +1302,7 @@ const handleGoToQuestions = () => {
       <div className="flex flex-col items-center mb-3">
         <CountdownCircle
           key={`${fadeKey}-${timerResetCounter}`}
-          duration={180}        // durée du timer
+          duration={5}        // durée du timer
           size={80}              // taille du cercle
           strokeWidth={6}        // épaisseur du cercle
           onComplete={() => setTimerEnded(true)}
@@ -1248,7 +1410,8 @@ const handleGoToQuestions = () => {
       </p>
       <CountdownCircle
         key={currentQuestionIndex}
-        duration={shuffledQuestions[currentQuestionIndex]?.duration || 60}
+        /*duration={shuffledQuestions[currentQuestionIndex]?.duration || 60} */
+        duration={90}
         onComplete={() => {
           setFeedback({
             type: "error",
@@ -1286,100 +1449,6 @@ const handleGoToQuestions = () => {
 
 
 
-/* -----------------------------------------------------------
-   CONTROLES CLAVIER : navigation vidéo et sidebar
------------------------------------------------------------ */
-
-// index local sur les vidéos de la sidebar (par notion)
-const [sidebarIndex, setSidebarIndex] = useState(0);
-
-// état : focus dans la sidebar ou sur la zone principale
-const [focusArea, setFocusArea] = useState<"video" | "sidebar">("video");
-
-// Réf pour savoir si la sidebar est ouverte
-const sidebarRef = useRef<HTMLDivElement | null>(null);
-
-useEffect(() => {
-  const handleKey = (e: KeyboardEvent) => {
-    // Empêcher le scroll par défaut
-    if (["ArrowUp", "ArrowDown"].includes(e.key)) {
-      e.preventDefault();
-    }
-
-    /***
-     * ----------------------------------------
-     *   CAS 1 : Flèches HAUT / BAS → Sidebar
-     * ----------------------------------------
-     */
-    if (focusArea === "sidebar") {
-      if (e.key === "ArrowUp") {
-        setSidebarIndex((prev) =>
-          prev > 0 ? prev - 1 : Object.keys(videosByNotion).length - 1
-        );
-      }
-      if (e.key === "ArrowDown") {
-        setSidebarIndex((prev) =>
-          prev < Object.keys(videosByNotion).length - 1 ? prev + 1 : 0
-        );
-      }
-
-      if (e.key === "Enter") {
-        // Changer de vidéo quand on valide dans la sidebar
-        const notion = Object.keys(videosByNotion)[sidebarIndex];
-        const targetVideo = videosByNotion[notion][0];
-        const index = orderedVideos.findIndex((v) => v.id === targetVideo.id);
-        if (index !== -1) setCurrentIndex(index);
-      }
-    }
-
-    /***
-     * ----------------------------------------
-     *   CAS 2 : Flèches GAUCHE / DROITE
-     * ----------------------------------------
-     */
-
-    // → Flèche DROITE : on passe du bouton vidéo → sidebar
-    if (e.key === "ArrowRight" && focusArea === "video") {
-      setFocusArea("sidebar");
-      return;
-    }
-
-    // → Flèche GAUCHE : sidebar → zone vidéo (bouton démarrer/retour)
-    if (e.key === "ArrowLeft" && focusArea === "sidebar") {
-      setFocusArea("video");
-      return;
-    }
-
-    /***
-     * ----------------------------------------
-     *   CAS 3 : Entrée dans la zone vidéo
-     * ----------------------------------------
-     */
-    if (focusArea === "video" && e.key === "Enter") {
-      // Si la vidéo n’est pas encore lancée → on la lance
-      if (!videoPlaying && !showQuiz) {
-        setVideoPlaying(true);
-        setShowCountdown(true);
-      } else if (showQuiz) {
-        // Si on est dans le quiz, valider la réponse
-        if (selectedAnswer) {
-          handleValidateAnswer();
-        }
-      }
-    }
-  };
-
-  window.addEventListener("keydown", handleKey);
-  return () => window.removeEventListener("keydown", handleKey);
-}, [
-  focusArea,
-  sidebarIndex,
-  orderedVideos,
-  videosByNotion,
-  videoPlaying,
-  showQuiz,
-  selectedAnswer,
-]);
 
 
 
@@ -1461,10 +1530,12 @@ useEffect(() => {
       whileTap={{ scale: 0.95 }}
       transition={{ duration: 0.4 }}
       onClick={() => {
+        scrollPageToTop();
+
         setVideoPlaying(true);
         setTimerEnded(false);
-        setTimerResetCounter((p) => p + 1); // réinitialiser le timer
-      }}
+        setTimerResetCounter((p) => p + 1);
+}}
       className="bg-green-600 text-white px-6 py-3 rounded-full shadow-lg hover:bg-green-700 active:bg-green-800 transition-all duration-300"
     >
       ▶️ Démarrer la vidéo

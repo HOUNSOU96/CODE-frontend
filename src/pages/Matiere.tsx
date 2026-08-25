@@ -25,17 +25,17 @@ const Matiere: React.FC = () => {
 
   const matieres = [
     { name: "maths", label: "Mathématiques", icon: PiMathOperationsBold, color: "text-red-500" },
-    //{ name: "pct", label: "Physique, Chimie et Technologie (PCT)", icon: GiAtom, color: "text-purple-500" },
-    //{ name: "svt", label: "Science de la Vie et de la Terre (SVT)", icon: GiChemicalDrop, color: "text-green-500" },
-   // { name: "langue", label: "Étude et apprentissage de Langue", icon: GiOpenBook, color: "text-yellow-500" },
-   // { name: "histoire", label: "Histoire", icon: FaHistory, color: "text-orange-500" },
-    //{ name: "geographie", label: "Géographie", icon: GiEarthAfricaEurope, color: "text-teal-500" },
-    //{ name: "philosophie", label: "Philosophie", icon: MdPsychology, color: "text-pink-500" },
-    //{ name: "informatique", label: "Informatique", icon: FaLaptopCode, color: "text-blue-500" },
-    //{ name: "intelligenceartificielle", label: "Intelligence Artificielle (IA)", icon: SiOpenai, color: "text-indigo-500" },
-   // { name: "musique", label: "Musique", icon: GiMusicalNotes, color: "text-fuchsia-500" },
-    //{ name: "eps", label: "Éducation Physique et Sportive (EPS)", icon: FaRunning, color: "text-lime-500" },
-    //{ name: "divertissement", label: "Divertissement", icon: BiJoystick, color: "text-cyan-500" },
+    { name: "pct", label: "Physique, Chimie et Technologie (PCT)", icon: GiAtom, color: "text-purple-500" },
+    { name: "svt", label: "Science de la Vie et de la Terre (SVT)", icon: GiChemicalDrop, color: "text-green-500" },
+    { name: "langue", label: "Étude et apprentissage de Langue", icon: GiOpenBook, color: "text-yellow-500" },
+    { name: "histoire", label: "Histoire", icon: FaHistory, color: "text-orange-500" },
+    { name: "geographie", label: "Géographie", icon: GiEarthAfricaEurope, color: "text-teal-500" },
+    { name: "philosophie", label: "Philosophie", icon: MdPsychology, color: "text-pink-500" },
+    { name: "informatique", label: "Informatique", icon: FaLaptopCode, color: "text-blue-500" },
+    { name: "intelligenceartificielle", label: "Intelligence Artificielle (IA)", icon: SiOpenai, color: "text-indigo-500" },
+    { name: "musique", label: "Musique", icon: GiMusicalNotes, color: "text-fuchsia-500" },
+    { name: "eps", label: "Éducation Physique et Sportive (EPS)", icon: FaRunning, color: "text-lime-500" },
+    { name: "divertissement", label: "Divertissement", icon: BiJoystick, color: "text-cyan-500" },
   ];
 
   if (loading) return <div>Chargement...</div>;
@@ -105,13 +105,13 @@ const Matiere: React.FC = () => {
         })}
       </div>
 
-      {/* <Link
+      { <Link
   to="/etudiant"
   className="mt-10 inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 transition text-white font-semibold shadow-lg"
 >
   <PlayCircle className="w-5 h-5" />
   Cliquez ici si vous etes étudiant
-</Link> */}
+</Link> }
 
 
       <style>{`

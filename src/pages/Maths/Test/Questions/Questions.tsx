@@ -14,9 +14,14 @@ type Question = {
   id: string;
   question: string;
   choix: string[];
-  bonneReponse: string;
+
+  bonneReponse?: string;
+  bonne_reponse?: string;
+
   notion: string;
+
   duree?: number;
+
   situation?: {
     texte?: string;
     image?: string;
@@ -34,6 +39,10 @@ type TimerStatus = {
 };
 
 const Questions = () => {
+
+  
+
+
   const { niveau, serie } = useParams<{ niveau: string; serie: string }>();
   const navigate = useNavigate();
   const { loading: authLoading } = useAuth();
@@ -41,6 +50,17 @@ const Questions = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [reponses, setReponses] = useState<Reponse[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
+  
+  
+    // 🔝 Remonter complètement en haut à chaque changement de question
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: "instant",
+    });
+  }, [currentIndex]);
+  
   const [loading, setLoading] = useState<boolean>(true);
   const [timersEnded, setTimersEnded] = useState<TimerStatus>({});
   const [testId, setTestId] = useState<string | null>(null);
@@ -153,35 +173,311 @@ const Questions = () => {
   };
 
   const handleSubmit = async () => {
-    if (!testId) {
-      alert("Erreur : test ID manquant, impossible de soumettre les réponses.");
-      return;
-    }
+  if (!testId) {
+    alert(
+      "Erreur : test ID manquant, impossible de soumettre les réponses."
+    );
+    return;
+  }
 
-    const toutesLesReponses = reponses.map((r) => {
-      const lettre = ["a", "b", "c", "d", "e"][r.reponse ?? 0];
-      return { id: String(r.questionId), reponse: lettre };
-    });
+  /*
+   * ==========================================================
+   * 1. CONSTRUIRE LES RÉPONSES DE L'APPRENANT
+   * ==========================================================
+   */
 
-    try {
-      const baseUrl = `/api/questions/${niveau}/resultats?test_id=${testId}`;
-      const url =
-        serie && serie.toLowerCase() !== "none"
-          ? `${baseUrl}&serie=${serie}`
-          : baseUrl;
+  const toutesLesReponses = reponses.map((r) => {
+    const lettre =
+      ["a", "b", "c", "d", "e"][r.reponse ?? 0];
 
-      const res = await api.post(url, { resultats: toutesLesReponses });
-      const { note, mention, notionsNonAcquises } = res.data;
+    return {
+      id: String(r.questionId),
+      reponse: lettre,
+    };
+  });
 
-      navigate(`/maths/test/resultats/${niveau}/${serie ?? "none"}`, {
+  /*
+   * ==========================================================
+   * 2. CONSTRUIRE LES QUESTIONS AVEC LA RÉPONSE APPRENANT
+   * ==========================================================
+   */
+
+  const questionsAvecReponses = questions.map((question) => {
+
+    const reponse = reponses.find(
+      (r) =>
+        String(r.questionId) ===
+        String(question.id)
+    );
+
+    const indexReponse =
+      reponse?.reponse ?? null;
+
+    const reponseApprenant =
+      indexReponse !== null
+        ? ["a", "b", "c", "d", "e"][indexReponse]
+        : null;
+
+    /*
+     * La bonne réponse peut venir sous
+     * bonneReponse ou bonne_reponse.
+     */
+
+    const bonneReponse =
+      question.bonneReponse ??
+      question.bonne_reponse ??
+      "";
+
+    /*
+     * ========================================================
+     * COMPARAISON
+     * ========================================================
+     */
+
+    const correcte =
+      reponseApprenant !== null &&
+      String(reponseApprenant)
+        .trim()
+        .toLowerCase() ===
+      String(bonneReponse)
+        .trim()
+        .toLowerCase();
+
+    return {
+      ...question,
+
+      /*
+       * Réponse de l'apprenant
+       */
+      reponse_apprenant:
+        reponseApprenant,
+
+      /*
+       * Bonne réponse
+       */
+      bonne_reponse:
+        bonneReponse,
+
+      /*
+       * Résultat de la comparaison
+       */
+      correcte,
+
+      /*
+       * Classe
+       */
+      classe:
+        niveau,
+
+      /*
+       * Notion
+       */
+      notion:
+        question.notion ?? null,
+    };
+  });
+
+  /*
+   * ==========================================================
+   * 3. EXTRAIRE LES QUESTIONS INCORRECTES
+   * ==========================================================
+   */
+
+  const questionsRemediation =
+    questionsAvecReponses.filter(
+      (question) =>
+        question.correcte === false
+    );
+
+  /*
+   * ==========================================================
+   * 4. EXTRAIRE LES NOTIONS NON ACQUISES
+   * ==========================================================
+   */
+
+  const notionsNonAcquises = [
+    ...new Set(
+      questionsRemediation
+        .map(
+          (question) =>
+            question.notion
+        )
+        .filter(
+          (notion): notion is string =>
+            typeof notion === "string" &&
+            notion.trim() !== ""
+        )
+    ),
+  ];
+
+  /*
+   * ==========================================================
+   * DEBUG
+   * ==========================================================
+   */
+
+  console.log(
+    "================================================"
+  );
+
+  console.log(
+    "📋 QUESTIONS DU TEST :",
+    questions
+  );
+
+  console.log(
+    "📋 RÉPONSES APPRENANT :",
+    reponses
+  );
+
+  console.log(
+    "📋 QUESTIONS AVEC COMPARAISON :",
+    questionsAvecReponses
+  );
+
+  console.log(
+    "❌ QUESTIONS DE REMÉDIATION :",
+    questionsRemediation
+  );
+
+  console.log(
+    "📚 NOTIONS NON ACQUISES :",
+    notionsNonAcquises
+  );
+
+  console.log(
+    "📊 Nombre questions :",
+    questions.length
+  );
+
+  console.log(
+    "📊 Nombre questions remédiation :",
+    questionsRemediation.length
+  );
+
+  console.log(
+    "================================================"
+  );
+
+  /*
+   * ==========================================================
+   * 5. ENVOYER LES RÉPONSES AU BACKEND
+   * ==========================================================
+   */
+
+  try {
+
+    const baseUrl =
+      `/api/questions/${niveau}/resultats?test_id=${testId}`;
+
+    const url =
+      serie &&
+      serie.toLowerCase() !== "none"
+        ? `${baseUrl}&serie=${serie}`
+        : baseUrl;
+
+    const res =
+      await api.post(
+        url,
+        {
+          resultats:
+            toutesLesReponses,
+        }
+      );
+
+    /*
+     * ========================================================
+     * 6. DEBUG BACKEND
+     * ========================================================
+     */
+
+    console.log(
+      "📥 RÉPONSE BACKEND :",
+      res.data
+    );
+
+    /*
+     * ==========================================================
+     * 7. ENVOYER À RESULTATS.TSX
+     * ==========================================================
+     */
+
+    navigate(
+      `/maths/test/resultats/${niveau}/${serie ?? "none"}`,
+      {
         replace: true,
-        state: { resultats: { note, mention, notionsNonAcquises } },
-      });
-    } catch (error) {
-      console.error("Erreur soumission :", error);
-      alert("Une erreur s'est produite lors de la soumission.");
-    }
-  };
+
+        state: {
+
+          /*
+           * Résultat officiel calculé par le backend
+           */
+          resultats:
+            res.data,
+
+          /*
+           * Les 20 questions originales
+           */
+          questionsDuTest:
+            questions,
+
+          /*
+           * Les réponses brutes de l'apprenant
+           */
+          reponsesDuTest:
+            reponses,
+
+          /*
+           * Questions avec comparaison
+           */
+          questionsAvecReponses:
+            questionsAvecReponses,
+
+          /*
+           * UNIQUEMENT les questions incorrectes
+           */
+          questionsRemediation:
+            questionsRemediation,
+
+          /*
+           * Notions non acquises
+           */
+          notionsNonAcquises:
+            notionsNonAcquises,
+
+          /*
+           * Réponses envoyées au backend
+           */
+          toutesLesReponses:
+            toutesLesReponses,
+
+          /*
+           * Informations du test
+           */
+          testId:
+            testId,
+
+          niveauActuel:
+            niveau,
+
+          serieActuelle:
+            serie ?? "",
+        },
+      }
+    );
+
+  } catch (error) {
+
+    console.error(
+      "❌ Erreur soumission :",
+      error
+    );
+
+    alert(
+      "Une erreur s'est produite lors de la soumission."
+    );
+  }
+};
 
   const handleTimeUp = () => {
     const currentId = currentQuestion?.id;
