@@ -1,13 +1,47 @@
 // 📁 src/AnimatedRoutes.tsx
+
 import React from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
+
 import Layout from "@/components/Layout";
 import RequireAuth from "@/components/RequireAuth";
+
+// ==========================================================
+// ADMIN
+// ==========================================================
+
 import ParrainDetails from "@/pages/admin/ParrainDetails";
 import HistoriqueConnections from "@/pages/admin/HistoriqueConnections";
 
-// Pages publiques
+
+
+// ==================================================
+// QUESTIONS — UTILISATEUR
+// ==================================================
+import MesQuestions from "./pages/Questions/MesQuestions";
+import NouvelleQuestion from "./pages/Questions/NouvelleQuestion";
+import Conversation from "./pages/Questions/Conversation";
+
+// ==================================================
+// ENSEIGNANT
+// ==================================================
+import QuestionsEnseignant from "./pages/Enseignant/QuestionsEnseignant";
+import ConversationEnseignant from "./pages/Enseignant/ConversationEnseignant";
+
+// ==================================================
+// ADMIN — QUESTIONS ET ENSEIGNANTS
+// ==================================================
+import QuestionsAdmin from "./pages/admin/QuestionsAdmin";
+import ConversationAdmin from "./pages/admin/ConversationAdmin";
+import GestionEnseignants from "./pages/admin/GestionEnseignants";
+
+
+
+// ==========================================================
+// PAGES PUBLIQUES
+// ==========================================================
+
 import Page1 from "./pages/Page1";
 import Page2 from "./pages/Page2";
 import Login from "./pages/Login";
@@ -21,10 +55,14 @@ import Dashboard from "./pages/AdminDashboard/Dashboard";
 import AdminDocuments from "./pages/AdminDocuments";
 import AdminActivationCodes from "./pages/AdminActivationCodes";
 import ListeInscrits from "./pages/ListeInscrits";
+import ConversationsEnseignantsAdmin from "./pages/admin/ConversationsEnseignantsAdmin";
+// ==========================================================
+// PAGES PROTÉGÉES — ANCIENNE STRUCTURE
+// ==========================================================
 
-// Pages protégées
 import Accueil from "./pages/Accueil";
 import Matiere from "./pages/Matiere";
+
 import Homemaths from "./pages/Home/Homemaths";
 import Homephysique from "./pages/Home/Homephysique";
 import Homechimie from "./pages/Home/Homechimie";
@@ -45,6 +83,7 @@ import Homefootball from "./pages/Home/Homefootball";
 import Homevoleyball from "./pages/Home/Homevoleyball";
 import Homefon from "./pages/Home/Homefon";
 import Homefrançais from "./pages/Home/Homefrançais";
+
 import Homegeographieafrique from "./pages/Home/Homegeographieafrique";
 import Homegeographieamerique from "./pages/Home/Homegeographieamerique";
 import Homegeographieasie from "./pages/Home/Homegeographieasie";
@@ -56,9 +95,11 @@ import Homegeographieinde from "./pages/Home/Homegeographieinde";
 import Homegeographiejapon from "./pages/Home/Homegeographiejapon";
 import Homegeographierussie from "./pages/Home/Homegeographierussie";
 import Homegeographieurss from "./pages/Home/Homegeographieurss";
+
 import Homegrimper from "./pages/Home/Homegrimper";
 import Homeguitare from "./pages/Home/Homeguitare";
 import Homegymnastique from "./pages/Home/Homegymnastique";
+
 import Homehistoireafrique from "./pages/Home/Homehistoireafrique";
 import Homehistoireamerique from "./pages/Home/Homehistoireamerique";
 import Homehistoireasie from "./pages/Home/Homehistoireasie";
@@ -70,19 +111,29 @@ import Homehistoireinde from "./pages/Home/Homehistoireinde";
 import Homehistoirejapon from "./pages/Home/Homehistoirejapon";
 import Homehistoirerussie from "./pages/Home/Homehistoirerussie";
 import Homehistoireurss from "./pages/Home/Homehistoireurss";
+
 import Homehtmlcss from "./pages/Home/Homehtmlcss";
 import Homejavascript from "./pages/Home/Homejavascript";
 import Homejeux from "./pages/Home/Homejeux";
 import Homepython from "./pages/Home/Homepython";
+
 import Homelangagec from "./pages/Home/Homelangagec";
 import Homelangagecplusplus from "./pages/Home/Homelangagecplusplus";
 import Homelangager from "./pages/Home/Homelangager";
+
 import Homelibertefinanciere from "./pages/Home/Homelibertefinanciere";
+
 import Homepiano from "./pages/Home/Homepiano";
 import Homeproverbesetvertus from "./pages/Home/Homeproverbesetvertus";
+
 import Homesautenhauteur from "./pages/Home/Homesautenhauteur";
 import Homesautenlongueur from "./pages/Home/Homesautenlongueur";
 import Hometriplesaut from "./pages/Home/Hometriplesaut";
+
+// ==========================================================
+// MATIÈRES — ANCIENNE STRUCTURE
+// ==========================================================
+
 import Matieresdivertissement from "./pages/Matieres/Matieresdivertissement";
 import Matiereseps from "./pages/Matieres/Matiereseps";
 import Matieresgeographie from "./pages/Matieres/Matieresgeographie";
@@ -92,137 +143,1050 @@ import Matiereslangue from "./pages/Matieres/Matiereslangue";
 import Matieresmusique from "./pages/Matieres/Matieresmusique";
 import Matierespct from "./pages/Matieres/Matierespct";
 
-// Tests
+// ==========================================================
+// CODE — UNIVERS DU SAVOIR ET DES COMPÉTENCES
+// ==========================================================
+
+// ----------- GRANDS DOMAINES -----------
+
+import Academique from "./pages/Etudiant/Academique/Academique";
+import Mathematiques from "./pages/Etudiant/Academique/Mathematiques";
+import Physique from "./pages/Etudiant/Academique/Physique";
+import Chimie from "./pages/Etudiant/Academique/Chimie";
+import Informatique from "./pages/Etudiant/Academique/Informatique";
+import Langues from "./pages/Etudiant/Academique/Langues";
+import LitteratureArts from "./pages/Etudiant/Academique/LitteratureArts";
+import SciencesHumainesSociales from "./pages/Etudiant/Academique/SciencesHumainesSociales";
+import SciencesTerre from "./pages/Etudiant/Academique/SciencesTerre";
+import SciencesVie from "./pages/Etudiant/Academique/SciencesVie";
+import Afrique from "./pages/Etudiant/Afrique/Afrique";
+import CulturesAfricaines from "./pages/Etudiant/Afrique/CulturesAfricaines";
+import EconomieAfricaine from "./pages/Etudiant/Afrique/EconomieAfricaine";
+import EducationAfrique from "./pages/Etudiant/Afrique/EducationAfrique";
+import EntrepreneuriatAfrique from "./pages/Etudiant/Afrique/EntrepreneuriatAfrique";
+import GeographieAfrique from "./pages/Etudiant/Afrique/GeographieAfrique";
+import HistoireAfrique from "./pages/Etudiant/Afrique/HistoireAfrique";
+import LanguesAfricaines from "./pages/Etudiant/Afrique/LanguesAfricaines";
+import SciencesTechnologiesAfrique from "./pages/Etudiant/Afrique/SciencesTechnologiesAfrique";
+
+
+import Arts from "./pages/Etudiant/Arts/Arts";
+import Autres from "./pages/Etudiant/Autres/Autres";
+import DeveloppementHumain from "./pages/Etudiant/DeveloppementHumain/DeveloppementHumain";
+import Environnement from "./pages/Etudiant/Environnement/Environnement";
+import Finance from "./pages/Etudiant/Finance/Finance";
+import Jeux from "./pages/Etudiant/Jeux/Jeux";
+import Metiers from "./pages/Etudiant/Metiers/Metiers";
+import Pedagogie from "./pages/Etudiant/Pedagogie/Pedagogie";
+import Professionnelle from "./pages/Etudiant/Professionnelle/Professionnelle";
+import Recherche from "./pages/Etudiant/Recherche/Recherche";
+import Sante from "./pages/Etudiant/Sante/Sante";
+import SciencesInnovation from "./pages/Etudiant/SciencesInnovation/SciencesInnovation";
+import Societe from "./pages/Etudiant/Societe/Societe";
+import Technologies from "./pages/Etudiant/Technologies/Technologies";
+
+
+import ArtsPlastiques from "./pages/Etudiant/Arts/ArtsPlastiques";
+import Cinema from "./pages/Etudiant/Arts/Cinema";
+import Danse from "./pages/Etudiant/Arts/Danse";
+import Musique from "./pages/Etudiant/Arts/Musique";
+import Photographie from "./pages/Etudiant/Arts/Photographie";
+import Theatre from "./pages/Etudiant/Arts/Theatre";
+
+
+
+import CompetencesTransversales from "./pages/Etudiant/Autres/CompetencesTransversales";
+import CultureGenerale from "./pages/Etudiant/Autres/CultureGenerale";
+import Loisirs from "./pages/Etudiant/Autres/Loisirs";
+import VieQuotidienne from "./pages/Etudiant/Autres/VieQuotidienne";
+
+
+
+import DeveloppementPersonnel from "./pages/Etudiant/DeveloppementHumain/DeveloppementPersonnel";
+import GestionTemps from "./pages/Etudiant/DeveloppementHumain/GestionTemps";
+import Leadership from "./pages/Etudiant/DeveloppementHumain/Leadership";
+import PenseeCritique from "./pages/Etudiant/DeveloppementHumain/PenseeCritique";
+import PriseDecision from "./pages/Etudiant/DeveloppementHumain/PriseDecision";
+import RelationsHumaines from "./pages/Etudiant/DeveloppementHumain/RelationsHumaines";
+
+
+
+
+import AgricultureDurable from "./pages/Etudiant/Environnement/AgricultureDurable";
+import Biodiversite from "./pages/Etudiant/Environnement/Biodiversite";
+import Climat from "./pages/Etudiant/Environnement/Climat";
+import Eau from "./pages/Etudiant/Environnement/Eau";
+import Ecologie from "./pages/Etudiant/Environnement/Ecologie";
+import GestionDechets from "./pages/Etudiant/Environnement/GestionDechets";
+
+
+
+
+
+import Banque from "./pages/Etudiant/Finance/Banque";
+import Comptabilite from "./pages/Etudiant/Finance/Comptabilite";
+import Economie from "./pages/Etudiant/Finance/Economie";
+import FinancePersonnelle from "./pages/Etudiant/Finance/FinancePersonnelle";
+import Fiscalite from "./pages/Etudiant/Finance/Fiscalite";
+import Investissement from "./pages/Etudiant/Finance/Investissement";
+
+
+
+
+
+import Echecs from "./pages/Etudiant/Jeux/Echecs";
+import GameDesign from "./pages/Etudiant/Jeux/GameDesign";
+import JeuxMathematiques from "./pages/Etudiant/Jeux/JeuxMathematiques";
+import JeuxSociete from "./pages/Etudiant/Jeux/JeuxSociete";
+import JeuxStrategie from "./pages/Etudiant/Jeux/JeuxStrategie";
+import Puzzles from "./pages/Etudiant/Jeux/Puzzles";
+
+
+
+
+
+import Agriculture from "./pages/Etudiant/Metiers/Agriculture";
+import Construction from "./pages/Etudiant/Metiers/Construction";
+import Couture from "./pages/Etudiant/Metiers/Couture";
+import Cuisine from "./pages/Etudiant/Metiers/Cuisine";
+import Electricite from "./pages/Etudiant/Metiers/Electricite";
+import Mecanique from "./pages/Etudiant/Metiers/Mecanique";
+import Menuiserie from "./pages/Etudiant/Metiers/Menuiserie";
+
+
+
+import Didactique from "./pages/Etudiant/Pedagogie/Didactique";
+import EvaluationPedagogique from "./pages/Etudiant/Pedagogie/Evaluation";
+import IngenieriePedagogique from "./pages/Etudiant/Pedagogie/IngenieriePedagogique";
+import PedagogieGenerale from "./pages/Etudiant/Pedagogie/PedagogieGenerale";
+import PsychologieEducation from "./pages/Etudiant/Pedagogie/PsychologieEducation";
+import TechnologiesEducatives from "./pages/Etudiant/Pedagogie/TechnologiesEducatives";
+
+
+
+
+import Commerce from "./pages/Etudiant/Professionnelle/Commerce";
+import Communication from "./pages/Etudiant/Professionnelle/Communication";
+import Entrepreneuriat from "./pages/Etudiant/Professionnelle/Entrepreneuriat";
+import Gestion from "./pages/Etudiant/Professionnelle/Gestion";
+import Management from "./pages/Etudiant/Professionnelle/Management";
+import Marketing from "./pages/Etudiant/Professionnelle/Marketing";
+
+
+
+
+import AnalyseDonnees from "./pages/Etudiant/Recherche/AnalyseDonnees";
+import Bibliographie from "./pages/Etudiant/Recherche/Bibliographie";
+import CommunicationScientifique from "./pages/Etudiant/Recherche/CommunicationScientifique";
+import Methodologie from "./pages/Etudiant/Recherche/Methodologie";
+import RedactionScientifique from "./pages/Etudiant/Recherche/RedactionScientifique";
+import StatistiquesRecherche from "./pages/Etudiant/Recherche/Statistiques";
+
+
+
+
+
+import Hygiene from "./pages/Etudiant/Sante/Hygiene";
+import Medecine from "./pages/Etudiant/Sante/Medecine";
+import Nutrition from "./pages/Etudiant/Sante/Nutrition";
+import Pharmacie from "./pages/Etudiant/Sante/Pharmacie";
+import SantePublique from "./pages/Etudiant/Sante/SantePublique";
+import SoinsInfirmiers from "./pages/Etudiant/Sante/SoinsInfirmiers";
+
+
+
+import Astronomie from "./pages/Etudiant/SciencesInnovation/Astronomie";
+import Biotechnologies from "./pages/Etudiant/SciencesInnovation/Biotechnologies";
+import Materiaux from "./pages/Etudiant/SciencesInnovation/Materiaux";
+import Nanotechnologies from "./pages/Etudiant/SciencesInnovation/Nanotechnologies";
+import SciencesChimiques from "./pages/Etudiant/SciencesInnovation/SciencesChimiques";
+import SciencesPhysiques from "./pages/Etudiant/SciencesInnovation/SciencesPhysiques";
+import SciencesSpatiales from "./pages/Etudiant/SciencesInnovation/SciencesSpatiales";
+
+
+
+
+
+import Anthropologie from "./pages/Etudiant/Societe/Anthropologie";
+import Citoyennete from "./pages/Etudiant/Societe/Citoyennete";
+import Droit from "./pages/Etudiant/Societe/Droit";
+import Geographie from "./pages/Etudiant/Societe/Geographie";
+import Histoire from "./pages/Etudiant/Societe/Histoire";
+import Institutions from "./pages/Etudiant/Societe/Institutions";
+import Medias from "./pages/Etudiant/Societe/Medias";
+import Sociologie from "./pages/Etudiant/Societe/Sociologie";
+
+
+
+
+
+import Cybersecurite from "./pages/Etudiant/Technologies/Cybersecurite";
+import DataScience from "./pages/Etudiant/Technologies/DataScience";
+import DesignNumerique from "./pages/Etudiant/Technologies/DesignNumerique";
+import Electronique from "./pages/Etudiant/Technologies/Electronique";
+import IntelligenceArtificielle from "./pages/Etudiant/Technologies/IntelligenceArtificielle";
+import Programmation from "./pages/Etudiant/Technologies/Programmation";
+import Reseaux from "./pages/Etudiant/Technologies/Reseaux";
+import Robotique from "./pages/Etudiant/Technologies/Robotique";
+
+
+
+
+
+
+
+// ----------- ÉVALUATION UNIQUE -----------
+
+import Evaluation from "./pages/Evaluation";
+
+// ==========================================================
+// TESTS — ANCIEN SYSTÈME MATHS
+// ==========================================================
+
 import Questions from "./pages/Maths/Test/Questions/Questions";
 import Resultats from "./pages/Maths/Test/Resultats/Resultats";
 import Remediation from "./pages/Maths/Test/Remediation/Remediation";
+
+// ==========================================================
+// ANCIEN SYSTÈME — AUTRES PAGES
+// ==========================================================
 
 import Homefanfare from "./pages/Home/Homefanfare";
 import Hometrompette from "./pages/Home/Hometrompette";
 import Hometrading from "./pages/Home/Hometrading";
 import Home1xbet from "./pages/Home/Home1xbet";
 
-// 🔹 Définition unique des pages protégées
+// ==========================================================
+// PAGES PROTÉGÉES
+// ==========================================================
+
 const protectedPages = [
-  { path: "/page2", Component: Page2 },
+
+  // --------------------------------------------------------
+  // PAGES GÉNÉRALES
+  // --------------------------------------------------------
+
+  {
+    path: "/page2",
+    Component: Page2,
+  },
+
   {
     path: "/accueil",
     Component: () => (
       <Accueil
         videos={[
           "/videos/pub1.mp4",
-         // "/videos/video2.mp4",
-         // "/videos/video3.mp4",
+          // "/videos/video2.mp4",
+          // "/videos/video3.mp4",
         ]}
         skipDelay={5}
       />
     ),
   },
-  { path: "/matiere", Component: Matiere },
-  { path: "/etudiant", Component: Etudiant },
-  { path: "/home/homemaths", Component: Homemaths },
-  { path: "/home/homefanfare", Component: Homefanfare },
-  { path: "/home/hometrompette", Component: Hometrompette },
-  { path: "/home/homephysique", Component: Homephysique },
-  { path: "/home/homesvt", Component: Homesvt },
-  { path: "/home/hometrading", Component: Hometrading },
-  { path: "/home/home1xbet", Component: Home1xbet },
-  { path: "/home/homephilosophie", Component: Homephilosophie },
-  { path: "/home/homechimie", Component: Homechimie },
-  { path: "/home/hometechnologie", Component: Hometechnologie },
-  { path: "/home/homefon", Component: Homefon},
-  { path: "/home/homeanglais", Component: Homeanglais },
-  { path: "/home/homeintelligenceartificielle", Component: Homeintelligenceartificielle },
-  { path: "/home/homeallemand", Component: Homeallemand },
-  { path: "/home/homebasketball", Component: Homebasketball},
-  { path: "/home/homebatterie", Component: Homebatterie},
-  { path: "/home/homebricolage", Component: Homebricolage},
-  { path: "/home/homechant", Component: Homechant},
-  { path: "/home/homechine", Component: Homechine},
-  { path: "/home/homeenchainement", Component: Homeenchainement},
-  { path: "/home/homeespagnole", Component: Homeespagnole},
-  { path: "/home/homefootball", Component: Homefootball},
-  { path: "/home/homevoleyball", Component: Homevoleyball},
-  { path: "/home/homefrançais", Component: Homefrançais},
-  { path: "/home/homegeographieafrique", Component: Homegeographieafrique},
-  { path: "/home/homegeographieamerique", Component: Homegeographieamerique},
-  { path: "/home/homegeographieasie", Component: Homegeographieasie},
-  { path: "/home/homegeographiebenin", Component: Homegeographiebenin},
-  { path: "/home/homegeographiechine", Component: Homegeographiechine},
-  { path: "/home/homegeographieetatsunis", Component: Homegeographieetatsunis},
-  { path: "/home/homegeographiefrance", Component: Homegeographiefrance},
-  { path: "/home/homegeographieinde", Component: Homegeographieinde},
-  { path: "/home/homegeographiejapon", Component: Homegeographiejapon},
-  { path: "/home/homegeographierussie", Component: Homegeographierussie},
-  { path: "/home/homegeographieurss", Component: Homegeographieurss},
-  { path: "/home/homegrimper", Component: Homegrimper},
-  { path: "/home/homeguitare", Component: Homeguitare},
-  { path: "/home/homegymnastique", Component: Homegymnastique},
-  { path: "/home/homehistoireafrique", Component: Homehistoireafrique},
-  { path: "/home/homehistoireamerique", Component: Homehistoireamerique},
-  { path: "/home/homehistoireasie", Component: Homehistoireasie},
-  { path: "/home/homehistoirebenin", Component: Homehistoirebenin},
-  { path: "/home/homehistoirechine", Component: Homehistoirechine},
-  { path: "/home/homehistoireetatsunis", Component: Homehistoireetatsunis},
-  { path: "/home/homehistoirefrance", Component: Homehistoirefrance},
-  { path: "/home/homehistoireinde", Component: Homehistoireinde},
-  { path: "/home/homehistoirejapon", Component: Homehistoirejapon},
-  { path: "/home/homehistoirerussie", Component: Homehistoirerussie},
-  { path: "/home/homehistoireurss", Component: Homehistoireurss},
-  { path: "/home/homehtmlcss", Component: Homehtmlcss},
-  { path: "/home/homejavascript", Component: Homejavascript},
-  { path: "/home/homejeux", Component: Homejeux},
-  { path: "/home/homepython", Component: Homepython},
-  { path: "/home/homelangagec", Component: Homelangagec},
-  { path: "/home/homelangagecplusplus", Component: Homelangagecplusplus},
-  { path: "/home/homelangager", Component: Homelangager},
-  { path: "/home/homelibertefinanciere", Component: Homelibertefinanciere},
-  { path: "/home/homepiano", Component: Homepiano},
-  { path: "/home/homeproverbesetvertus", Component: Homeproverbesetvertus},
-  { path: "/home/homesautenhauteur", Component: Homesautenhauteur},
-  { path: "/home/homesautenlongueur", Component: Homesautenlongueur},
-  { path: "/home/hometriplesaut", Component: Hometriplesaut},
-  { path: "/matieres/matieresdivertissement", Component: Matieresdivertissement},
-  { path: "/matieres/matiereseps", Component: Matiereseps},
-  { path: "/matieres/matieresgeographie", Component: Matieresgeographie},
-  { path: "/matieres/matiereshistoire", Component: Matiereshistoire},
-  { path: "/matieres/matieresinformatique", Component: Matieresinformatique},
-  { path: "/matieres/matiereslangue", Component: Matiereslangue},
-  { path: "/matieres/matieresmusique", Component: Matieresmusique},
-  { path: "/matieres/matierespct", Component: Matierespct},
-  { path: "/admin/dashboard", Component: Dashboard},
+
+  {
+    path: "/matiere",
+    Component: Matiere,
+  },
+
+  {
+    path: "/etudiant",
+    Component: Etudiant,
+  },
+
+  // ========================================================
+  // CODE — GRANDS DOMAINES
+  // ========================================================
+
+  {
+    path: "/domaines/academique",
+    Component: Academique,
+  },
+
+
+  // ========================================================
+  // ANCIENNES PAGES HOME
+  // ========================================================
+
+  {
+    path: "/home/homemaths",
+    Component: Homemaths,
+  },
+
+  {
+    path: "/home/homefanfare",
+    Component: Homefanfare,
+  },
+
+  {
+    path: "/home/hometrompette",
+    Component: Hometrompette,
+  },
+
+  {
+    path: "/home/homephysique",
+    Component: Homephysique,
+  },
+
+  {
+    path: "/home/homesvt",
+    Component: Homesvt,
+  },
+
+  {
+    path: "/home/hometrading",
+    Component: Hometrading,
+  },
+
+  {
+    path: "/home/home1xbet",
+    Component: Home1xbet,
+  },
+
+  {
+    path: "/home/homephilosophie",
+    Component: Homephilosophie,
+  },
+
+  {
+    path: "/home/homechimie",
+    Component: Homechimie,
+  },
+
+  {
+    path: "/home/hometechnologie",
+    Component: Hometechnologie,
+  },
+
+  {
+    path: "/home/homefon",
+    Component: Homefon,
+  },
+
+  {
+    path: "/home/homeanglais",
+    Component: Homeanglais,
+  },
+
+  {
+    path: "/home/homeintelligenceartificielle",
+    Component: Homeintelligenceartificielle,
+  },
+
+  {
+    path: "/home/homeallemand",
+    Component: Homeallemand,
+  },
+
+  {
+    path: "/home/homebasketball",
+    Component: Homebasketball,
+  },
+
+  {
+    path: "/home/homebatterie",
+    Component: Homebatterie,
+  },
+
+  {
+    path: "/home/homebricolage",
+    Component: Homebricolage,
+  },
+
+  {
+    path: "/home/homechant",
+    Component: Homechant,
+  },
+
+  {
+    path: "/home/homechine",
+    Component: Homechine,
+  },
+
+  {
+    path: "/home/homeenchainement",
+    Component: Homeenchainement,
+  },
+
+  {
+    path: "/home/homeespagnole",
+    Component: Homeespagnole,
+  },
+
+  {
+    path: "/home/homefootball",
+    Component: Homefootball,
+  },
+
+  {
+    path: "/home/homevoleyball",
+    Component: Homevoleyball,
+  },
+
+  {
+    path: "/home/homefrançais",
+    Component: Homefrançais,
+  },
+
+  // --------------------------------------------------------
+  // GÉOGRAPHIE
+  // --------------------------------------------------------
+
+  {
+    path: "/home/homegeographieafrique",
+    Component: Homegeographieafrique,
+  },
+
+  {
+    path: "/home/homegeographieamerique",
+    Component: Homegeographieamerique,
+  },
+
+  {
+    path: "/home/homegeographieasie",
+    Component: Homegeographieasie,
+  },
+
+  {
+    path: "/home/homegeographiebenin",
+    Component: Homegeographiebenin,
+  },
+
+  {
+    path: "/home/homegeographiechine",
+    Component: Homegeographiechine,
+  },
+
+  {
+    path: "/home/homegeographieetatsunis",
+    Component: Homegeographieetatsunis,
+  },
+
+  {
+    path: "/home/homegeographiefrance",
+    Component: Homegeographiefrance,
+  },
+
+  {
+    path: "/home/homegeographieinde",
+    Component: Homegeographieinde,
+  },
+
+  {
+    path: "/home/homegeographiejapon",
+    Component: Homegeographiejapon,
+  },
+
+  {
+    path: "/home/homegeographierussie",
+    Component: Homegeographierussie,
+  },
+
+  {
+    path: "/home/homegeographieurss",
+    Component: Homegeographieurss,
+  },
+
+  // --------------------------------------------------------
+  // SPORT
+  // --------------------------------------------------------
+
+  {
+    path: "/home/homegrimper",
+    Component: Homegrimper,
+  },
+
+  {
+    path: "/home/homeguitare",
+    Component: Homeguitare,
+  },
+
+  {
+    path: "/home/homegymnastique",
+    Component: Homegymnastique,
+  },
+
+  {
+    path: "/home/homesautenhauteur",
+    Component: Homesautenhauteur,
+  },
+
+  {
+    path: "/home/homesautenlongueur",
+    Component: Homesautenlongueur,
+  },
+
+  {
+    path: "/home/hometriplesaut",
+    Component: Hometriplesaut,
+  },
+
+  // --------------------------------------------------------
+  // HISTOIRE
+  // --------------------------------------------------------
+
+  {
+    path: "/home/homehistoireafrique",
+    Component: Homehistoireafrique,
+  },
+
+  {
+    path: "/home/homehistoireamerique",
+    Component: Homehistoireamerique,
+  },
+
+  {
+    path: "/home/homehistoireasie",
+    Component: Homehistoireasie,
+  },
+
+  {
+    path: "/home/homehistoirebenin",
+    Component: Homehistoirebenin,
+  },
+
+  {
+    path: "/home/homehistoirechine",
+    Component: Homehistoirechine,
+  },
+
+  {
+    path: "/home/homehistoireetatsunis",
+    Component: Homehistoireetatsunis,
+  },
+
+  {
+    path: "/home/homehistoirefrance",
+    Component: Homehistoirefrance,
+  },
+
+  {
+    path: "/home/homehistoireinde",
+    Component: Homehistoireinde,
+  },
+
+  {
+    path: "/home/homehistoirejapon",
+    Component: Homehistoirejapon,
+  },
+
+  {
+    path: "/home/homehistoirerussie",
+    Component: Homehistoirerussie,
+  },
+
+  {
+    path: "/home/homehistoireurss",
+    Component: Homehistoireurss,
+  },
+
+  // --------------------------------------------------------
+  // INFORMATIQUE
+  // --------------------------------------------------------
+
+  {
+    path: "/home/homehtmlcss",
+    Component: Homehtmlcss,
+  },
+
+  {
+    path: "/home/homejavascript",
+    Component: Homejavascript,
+  },
+
+  {
+    path: "/home/homejeux",
+    Component: Homejeux,
+  },
+
+  {
+    path: "/home/homepython",
+    Component: Homepython,
+  },
+
+  {
+    path: "/home/homelangagec",
+    Component: Homelangagec,
+  },
+
+  {
+    path: "/home/homelangagecplusplus",
+    Component: Homelangagecplusplus,
+  },
+
+  {
+    path: "/home/homelangager",
+    Component: Homelangager,
+  },
+
+  // --------------------------------------------------------
+  // FINANCE
+  // --------------------------------------------------------
+
+  {
+    path: "/home/homelibertefinanciere",
+    Component: Homelibertefinanciere,
+  },
+
+  // --------------------------------------------------------
+  // MUSIQUE / CULTURE
+  // --------------------------------------------------------
+
+  {
+    path: "/home/homepiano",
+    Component: Homepiano,
+  },
+
+  {
+    path: "/home/homeproverbesetvertus",
+    Component: Homeproverbesetvertus,
+  },
+
+  // ========================================================
+  // ANCIENNES PAGES MATIÈRES
+  // ========================================================
+
+  {
+    path: "/matieres/matieresdivertissement",
+    Component: Matieresdivertissement,
+  },
+
+  {
+    path: "/matieres/matiereseps",
+    Component: Matiereseps,
+  },
+
+  {
+    path: "/matieres/matieresgeographie",
+    Component: Matieresgeographie,
+  },
+
+  {
+    path: "/matieres/matiereshistoire",
+    Component: Matiereshistoire,
+  },
+
+  {
+    path: "/matieres/matieresinformatique",
+    Component: Matieresinformatique,
+  },
+
+  {
+    path: "/matieres/matiereslangue",
+    Component: Matiereslangue,
+  },
+
+  {
+    path: "/matieres/matieresmusique",
+    Component: Matieresmusique,
+  },
+
+  {
+    path: "/matieres/matierespct",
+    Component: Matierespct,
+  },
+
+  // ========================================================
+  // ADMIN
+  // ========================================================
+
+  {
+    path: "/admin/dashboard",
+    Component: Dashboard,
+  },
 ];
+
+// ==========================================================
+// COMPOSANT PRINCIPAL
+// ==========================================================
 
 const AnimatedRoutes: React.FC = () => {
   const location = useLocation();
 
   return (
     <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        {/* Routes publiques */}
-        <Route path="/" element={<Page1 />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/inscription" element={<Inscription />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/activation" element={<Activation />} />
-        <Route path="/admin/documents" element={<AdminDocuments />}/>
-        <Route path="/admin/codes-activation" element={<AdminActivationCodes />}/>
-        {/* Routes protégées */}
-        {protectedPages.map(({ path, Component }) => (
-          <Route
-            key={path}
-            path={path}
-            element={
-              <RequireAuth>
-                <Layout>
-                  <Component />
-                </Layout>
-              </RequireAuth>
-            }
-          />
-        ))}
 
-        {/* Tests */}
+      <Routes
+        location={location}
+        key={location.pathname}
+      >
+
+        {/* ==================================================
+            ROUTES PUBLIQUES
+            ================================================== */}
+
+        <Route
+          path="/"
+          element={<Page1 />}
+        />
+
+        <Route
+          path="/login"
+          element={<Login />}
+        />
+
+        <Route
+          path="/inscription"
+          element={<Inscription />}
+        />
+
+        <Route
+          path="/dashboard"
+          element={<Dashboard />}
+        />
+
+        <Route
+          path="/activation"
+          element={<Activation />}
+        />
+
+        <Route
+          path="/admin/documents"
+          element={<AdminDocuments />}
+        />
+
+        <Route
+          path="/admin/codes-activation"
+          element={<AdminActivationCodes />}
+        />
+
+        {/* ==================================================
+            ROUTES PROTÉGÉES
+            ================================================== */}
+
+        {protectedPages.map(
+          ({ path, Component }) => (
+
+            <Route
+              key={path}
+              path={path}
+              element={
+                <RequireAuth>
+                  <Layout>
+                    <Component />
+                  </Layout>
+                </RequireAuth>
+              }
+            />
+
+          )
+        )}
+
+
+
+
+
+ <Route
+  path="/domaines/academique"
+  element={
+    <RequireAuth>
+      <Layout>
+        <Academique />
+      </Layout>
+    </RequireAuth>
+  }
+/>
+
+
+
+
+       <Route
+  path="/domaines/academique/mathematiques"
+  element={
+    <RequireAuth>
+      <Layout>
+        <Mathematiques />
+      </Layout>
+    </RequireAuth>
+  }
+/>
+
+
+<Route
+  path="/domaines/academique/physique"
+  element={
+    <RequireAuth>
+      <Layout>
+        <Physique />
+      </Layout>
+    </RequireAuth>
+  }
+/>
+
+<Route
+  path="/domaines/academique/chimie"
+  element={
+    <RequireAuth>
+      <Layout>
+        <Chimie />
+      </Layout>
+    </RequireAuth>
+  }
+/>
+
+<Route
+  path="/domaines/academique/informatique"
+  element={
+    <RequireAuth>
+      <Layout>
+        <Informatique />
+      </Layout>
+    </RequireAuth>
+  }
+/>
+
+<Route
+  path="/domaines/academique/langues"
+  element={
+    <RequireAuth>
+      <Layout>
+        <Langues />
+      </Layout>
+    </RequireAuth>
+  }
+/>
+
+
+<Route
+  path="/domaines/academique/litterature-arts"
+  element={
+    <RequireAuth>
+      <Layout>
+        <LitteratureArts />
+      </Layout>
+    </RequireAuth>
+  }
+/>
+
+<Route
+  path="/domaines/academique/sciences-humaines-sociales"
+  element={
+    <RequireAuth>
+      <Layout>
+        <SciencesHumainesSociales />
+      </Layout>
+    </RequireAuth>
+  }
+/>
+<Route
+  path="/domaines/academique/sciences-terre"
+  element={
+    <RequireAuth>
+      <Layout>
+        <SciencesTerre />
+      </Layout>
+    </RequireAuth>
+  }
+/>
+<Route
+  path="/domaines/academique/sciences-vie"
+  element={
+    <RequireAuth>
+      <Layout>
+        <SciencesVie />
+      </Layout>
+    </RequireAuth>
+  }
+/>
+{/* ============================================================
+    AFRIQUE
+============================================================ */}
+
+
+<Route path="/domaines/afrique" element={<Afrique />} />
+<Route path="/domaines/afrique/cultures-africaines" element={<CulturesAfricaines />} />
+<Route path="/domaines/afrique/economie-africaine" element={<EconomieAfricaine />} />
+<Route path="/domaines/afrique/education-afrique" element={<EducationAfrique />} />
+<Route path="/domaines/afrique/entrepreneuriat-afrique" element={<EntrepreneuriatAfrique />} />
+<Route path="/domaines/afrique/geographie-afrique" element={<GeographieAfrique />} />
+<Route path="/domaines/afrique/histoire-afrique" element={<HistoireAfrique />} />
+<Route path="/domaines/afrique/langues-africaines" element={<LanguesAfricaines />} />
+<Route path="/domaines/afrique/sciences-technologies-afrique" element={<SciencesTechnologiesAfrique />} />
+
+
+
+<Route path="/domaines/arts" element={<Arts />} />
+<Route path="/domaines/arts/arts-plastiques" element={<ArtsPlastiques />} />
+<Route path="/domaines/arts/cinema" element={<Cinema />} />
+<Route path="/domaines/arts/danse" element={<Danse />} />
+<Route path="/domaines/arts/musique" element={<Musique />} />
+<Route path="/domaines/arts/photographie" element={<Photographie />} />
+<Route path="/domaines/arts/theatre" element={<Theatre />} />
+
+
+
+<Route path="/domaines/autres" element={<Autres />} />
+<Route path="/domaines/autres/competences-transversales" element={<CompetencesTransversales />} />
+<Route path="/domaines/autres/culture-generale" element={<CultureGenerale />} />
+<Route path="/domaines/autres/loisirs" element={<Loisirs />} />
+<Route path="/domaines/autres/vie-quotidienne" element={<VieQuotidienne />} />
+
+
+
+<Route path="/domaines/developpement-humain" element={<DeveloppementHumain />} />
+<Route path="/domaines/developpement-humain/developpement-personnel" element={<DeveloppementPersonnel />} />
+<Route path="/domaines/developpement-humain/gestion-temps" element={<GestionTemps />} />
+<Route path="/domaines/developpement-humain/leadership" element={<Leadership />} />
+<Route path="/domaines/developpement-humain/pensee-critique" element={<PenseeCritique />} />
+<Route path="/domaines/developpement-humain/prise-decision" element={<PriseDecision />} />
+<Route path="/domaines/developpement-humain/relations-humaines" element={<RelationsHumaines />} />
+
+
+
+
+<Route path="/domaines/environnement" element={<Environnement />} />
+<Route path="/domaines/environnement/agriculture-durable" element={<AgricultureDurable />} />
+<Route path="/domaines/environnement/biodiversite" element={<Biodiversite />} />
+<Route path="/domaines/environnement/climat" element={<Climat />} />
+<Route path="/domaines/environnement/eau" element={<Eau />} />
+<Route path="/domaines/environnement/ecologie" element={<Ecologie />} />
+<Route path="/domaines/environnement/gestion-dechets" element={<GestionDechets />}
+/>
+
+
+<Route path="/domaines/finance" element={<Finance />} />
+<Route path="/domaines/finance/banque" element={<Banque />} />
+<Route path="/domaines/finance/comptabilite" element={<Comptabilite />} />
+<Route path="/domaines/finance/economie" element={<Economie />} />
+<Route path="/domaines/finance/finance-personnelle" element={<FinancePersonnelle />} />
+<Route path="/domaines/finance/fiscalite" element={<Fiscalite />} />
+<Route path="/domaines/finance/investissement" element={<Investissement />} />
+
+
+
+
+<Route path="/domaines/jeux" element={<Jeux />} />
+<Route path="/domaines/jeux/echecs" element={<Echecs />} />
+<Route path="/domaines/jeux/game-design" element={<GameDesign />} />
+<Route path="/domaines/jeux/jeux-mathematiques" element={<JeuxMathematiques />} />
+<Route path="/domaines/jeux/jeux-societe" element={<JeuxSociete />} />
+<Route path="/domaines/jeux/jeux-strategie" element={<JeuxStrategie />} />
+<Route path="/domaines/jeux/puzzles" element={<Puzzles />} />
+
+
+
+
+
+<Route path="/domaines/metiers" element={<Metiers />} />
+<Route path="/domaines/metiers/agriculture" element={<Agriculture />} />
+<Route path="/domaines/metiers/construction" element={<Construction />} />
+<Route path="/domaines/metiers/couture" element={<Couture />} />
+<Route path="/domaines/metiers/cuisine" element={<Cuisine />} />
+<Route path="/domaines/metiers/electricite" element={<Electricite />} />
+<Route path="/domaines/metiers/mecanique" element={<Mecanique />} />
+<Route path="/domaines/metiers/menuiserie" element={<Menuiserie />} />
+
+
+
+<Route path="/domaines/pedagogie" element={<Pedagogie />} />
+<Route path="/domaines/pedagogie/didactique" element={<Didactique />} />
+<Route path="/domaines/pedagogie/evaluation" element={<EvaluationPedagogique />} />
+<Route path="/domaines/pedagogie/ingenierie-pedagogique" element={<IngenieriePedagogique />} />
+<Route path="/domaines/pedagogie/pedagogie-generale" element={<PedagogieGenerale />} />
+<Route path="/domaines/pedagogie/psychologie-education" element={<PsychologieEducation />} />
+<Route path="/domaines/pedagogie/technologies-educatives" element={<TechnologiesEducatives />} />
+
+
+
+<Route path="/domaines/professionnelle" element={<Professionnelle />} />
+<Route path="/domaines/professionnelle/commerce" element={<Commerce />} />
+<Route path="/domaines/professionnelle/communication" element={<Communication />} />
+<Route path="/domaines/professionnelle/entrepreneuriat" element={<Entrepreneuriat />} />
+<Route path="/domaines/professionnelle/gestion" element={<Gestion />} />
+<Route path="/domaines/professionnelle/management" element={<Management />} />
+<Route path="/domaines/professionnelle/marketing" element={<Marketing />} />
+
+
+
+
+<Route path="/domaines/recherche" element={<Recherche />} />
+<Route path="/domaines/recherche/analyse-donnees" element={<AnalyseDonnees />} />
+<Route path="/domaines/recherche/bibliographie" element={<Bibliographie />} />
+<Route path="/domaines/recherche/communication-scientifique" element={<CommunicationScientifique />} />
+<Route path="/domaines/recherche/methodologie" element={<Methodologie />} />
+<Route path="/domaines/recherche/redaction-scientifique" element={<RedactionScientifique />} />
+<Route path="/domaines/recherche/statistiques" element={<StatistiquesRecherche />} />
+
+
+
+<Route path="/domaines/sante" element={<Sante />} />
+<Route path="/domaines/sante/hygiene" element={<Hygiene />} />
+<Route path="/domaines/sante/medecine" element={<Medecine />} />
+<Route path="/domaines/sante/nutrition" element={<Nutrition />} />
+<Route path="/domaines/sante/pharmacie" element={<Pharmacie />} />
+<Route path="/domaines/sante/sante-publique" element={<SantePublique />} />
+<Route path="/domaines/sante/soins-infirmiers" element={<SoinsInfirmiers />} />
+
+
+<Route path="/domaines/sciences-innovation" element={<SciencesInnovation />} />
+<Route path="/domaines/sciences-innovation/astronomie" element={<Astronomie />} />
+<Route path="/domaines/sciences-innovation/biotechnologies" element={<Biotechnologies />} />
+<Route path="/domaines/sciences-innovation/materiaux" element={<Materiaux />} />
+<Route path="/domaines/sciences-innovation/nanotechnologies" element={<Nanotechnologies />} />
+<Route path="/domaines/sciences-innovation/sciences-chimiques" element={<SciencesChimiques />} />
+<Route path="/domaines/sciences-innovation/sciences-physiques" element={<SciencesPhysiques />} />
+<Route path="/domaines/sciences-innovation/sciences-spatiales" element={<SciencesSpatiales />} />
+
+
+
+<Route path="/domaines/societe" element={<Societe />} />
+<Route path="/domaines/societe/anthropologie" element={<Anthropologie />} />
+<Route path="/domaines/societe/citoyennete" element={<Citoyennete />} />
+<Route path="/domaines/societe/droit" element={<Droit />} />
+<Route path="/domaines/societe/geographie" element={<Geographie />} />
+<Route path="/domaines/societe/histoire" element={<Histoire />} />
+<Route path="/domaines/societe/institutions" element={<Institutions />} />
+<Route path="/domaines/societe/medias" element={<Medias />} />
+<Route path="/domaines/societe/sociologie" element={<Sociologie />} />
+
+
+
+
+<Route path="/domaines/technologies" element={<Technologies />} />
+<Route path="/domaines/technologies/cybersecurite" element={<Cybersecurite />} />
+<Route path="/domaines/technologies/data-science" element={<DataScience />} />
+<Route path="/domaines/technologies/design-numerique" element={<DesignNumerique />} />
+<Route path="/domaines/technologies/electronique" element={<Electronique />} />
+<Route path="/domaines/technologies/intelligence-artificielle" element={<IntelligenceArtificielle />} />
+<Route path="/domaines/technologies/programmation" element={<Programmation />} />
+<Route path="/domaines/technologies/reseaux" element={<Reseaux />} />
+<Route path="/domaines/technologies/robotique" element={<Robotique />} />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        {/* ==================================================
+            CODE — ÉVALUATION UNIQUE
+            ================================================== */}
+
+        <Route
+          path="/evaluation/:domaine/:sousDomaine/:apprentissage"
+          element={
+            <RequireAuth>
+              <Layout>
+                <Evaluation />
+              </Layout>
+            </RequireAuth>
+          }
+        />
+
+        {/* ==================================================
+            ANCIEN SYSTÈME DE TESTS MATHÉMATIQUES
+            ================================================== */}
+
         <Route
           path="/maths/test/questions/:niveau/:serie"
           element={
@@ -233,6 +1197,7 @@ const AnimatedRoutes: React.FC = () => {
             </RequireAuth>
           }
         />
+
         <Route
           path="/maths/test/resultats/:niveau/:serie"
           element={
@@ -243,6 +1208,7 @@ const AnimatedRoutes: React.FC = () => {
             </RequireAuth>
           }
         />
+
         <Route
           path="/maths/test/remediation/:niveau/:serie"
           element={
@@ -264,7 +1230,11 @@ const AnimatedRoutes: React.FC = () => {
             </RequireAuth>
           }
         />
-        
+
+        {/* ==================================================
+            ADMIN — PARRAIN
+            ================================================== */}
+
         <Route
           path="/admin/parrain/:email"
           element={
@@ -276,8 +1246,11 @@ const AnimatedRoutes: React.FC = () => {
           }
         />
 
+        {/* ==================================================
+            ADMIN — HISTORIQUE
+            ================================================== */}
 
-         <Route
+        <Route
           path="/admin/historique-connections"
           element={
             <RequireAuth>
@@ -289,21 +1262,183 @@ const AnimatedRoutes: React.FC = () => {
         />
 
 
-        <Route path="/video/:matiere" element={<VideoPlayer />} />
-<Route path="/video/:matiere/:videoId" element={<VideoPlayer />} />
 
 
+{/* ==================================================
+    QUESTIONS — UTILISATEUR
+    ================================================== */}
 
-// Exemple dans ton Router
-<Route 
-  path="/remediationvideo/:matiere/:niveau/:serie?" 
-  element={<RemediationVideo />}
+<Route
+  path="/questions"
+  element={
+    <RequireAuth>
+      <Layout>
+        <MesQuestions />
+      </Layout>
+    </RequireAuth>
+  }
 />
 
-<Route path="/liste-inscrits" element={<ListeInscrits />} />
+<Route
+  path="/questions/nouvelle"
+  element={
+    <RequireAuth>
+      <Layout>
+        <NouvelleQuestion />
+      </Layout>
+    </RequireAuth>
+  }
+/>
 
+
+
+<Route
+  path="/admin/conversations-enseignants"
+  element={
+    <RequireAuth>
+      <Layout>
+        <ConversationsEnseignantsAdmin />
+      </Layout>
+    </RequireAuth>
+  }
+/>
+
+<Route
+  path="/admin/conversations-enseignants/:questionId"
+  element={
+    <RequireAuth>
+      <Layout>
+        <ConversationAdmin />
+      </Layout>
+    </RequireAuth>
+  }
+/>
+
+
+
+<Route
+  path="/questions/:questionId"
+  element={
+    <RequireAuth>
+      <Layout>
+        <Conversation />
+      </Layout>
+    </RequireAuth>
+  }
+/>
+
+
+{/* ==================================================
+    QUESTIONS — ENSEIGNANT
+    ================================================== */}
+
+<Route
+  path="/enseignant/questions"
+  element={
+    <RequireAuth>
+      <Layout>
+        <QuestionsEnseignant />
+      </Layout>
+    </RequireAuth>
+  }
+/>
+
+<Route
+  path="/enseignant/questions/:questionId"
+  element={
+    <RequireAuth>
+      <Layout>
+        <ConversationEnseignant />
+      </Layout>
+    </RequireAuth>
+  }
+/>
+
+
+{/* ==================================================
+    ADMIN — QUESTIONS
+    ================================================== */}
+
+<Route
+  path="/admin/questions"
+  element={
+    <RequireAuth>
+      <Layout>
+        <QuestionsAdmin />
+      </Layout>
+    </RequireAuth>
+  }
+/>
+
+<Route
+  path="/admin/questions/:questionId"
+  element={
+    <RequireAuth>
+      <Layout>
+        <ConversationAdmin />
+      </Layout>
+    </RequireAuth>
+  }
+/>
+
+
+{/* ==================================================
+    ADMIN — GESTION DES ENSEIGNANTS
+    ================================================== */}
+
+<Route
+  path="/admin/enseignants"
+  element={
+    <RequireAuth>
+      <Layout>
+        <GestionEnseignants />
+      </Layout>
+    </RequireAuth>
+  }
+/>
+
+
+
+
+
+        {/* ==================================================
+            VIDÉOS
+            ================================================== */}
+
+        <Route
+          path="/video/:matiere"
+          element={<VideoPlayer />}
+        />
+
+        <Route
+          path="/video/:matiere/:videoId"
+          element={<VideoPlayer />}
+        />
+
+        {/* ==================================================
+            REMÉDIATION VIDÉO
+            ================================================== */}
+
+        <Route
+          path="/remediationvideo/:matiere/:niveau/:serie?"
+          element={
+            <RemediationVideo />
+          }
+        />
+
+        {/* ==================================================
+            LISTE DES INSCRITS
+            ================================================== */}
+
+        <Route
+          path="/liste-inscrits"
+          element={
+            <ListeInscrits />
+          }
+        />
 
       </Routes>
+
     </AnimatePresence>
   );
 };

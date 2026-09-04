@@ -3,5 +3,12 @@ export type User = {
   email: string;
   nom: string;
   prenom: string;
-  // Ajoute d'autres champs ici si ton `/auth/me` en renvoie
+
+  is_admin?: boolean;
+  is_active?: boolean;
+  is_blocked?: boolean;
+  is_verified?: boolean;
+
+  enseignant?: boolean;
+  enseignant_actif?: boolean;
 };

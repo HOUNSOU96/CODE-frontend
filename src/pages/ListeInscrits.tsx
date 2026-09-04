@@ -3,8 +3,6 @@
 import React, {
   useEffect,
   useState,
-  useRef,
-  useCallback,
 } from "react";
 
 import { useNavigate } from "react-router-dom";
@@ -54,13 +52,30 @@ interface UserInscrit {
 
   is_admin?: boolean;
 
+  // ========================================================
+  // 👨‍🏫 STATUT ENSEIGNANT
+  // ========================================================
+
+  enseignant?: boolean;
+
+  enseignant_actif?: boolean;
+
+  subjects?: string[];
+
+  // ========================================================
+  // PARRAINAGE
+  // ========================================================
+
   parrain_email: string;
 
   lieu_naissance?: string;
 
   filleuls_emails?: string[];
 
-  // 🔑 Documents obtenus par l'utilisateur
+  // ========================================================
+  // DOCUMENTS OBTENUS
+  // ========================================================
+
   documents?: DocumentAttribue[];
 }
 
@@ -78,7 +93,10 @@ const PAGE_SIZE = 10;
 
 const ListeInscrits: React.FC = () => {
 
-  const { user, loading: authLoading } = useAuth();
+  const {
+    user,
+    loading: authLoading,
+  } = useAuth();
 
   const navigate = useNavigate();
 
@@ -87,52 +105,25 @@ const ListeInscrits: React.FC = () => {
   // ÉTATS
   // ========================================================
 
-  const [inscrits, setInscrits] = useState<UserInscrit[]>([]);
+  const [
+    inscrits,
+    setInscrits,
+  ] = useState<UserInscrit[]>([]);
 
-  const [loadingListe, setLoadingListe] = useState(false);
+  const [
+    loadingListe,
+    setLoadingListe,
+  ] = useState(false);
 
-  const [page, setPage] = useState(1);
+  const [
+    page,
+    setPage,
+  ] = useState(1);
 
-  const [hasMore, setHasMore] = useState(true);
-
-
-  // ========================================================
-  // OBSERVER POUR LE SCROLL
-  // ========================================================
-
-  const observer = useRef<IntersectionObserver | null>(null);
-
-
-  const lastInscritRef = useCallback(
-    (node: HTMLTableRowElement | null) => {
-
-      if (loadingListe) return;
-
-      if (observer.current) {
-        observer.current.disconnect();
-      }
-
-      observer.current = new IntersectionObserver(
-        (entries) => {
-
-          if (
-            entries[0].isIntersecting &&
-            hasMore &&
-            !loadingListe
-          ) {
-            setPage((prev) => prev + 1);
-          }
-
-        }
-      );
-
-      if (node) {
-        observer.current.observe(node);
-      }
-
-    },
-    [loadingListe, hasMore]
-  );
+  const [
+    totalInscrits,
+    setTotalInscrits,
+  ] = useState(0);
 
 
   // ========================================================
@@ -155,7 +146,11 @@ const ListeInscrits: React.FC = () => {
 
     }
 
-  }, [authLoading, user, navigate]);
+  }, [
+    authLoading,
+    user,
+    navigate,
+  ]);
 
 
   // ========================================================
@@ -164,7 +159,7 @@ const ListeInscrits: React.FC = () => {
 
   useEffect(() => {
 
-    if (!user?.is_admin || !hasMore) {
+    if (!user?.is_admin) {
       return;
     }
 
@@ -197,35 +192,68 @@ const ListeInscrits: React.FC = () => {
             // Ne pas afficher l'administrateur principal
             .filter(
               (i: any) =>
-                i.email !== "deogratiashounsou@gmail.com"
+                i.email !==
+                "deogratiashounsou@gmail.com"
             )
 
             .map((i: any) => ({
 
               ...i,
 
-              telephone: i.telephone || "",
+              telephone:
+                i.telephone || "",
 
-              status: i.is_validated
-                ? "validated"
-                : i.status === "SUSPENDED"
-                ? "refused"
-                : "pending",
+              status:
+                i.is_validated
+                  ? "validated"
+                  : i.status === "SUSPENDED"
+                  ? "refused"
+                  : "pending",
 
-              is_online: i.is_online,
+              is_online:
+                i.is_online,
 
-              is_admin: i.is_admin,
+              is_admin:
+                i.is_admin,
 
-              parrain_email: i.parrain_email || "",
+              // =================================================
+              // 👨‍🏫 ENSEIGNANT
+              // =================================================
 
-              lieu_naissance: i.lieu_naissance,
+              enseignant:
+                Boolean(i.enseignant),
+
+              enseignant_actif:
+                i.enseignant_actif !== undefined
+                  ? Boolean(i.enseignant_actif)
+                  : true,
+
+              subjects:
+                Array.isArray(i.subjects)
+                  ? i.subjects
+                  : [],
+
+              // =================================================
+              // PARRAINAGE
+              // =================================================
+
+              parrain_email:
+                i.parrain_email || "",
+
+              lieu_naissance:
+                i.lieu_naissance,
 
               filleuls_emails:
-                Array.isArray(i.filleuls_emails)
+                Array.isArray(
+                  i.filleuls_emails
+                )
                   ? i.filleuls_emails
                   : [],
 
-              // 🔑 Documents attribués
+              // =================================================
+              // DOCUMENTS
+              // =================================================
+
               documents:
                 Array.isArray(i.documents)
                   ? i.documents
@@ -235,121 +263,93 @@ const ListeInscrits: React.FC = () => {
 
 
         // ----------------------------------------------------
-        // AJOUT À LA LISTE EXISTANTE
+        // TRI DES INSCRITS
+        //
+        // Les utilisateurs possédant des documents
+        // passent devant ceux qui n'en possèdent aucun.
+        //
+        // À nombre de documents identique,
+        // on conserve l'ordre reçu du backend.
         // ----------------------------------------------------
 
-        setInscrits((prev) => {
+        const listeTriee = [
+          ...nouvelleListe,
+        ].sort(
+          (a, b) => {
 
-          const idsExistants = new Set(
-            prev.map((u) => u.id)
-          );
+            const nombreDocumentsA =
+              Array.isArray(a.documents)
+                ? a.documents.length
+                : 0;
 
-
-          // Éviter les doublons
-          const nouveauxUtilisateurs =
-            nouvelleListe.filter(
-              (u) => !idsExistants.has(u.id)
-            );
-
-
-          const listeComplete = [
-            ...prev,
-            ...nouveauxUtilisateurs,
-          ];
+            const nombreDocumentsB =
+              Array.isArray(b.documents)
+                ? b.documents.length
+                : 0;
 
 
-          // --------------------------------------------------
-          // TRI
-          //
-          // Les utilisateurs possédant au moins un document
-          // passent toujours devant ceux qui n'en ont aucun.
-          //
-          // À nombre de documents identique, on conserve
-          // l'ordre d'arrivée.
-          // --------------------------------------------------
+            // A possède un document et B aucun
+            if (
+              nombreDocumentsA > 0 &&
+              nombreDocumentsB === 0
+            ) {
 
-          return listeComplete.sort(
-            (a, b) => {
-
-              const nombreDocumentsA =
-                Array.isArray(a.documents)
-                  ? a.documents.length
-                  : 0;
-
-              const nombreDocumentsB =
-                Array.isArray(b.documents)
-                  ? b.documents.length
-                  : 0;
-
-
-              // A possède un document et B aucun
-              if (
-                nombreDocumentsA > 0 &&
-                nombreDocumentsB === 0
-              ) {
-                return -1;
-              }
-
-
-              // B possède un document et A aucun
-              if (
-                nombreDocumentsA === 0 &&
-                nombreDocumentsB > 0
-              ) {
-                return 1;
-              }
-
-
-              // Si les deux ont des documents,
-              // celui qui en possède le plus passe devant.
-              if (
-                nombreDocumentsA > 0 &&
-                nombreDocumentsB > 0 &&
-                nombreDocumentsA !== nombreDocumentsB
-              ) {
-                return (
-                  nombreDocumentsB -
-                  nombreDocumentsA
-                );
-              }
-
-
-              // Sinon conserver l'ordre existant
-              return 0;
+              return -1;
 
             }
-          );
 
-        });
+
+            // B possède un document et A aucun
+            if (
+              nombreDocumentsA === 0 &&
+              nombreDocumentsB > 0
+            ) {
+
+              return 1;
+
+            }
+
+
+            // Les deux possèdent des documents :
+            // celui qui en possède le plus passe devant.
+            if (
+              nombreDocumentsA > 0 &&
+              nombreDocumentsB > 0 &&
+              nombreDocumentsA !==
+                nombreDocumentsB
+            ) {
+
+              return (
+                nombreDocumentsB -
+                nombreDocumentsA
+              );
+
+            }
+
+
+            return 0;
+
+          }
+        );
+
+
+        setInscrits(
+          listeTriee
+        );
 
 
         // ----------------------------------------------------
-        // FIN DE PAGINATION
+        // TOTAL
         // ----------------------------------------------------
 
         const total =
-          Number(response.data.total) || 0;
+          Number(
+            response.data.total
+          ) || 0;
 
-
-        setInscrits((prev) => {
-
-          if (prev.length >= total) {
-            setHasMore(false);
-          }
-
-          return prev;
-
-        });
-
-
-        // Si cette page contient moins de résultats
-        // que la taille demandée, il n'y a probablement
-        // plus de données.
-        if (
-          nouvelleListe.length < PAGE_SIZE
-        ) {
-          setHasMore(false);
-        }
+        setTotalInscrits(
+          total
+        );
 
 
       } catch (err) {
@@ -361,7 +361,9 @@ const ListeInscrits: React.FC = () => {
 
       } finally {
 
-        setLoadingListe(false);
+        setLoadingListe(
+          false
+        );
 
       }
 
@@ -370,135 +372,430 @@ const ListeInscrits: React.FC = () => {
 
     fetchInscrits();
 
-  }, [page, user, hasMore]);
+  }, [
+    page,
+    user,
+  ]);
+
+
+  // ========================================================
+  // NOMBRE TOTAL DE PAGES
+  // ========================================================
+
+  const totalPages =
+    Math.max(
+      1,
+      Math.ceil(
+        totalInscrits /
+        PAGE_SIZE
+      )
+    );
+
+
+  // ========================================================
+  // PAGES VISIBLES
+  // ========================================================
+
+  const visiblePages =
+    React.useMemo(() => {
+
+      if (totalPages <= 7) {
+
+        return Array.from(
+          {
+            length:
+              totalPages,
+          },
+          (_, index) =>
+            index + 1
+        );
+
+      }
+
+
+      const pages: number[] = [];
+
+
+      // Première page
+      pages.push(1);
+
+
+      // Pages autour de la page courante
+      for (
+        let p =
+          Math.max(
+            2,
+            page - 2
+          );
+
+        p <=
+          Math.min(
+            totalPages - 1,
+            page + 2
+          );
+
+        p++
+      ) {
+
+        pages.push(p);
+
+      }
+
+
+      // Dernière page
+      pages.push(
+        totalPages
+      );
+
+
+      // Éliminer les éventuels doublons
+      return Array.from(
+        new Set(pages)
+      );
+
+    }, [
+      page,
+      totalPages,
+    ]);
+
+
+  // ========================================================
+  // NUMÉRO DU PREMIER ÉLÉMENT
+  // ========================================================
+
+  const startIndex =
+    totalInscrits === 0
+      ? 0
+      : (
+          page - 1
+        ) *
+          PAGE_SIZE +
+        1;
+
+
+  // ========================================================
+  // NUMÉRO DU DERNIER ÉLÉMENT
+  // ========================================================
+
+  const endIndex =
+    Math.min(
+      page * PAGE_SIZE,
+      totalInscrits
+    );
+
+
+  // ========================================================
+  // 👨‍🏫 DÉCLARER UN UTILISATEUR ENSEIGNANT
+  // ========================================================
+
+  const handleDeclarerEnseignant =
+    async (
+      id: number
+    ) => {
+
+      const utilisateur =
+        inscrits.find(
+          (u) =>
+            u.id === id
+        );
+
+
+      if (!utilisateur) {
+        return;
+      }
+
+
+      // ----------------------------------------------------
+      // CONFIRMATION
+      // ----------------------------------------------------
+
+      const confirmation =
+        window.confirm(
+          `Voulez-vous déclarer ${utilisateur.prenom} ${utilisateur.nom} comme enseignant ?`
+        );
+
+
+      if (!confirmation) {
+        return;
+      }
+
+
+      try {
+
+        const res =
+          await api.post(
+            `/api/admin/teachers/${id}`
+          );
+
+
+        // --------------------------------------------------
+        // MISE À JOUR LOCALE
+        // --------------------------------------------------
+
+        setInscrits(
+          (prev) =>
+            prev.map(
+              (u) =>
+                u.id === id
+                  ? {
+                      ...u,
+
+                      enseignant:
+                        true,
+
+                      enseignant_actif:
+                        true,
+
+                      subjects:
+                        [],
+                    }
+                  : u
+            )
+        );
+
+
+        alert(
+          res.data.message ||
+          "L'utilisateur est maintenant enseignant."
+        );
+
+
+      } catch (err: any) {
+
+        console.error(
+          "Erreur déclaration enseignant :",
+          err
+        );
+
+
+        // --------------------------------------------------
+        // ERREURS HTTP
+        // --------------------------------------------------
+
+        if (
+          err?.response?.status ===
+          400
+        ) {
+
+          alert(
+            err.response.data?.detail ||
+            "Cet utilisateur est déjà enseignant."
+          );
+
+
+        } else if (
+          err?.response?.status ===
+          401
+        ) {
+
+          alert(
+            "Votre session a expiré. Veuillez vous reconnecter."
+          );
+
+
+        } else if (
+          err?.response?.status ===
+          403
+        ) {
+
+          alert(
+            "Vous n'avez pas les droits administrateur nécessaires."
+          );
+
+
+        } else if (
+          err?.response?.status ===
+          404
+        ) {
+
+          alert(
+            "Utilisateur introuvable."
+          );
+
+
+        } else {
+
+          alert(
+            "Erreur lors de la déclaration comme enseignant."
+          );
+
+        }
+
+      }
+
+    };
 
 
   // ========================================================
   // VALIDATION D'UN INSCRIT
   // ========================================================
 
-  const handleValider = async (
-    id: number
-  ) => {
+  const handleValider =
+    async (
+      id: number
+    ) => {
 
-    try {
+      try {
 
-      const res = await api.post(
-        `/api/admin/valider-inscrit/${id}`
-      );
-
-
-      setInscrits((prev) =>
-        prev.map((u) =>
-          u.id === id
-            ? {
-                ...u,
-                status: "validated",
-                is_validated: true,
-              }
-            : u
-        )
-      );
+        const res =
+          await api.post(
+            `/api/admin/valider-inscrit/${id}`
+          );
 
 
-      alert(res.data.message);
+        setInscrits(
+          (prev) =>
+            prev.map(
+              (u) =>
+                u.id === id
+                  ? {
+                      ...u,
+                      status:
+                        "validated",
+                      is_validated:
+                        true,
+                    }
+                  : u
+            )
+        );
 
-    } catch (err) {
 
-      console.error(err);
+        alert(
+          res.data.message
+        );
 
-      alert(
-        "Erreur lors de la validation."
-      );
 
-    }
+      } catch (err) {
 
-  };
+        console.error(
+          err
+        );
+
+
+        alert(
+          "Erreur lors de la validation."
+        );
+
+      }
+
+    };
 
 
   // ========================================================
   // REFUSER UN INSCRIT
   // ========================================================
 
-  const handleRefuser = async (
-    id: number
-  ) => {
+  const handleRefuser =
+    async (
+      id: number
+    ) => {
 
-    try {
+      try {
 
-      const res = await api.post(
-        `/api/admin/refuser-inscrit/${id}`
-      );
-
-
-      setInscrits((prev) =>
-        prev.filter(
-          (u) => u.id !== id
-        )
-      );
+        const res =
+          await api.post(
+            `/api/admin/refuser-inscrit/${id}`
+          );
 
 
-      alert(res.data.message);
+        setInscrits(
+          (prev) =>
+            prev.filter(
+              (u) =>
+                u.id !== id
+            )
+        );
 
-    } catch (err) {
 
-      console.error(err);
+        // Le total diminue également
+        setTotalInscrits(
+          (prev) =>
+            Math.max(
+              0,
+              prev - 1
+            )
+        );
 
-      alert(
-        "Erreur lors du refus."
-      );
 
-    }
+        alert(
+          res.data.message
+        );
 
-  };
+
+      } catch (err) {
+
+        console.error(
+          err
+        );
+
+
+        alert(
+          "Erreur lors du refus."
+        );
+
+      }
+
+    };
 
 
   // ========================================================
   // BLOQUER / RÉACTIVER
   // ========================================================
 
-  const handleBlock = async (
-    id: number,
-    blocked?: boolean
-  ) => {
+  const handleBlock =
+    async (
+      id: number,
+      blocked?: boolean
+    ) => {
 
-    try {
+      try {
 
-      const action = blocked
-        ? "reactivate"
-        : "block";
-
-
-      const res = await api.post(
-        `/api/admin/${action}-user/${id}`
-      );
+        const action =
+          blocked
+            ? "reactivate"
+            : "block";
 
 
-      setInscrits((prev) =>
-        prev.map((u) =>
-          u.id === id
-            ? {
-                ...u,
-                is_blocked: !blocked,
-              }
-            : u
-        )
-      );
+        const res =
+          await api.post(
+            `/api/admin/${action}-user/${id}`
+          );
 
 
-      alert(res.data.message);
+        setInscrits(
+          (prev) =>
+            prev.map(
+              (u) =>
+                u.id === id
+                  ? {
+                      ...u,
+                      is_blocked:
+                        !blocked,
+                    }
+                  : u
+            )
+        );
 
-    } catch (err) {
 
-      console.error(err);
+        alert(
+          res.data.message
+        );
 
-      alert(
-        "Erreur lors du blocage/réactivation."
-      );
 
-    }
+      } catch (err) {
 
-  };
+        console.error(
+          err
+        );
+
+
+        alert(
+          "Erreur lors du blocage/réactivation."
+        );
+
+      }
+
+    };
 
 
   // ========================================================
@@ -507,7 +804,9 @@ const ListeInscrits: React.FC = () => {
 
   const pendingCount =
     inscrits.filter(
-      (i) => i.status === "pending"
+      (i) =>
+        i.status ===
+        "pending"
     ).length;
 
 
@@ -516,11 +815,22 @@ const ListeInscrits: React.FC = () => {
   // ========================================================
 
   if (authLoading) {
+
     return (
-      <div className="flex items-center justify-center min-h-screen">
+
+      <div
+        className="
+          flex
+          items-center
+          justify-center
+          min-h-screen
+        "
+      >
         Chargement...
       </div>
+
     );
+
   }
 
 
@@ -551,7 +861,12 @@ const ListeInscrits: React.FC = () => {
         duration: 0.5,
       }}
 
-      className="min-h-screen p-6 bg-gray-100 dark:bg-gray-900"
+      className="
+        min-h-screen
+        p-6
+        bg-gray-100
+        dark:bg-gray-900
+      "
     >
 
 
@@ -588,7 +903,9 @@ const ListeInscrits: React.FC = () => {
 
         Inscriptions en attente :{" "}
 
-        <span className="font-semibold">
+        <span
+          className="font-semibold"
+        >
           {pendingCount}
         </span>
 
@@ -599,7 +916,21 @@ const ListeInscrits: React.FC = () => {
           LISTE VIDE
       ==================================================== */}
 
-      {inscrits.length === 0 ? (
+      {loadingListe &&
+      inscrits.length === 0 ? (
+
+        <p
+          className="
+            text-center
+            mt-8
+            text-gray-600
+            dark:text-gray-300
+          "
+        >
+          Chargement...
+        </p>
+
+      ) : inscrits.length === 0 ? (
 
         <p
           className="
@@ -613,699 +944,1112 @@ const ListeInscrits: React.FC = () => {
 
       ) : (
 
-        <div className="overflow-x-auto mb-6">
-
+        <>
 
           {/* ==================================================
               TABLEAU
           ================================================== */}
 
-          <table
+          <div
             className="
-              min-w-full
-              bg-white
-              dark:bg-gray-800
-              rounded-xl
-              shadow-md
+              overflow-x-auto
+              mb-6
             "
           >
 
+            <table
+              className="
+                min-w-full
+                bg-white
+                dark:bg-gray-800
+                rounded-xl
+                shadow-md
+              "
+            >
 
-            {/* =================================================
-                EN-TÊTE
-            ================================================= */}
+              {/* =================================================
+                  EN-TÊTE
+              ================================================= */}
 
-            <thead>
+              <thead>
 
-              <tr className="bg-blue-600 text-white">
+                <tr
+                  className="
+                    bg-blue-600
+                    text-white
+                  "
+                >
 
-                <th className="px-4 py-2">
-                  Nom
-                </th>
+                  <th className="px-4 py-2">
+                    Nom
+                  </th>
 
-                <th className="px-4 py-2">
-                  Prénom
-                </th>
+                  <th className="px-4 py-2">
+                    Prénom
+                  </th>
 
-                <th className="px-4 py-2">
-                  Email
-                </th>
+                  <th className="px-4 py-2">
+                    Email
+                  </th>
 
-                <th className="px-4 py-2">
-                  Parrain
-                </th>
+                  <th className="px-4 py-2">
+                    Parrain
+                  </th>
 
-                <th className="px-4 py-2">
-                  Filleuls
-                </th>
+                  <th className="px-4 py-2">
+                    Filleuls
+                  </th>
 
-                <th className="px-4 py-2">
-                  Téléphone
-                </th>
+                  <th className="px-4 py-2">
+                    Téléphone
+                  </th>
 
-                <th className="px-4 py-2">
-                  Date inscription
-                </th>
+                  <th className="px-4 py-2">
+                    Date inscription
+                  </th>
 
-                <th className="px-4 py-2">
-                  Statut
-                </th>
+                  <th className="px-4 py-2">
+                    Statut
+                  </th>
 
-                <th className="px-4 py-2">
-                  Blocage
-                </th>
+                  <th className="px-4 py-2">
+                    Blocage
+                  </th>
 
-                <th className="px-4 py-2">
-                  Actions
-                </th>
+                  {/* =================================================
+                      👨‍🏫 ENSEIGNANT
+                  ================================================= */}
 
-                {/* 🔑 COLONNE DOCUMENTS À LA FIN */}
+                  <th className="px-4 py-2">
+                    Enseignant
+                  </th>
 
-                <th className="px-4 py-2 min-w-[280px]">
-                  Documents
-                </th>
+                  <th className="px-4 py-2">
+                    Actions
+                  </th>
 
-              </tr>
+                  {/* 🔑 DOCUMENTS À LA FIN */}
 
-            </thead>
+                  <th
+                    className="
+                      px-4
+                      py-2
+                      min-w-[280px]
+                    "
+                  >
+                    Documents
+                  </th>
 
+                </tr>
 
-            {/* =================================================
-                CORPS DU TABLEAU
-            ================================================= */}
-
-            <tbody>
-
-              {inscrits.map(
-                (i, index) => {
-
-                  const isLast =
-                    inscrits.length ===
-                    index + 1;
-
-
-                  const nombreDocuments =
-                    Array.isArray(i.documents)
-                      ? i.documents.length
-                      : 0;
-
-
-                  return (
-
-                    <tr
-
-                      key={i.id}
-
-                      ref={
-                        isLast
-                          ? lastInscritRef
-                          : null
-                      }
-
-                      className="
-                        border-b
-                        dark:border-gray-700
-                        hover:bg-gray-100
-                        dark:hover:bg-gray-700
-                      "
-                    >
+              </thead>
 
 
-                      {/* ======================================
-                          NOM + 🔑
-                      ====================================== */}
+              {/* =================================================
+                  CORPS DU TABLEAU
+              ================================================= */}
 
-                      <td className="px-4 py-2">
+              <tbody>
 
-                        <div
-                          className="
-                            flex
-                            items-center
-                            gap-2
-                            whitespace-nowrap
-                          "
-                        >
+                {inscrits.map(
+                  (i) => {
 
-                          {/* NOM */}
-
-                          <span className="font-semibold">
-                            {i.nom}
-                          </span>
+                    const nombreDocuments =
+                      Array.isArray(
+                        i.documents
+                      )
+                        ? i.documents.length
+                        : 0;
 
 
-                          {/* 🔑 NOMBRE DE DOCUMENTS */}
+                    return (
 
-                          {nombreDocuments > 0 && (
+                      <tr
+
+                        key={i.id}
+
+                        className="
+                          border-b
+                          dark:border-gray-700
+                          hover:bg-gray-100
+                          dark:hover:bg-gray-700
+                        "
+                      >
+
+
+                        {/* ======================================
+                            NOM + DOCUMENTS + CONNEXION
+                        ====================================== */}
+
+                        <td className="px-4 py-2">
+
+                          <div
+                            className="
+                              flex
+                              items-center
+                              gap-2
+                              whitespace-nowrap
+                            "
+                          >
+
+                            {/* NOM */}
 
                             <span
+                              className="
+                                font-semibold
+                              "
+                            >
+                              {i.nom}
+                            </span>
+
+
+                            {/* 🔑 NOMBRE DE DOCUMENTS */}
+
+                            {nombreDocuments > 0 && (
+
+                              <span
+
+                                className="
+                                  text-yellow-500
+                                  text-lg
+                                  tracking-tight
+                                  cursor-help
+                                "
+
+                                title={
+                                  `${nombreDocuments} document${
+                                    nombreDocuments >
+                                    1
+                                      ? "s"
+                                      : ""
+                                  } attribué${
+                                    nombreDocuments >
+                                    1
+                                      ? "s"
+                                      : ""
+                                  }`
+                                }
+                              >
+
+                                {"🔑".repeat(
+                                  nombreDocuments
+                                )}
+
+                              </span>
+
+                            )}
+
+
+                            {/* STATUT CONNEXION */}
+
+                            {i.is_online ? (
+
+                              <span
+                                className="
+                                  px-2
+                                  py-0.5
+                                  bg-green-500
+                                  text-white
+                                  rounded-full
+                                  text-xs
+                                "
+                              >
+                                Connecté
+                              </span>
+
+                            ) : (
+
+                              <span
+                                className="
+                                  px-2
+                                  py-0.5
+                                  bg-red-500
+                                  text-white
+                                  rounded-full
+                                  text-xs
+                                "
+                              >
+                                Déconnecté
+                              </span>
+
+                            )}
+
+                          </div>
+
+                        </td>
+
+
+                        {/* ======================================
+                            PRÉNOM
+                        ====================================== */}
+
+                        <td className="px-4 py-2">
+                          {i.prenom}
+                        </td>
+
+
+                        {/* ======================================
+                            EMAIL
+                        ====================================== */}
+
+                        <td className="px-4 py-2">
+                          {i.email}
+                        </td>
+
+
+                        {/* ======================================
+                            PARRAIN
+                        ====================================== */}
+
+                        <td className="px-4 py-2">
+
+                          {i.parrain_email ? (
+
+                            <button
+
+                              onClick={() =>
+                                navigate(
+                                  `/admin/parrain/${encodeURIComponent(
+                                    i.parrain_email
+                                  )}`
+                                )
+                              }
 
                               className="
-                                text-yellow-500
-                                text-lg
-                                tracking-tight
-                                cursor-help
+                                text-blue-600
+                                hover:underline
                               "
-
-                              title={
-                                `${nombreDocuments} document${
-                                  nombreDocuments > 1
-                                    ? "s"
-                                    : ""
-                                } attribué${
-                                  nombreDocuments > 1
-                                    ? "s"
-                                    : ""
-                                }`
-                              }
                             >
+                              {i.parrain_email}
+                            </button>
 
-                              {"🔑".repeat(
-                                nombreDocuments
-                              )}
+                          ) : (
 
+                            <span
+                              className="
+                                text-gray-400
+                                italic
+                              "
+                            >
+                              Aucun
                             </span>
 
                           )}
 
+                        </td>
 
-                          {/* STATUT CONNEXION */}
 
-                          {i.is_online ? (
+                        {/* ======================================
+                            FILLEULS
+                        ====================================== */}
+
+                        <td className="px-4 py-2">
+
+                          {i.filleuls_emails &&
+                          i.filleuls_emails.length >
+                            0 ? (
+
+                            <div
+                              className="
+                                flex
+                                flex-col
+                                gap-1
+                              "
+                            >
+
+                              {i.filleuls_emails.map(
+                                (mail) => (
+
+                                  <button
+
+                                    key={mail}
+
+                                    onClick={() =>
+                                      navigate(
+                                        `/admin/parrain/${encodeURIComponent(
+                                          mail
+                                        )}`
+                                      )
+                                    }
+
+                                    className="
+                                      text-blue-600
+                                      hover:underline
+                                      text-sm
+                                    "
+                                  >
+                                    {mail}
+                                  </button>
+
+                                )
+                              )}
+
+                            </div>
+
+                          ) : (
 
                             <span
                               className="
-                                px-2
-                                py-0.5
-                                bg-green-500
-                                text-white
-                                rounded-full
-                                text-xs
+                                text-gray-400
+                                italic
                               "
                             >
-                              Connecté
+                              Aucun
+                            </span>
+
+                          )}
+
+                        </td>
+
+
+                        {/* ======================================
+                            TÉLÉPHONE
+                        ====================================== */}
+
+                        <td className="px-4 py-2">
+                          {i.telephone || "-"}
+                        </td>
+
+
+                        {/* ======================================
+                            DATE INSCRIPTION
+                        ====================================== */}
+
+                        <td className="px-4 py-2">
+
+                          {i.date_inscription
+                            ? new Date(
+                                i.date_inscription
+                              ).toLocaleDateString()
+                            : "-"
+                          }
+
+                        </td>
+
+
+                        {/* ======================================
+                            STATUT
+                        ====================================== */}
+
+                        <td className="px-4 py-2">
+
+                          {i.status ===
+                            "validated" &&
+                            "✅ Validé"}
+
+                          {i.status ===
+                            "pending" &&
+                            "⏳ En attente"}
+
+                          {i.status ===
+                            "refused" &&
+                            "❌ Refusé"}
+
+                        </td>
+
+
+                        {/* ======================================
+                            BLOCAGE
+                        ====================================== */}
+
+                        <td
+                          className="
+                            px-4
+                            py-2
+                            text-center
+                          "
+                        >
+
+                          {i.is_blocked ? (
+
+                            <span
+                              className="
+                                text-red-600
+                                font-semibold
+                              "
+                            >
+                              🚫 Bloqué
                             </span>
 
                           ) : (
 
                             <span
                               className="
-                                px-2
-                                py-0.5
-                                bg-red-500
-                                text-white
-                                rounded-full
-                                text-xs
+                                text-green-600
+                                font-semibold
                               "
                             >
-                              Déconnecté
+                              ✅ Actif
                             </span>
 
                           )}
 
-                        </div>
-
-                      </td>
+                        </td>
 
 
-                      {/* ======================================
-                          PRÉNOM
-                      ====================================== */}
+                        {/* ======================================
+                            👨‍🏫 ENSEIGNANT
+                        ====================================== */}
 
-                      <td className="px-4 py-2">
-                        {i.prenom}
-                      </td>
+                        <td
+                          className="
+                            px-4
+                            py-2
+                            text-center
+                          "
+                        >
 
+                          {i.enseignant ? (
 
-                      {/* ======================================
-                          EMAIL
-                      ====================================== */}
+                            <div
+                              className="
+                                flex
+                                flex-col
+                                items-center
+                                gap-1
+                              "
+                            >
 
-                      <td className="px-4 py-2">
-                        {i.email}
-                      </td>
-
-
-                      {/* ======================================
-                          PARRAIN
-                      ====================================== */}
-
-                      <td className="px-4 py-2">
-
-                        {i.parrain_email ? (
-
-                          <button
-
-                            onClick={() =>
-                              navigate(
-                                `/admin/parrain/${encodeURIComponent(
-                                  i.parrain_email
-                                )}`
-                              )
-                            }
-
-                            className="
-                              text-blue-600
-                              hover:underline
-                            "
-                          >
-                            {i.parrain_email}
-                          </button>
-
-                        ) : (
-
-                          <span
-                            className="
-                              text-gray-400
-                              italic
-                            "
-                          >
-                            Aucun
-                          </span>
-
-                        )}
-
-                      </td>
+                              <span
+                                className="
+                                  inline-flex
+                                  items-center
+                                  px-3
+                                  py-1
+                                  rounded-full
+                                  bg-indigo-100
+                                  text-indigo-700
+                                  dark:bg-indigo-900/40
+                                  dark:text-indigo-300
+                                  text-sm
+                                  font-semibold
+                                  whitespace-nowrap
+                                "
+                              >
+                                👨‍🏫 Enseignant
+                              </span>
 
 
-                      {/* ======================================
-                          FILLEULS
-                      ====================================== */}
+                              {i.enseignant_actif ===
+                                false && (
 
-                      <td className="px-4 py-2">
-
-                        {i.filleuls_emails &&
-                        i.filleuls_emails.length > 0 ? (
-
-                          <div className="flex flex-col gap-1">
-
-                            {i.filleuls_emails.map(
-                              (mail) => (
-
-                                <button
-
-                                  key={mail}
-
-                                  onClick={() =>
-                                    navigate(
-                                      `/admin/parrain/${encodeURIComponent(
-                                        mail
-                                      )}`
-                                    )
-                                  }
-
+                                <span
                                   className="
-                                    text-blue-600
-                                    hover:underline
-                                    text-sm
+                                    text-xs
+                                    text-red-600
+                                    dark:text-red-400
                                   "
                                 >
-                                  {mail}
-                                </button>
+                                  Désactivé
+                                </span>
 
-                              )
-                            )}
+                              )}
 
-                          </div>
+                            </div>
 
-                        ) : (
-
-                          <span
-                            className="
-                              text-gray-400
-                              italic
-                            "
-                          >
-                            Aucun
-                          </span>
-
-                        )}
-
-                      </td>
-
-
-                      {/* ======================================
-                          TÉLÉPHONE
-                      ====================================== */}
-
-                      <td className="px-4 py-2">
-                        {i.telephone || "-"}
-                      </td>
-
-
-                      {/* ======================================
-                          DATE INSCRIPTION
-                      ====================================== */}
-
-                      <td className="px-4 py-2">
-
-                        {i.date_inscription
-                          ? new Date(
-                              i.date_inscription
-                            ).toLocaleDateString()
-                          : "-"
-                        }
-
-                      </td>
-
-
-                      {/* ======================================
-                          STATUT
-                      ====================================== */}
-
-                      <td className="px-4 py-2">
-
-                        {i.status === "validated" &&
-                          "✅ Validé"}
-
-                        {i.status === "pending" &&
-                          "⏳ En attente"}
-
-                        {i.status === "refused" &&
-                          "❌ Refusé"}
-
-                      </td>
-
-
-                      {/* ======================================
-                          BLOCAGE
-                      ====================================== */}
-
-                      <td className="px-4 py-2 text-center">
-
-                        {i.is_blocked ? (
-
-                          <span
-                            className="
-                              text-red-600
-                              font-semibold
-                            "
-                          >
-                            🚫 Bloqué
-                          </span>
-
-                        ) : (
-
-                          <span
-                            className="
-                              text-green-600
-                              font-semibold
-                            "
-                          >
-                            ✅ Actif
-                          </span>
-
-                        )}
-
-                      </td>
-
-
-                      {/* ======================================
-                          ACTIONS
-                      ====================================== */}
-
-                      <td className="px-4 py-2">
-
-                        {i.status === "pending" ? (
-
-                          <div className="flex gap-2">
+                          ) : (
 
                             <button
 
                               onClick={() =>
-                                handleValider(i.id)
-                              }
-
-                              className="
-                                px-3
-                                py-1
-                                bg-green-600
-                                text-white
-                                rounded-xl
-                                hover:bg-green-700
-                                transition
-                              "
-                            >
-                              Valider
-                            </button>
-
-
-                            <button
-
-                              onClick={() =>
-                                handleRefuser(i.id)
-                              }
-
-                              className="
-                                px-3
-                                py-1
-                                bg-red-600
-                                text-white
-                                rounded-xl
-                                hover:bg-red-700
-                                transition
-                              "
-                            >
-                              Refuser
-                            </button>
-
-                          </div>
-
-                        ) : (
-
-                          <div className="flex gap-2">
-
-                            <button
-
-                              onClick={() =>
-                                handleBlock(
-                                  i.id,
-                                  i.is_blocked
+                                handleDeclarerEnseignant(
+                                  i.id
                                 )
                               }
 
-                              className={`
+                              className="
                                 px-3
                                 py-1
-                                rounded-xl
+                                bg-indigo-600
                                 text-white
+                                rounded-xl
+                                hover:bg-indigo-700
                                 transition
-
-                                ${
-                                  i.is_blocked
-
-                                    ? "bg-green-600 hover:bg-green-700"
-
-                                    : "bg-red-600 hover:bg-red-700"
-                                }
-                              `}
+                                font-semibold
+                                whitespace-nowrap
+                              "
                             >
-
-                              {i.is_blocked
-                                ? "Réactiver"
-                                : "Bloquer"}
-
+                              👨‍🏫 Déclarer enseignant
                             </button>
 
-                          </div>
+                          )}
 
-                        )}
-
-                      </td>
+                        </td>
 
 
-                      {/* ======================================
-                          DOCUMENTS + CODES
-                          TOUJOURS À LA FIN DE LA LIGNE
-                      ====================================== */}
+                        {/* ======================================
+                            ACTIONS
+                        ====================================== */}
 
-                      <td className="px-4 py-2">
+                        <td className="px-4 py-2">
 
-                        {nombreDocuments > 0 ? (
+                          {i.status ===
+                          "pending" ? (
 
-                          <div
-                            className="
-                              flex
-                              flex-col
-                              gap-2
-                              min-w-[250px]
-                            "
-                          >
+                            <div
+                              className="
+                                flex
+                                gap-2
+                              "
+                            >
 
-                            {i.documents!.map(
-                              (document) => (
+                              <button
 
-                                <div
+                                onClick={() =>
+                                  handleValider(
+                                    i.id
+                                  )
+                                }
 
-                                  key={
-                                    document.id
+                                className="
+                                  px-3
+                                  py-1
+                                  bg-green-600
+                                  text-white
+                                  rounded-xl
+                                  hover:bg-green-700
+                                  transition
+                                "
+                              >
+                                Valider
+                              </button>
+
+
+                              <button
+
+                                onClick={() =>
+                                  handleRefuser(
+                                    i.id
+                                  )
+                                }
+
+                                className="
+                                  px-3
+                                  py-1
+                                  bg-red-600
+                                  text-white
+                                  rounded-xl
+                                  hover:bg-red-700
+                                  transition
+                                "
+                              >
+                                Refuser
+                              </button>
+
+                            </div>
+
+                          ) : (
+
+                            <div
+                              className="
+                                flex
+                                gap-2
+                              "
+                            >
+
+                              <button
+
+                                onClick={() =>
+                                  handleBlock(
+                                    i.id,
+                                    i.is_blocked
+                                  )
+                                }
+
+                                className={`
+                                  px-3
+                                  py-1
+                                  rounded-xl
+                                  text-white
+                                  transition
+
+                                  ${
+                                    i.is_blocked
+
+                                      ? "bg-green-600 hover:bg-green-700"
+
+                                      : "bg-red-600 hover:bg-red-700"
                                   }
+                                `}
+                              >
 
-                                  className="
-                                    p-2
-                                    rounded-lg
-                                    bg-purple-50
-                                    dark:bg-purple-900/30
-                                    border
-                                    border-purple-200
-                                    dark:border-purple-700
-                                  "
-                                >
+                                {i.is_blocked
+                                  ? "Réactiver"
+                                  : "Bloquer"}
 
-                                  {/* NOM DU DOCUMENT */}
+                              </button>
+
+                            </div>
+
+                          )}
+
+                        </td>
+
+
+                        {/* ======================================
+                            DOCUMENTS + CODES
+                            TOUJOURS À LA FIN
+                        ====================================== */}
+
+                        <td className="px-4 py-2">
+
+                          {nombreDocuments > 0 ? (
+
+                            <div
+                              className="
+                                flex
+                                flex-col
+                                gap-2
+                                min-w-[250px]
+                              "
+                            >
+
+                              {i.documents!.map(
+                                (document) => (
 
                                   <div
-                                    className="
-                                      font-semibold
-                                      text-purple-700
-                                      dark:text-purple-300
-                                    "
-                                  >
-                                    📚{" "}
-                                    {
-                                      document.document_name
+
+                                    key={
+                                      document.id
                                     }
-                                  </div>
 
-
-                                  {/* CODE */}
-
-                                  <div
                                     className="
-                                      text-sm
-                                      text-gray-700
-                                      dark:text-gray-300
-                                      mt-1
+                                      p-2
+                                      rounded-lg
+                                      bg-purple-50
+                                      dark:bg-purple-900/30
+                                      border
+                                      border-purple-200
+                                      dark:border-purple-700
                                     "
                                   >
 
-                                    🔑 Code :{" "}
+                                    {/* NOM DU DOCUMENT */}
 
-                                    <span
+                                    <div
                                       className="
-                                        font-mono
                                         font-semibold
+                                        text-purple-700
+                                        dark:text-purple-300
                                       "
                                     >
+                                      📚{" "}
                                       {
-                                        document.activation_code
+                                        document.document_name
                                       }
-                                    </span>
-
-                                  </div>
+                                    </div>
 
 
-                                  {/* ÉTAT ACTIVATION */}
+                                    {/* CODE */}
 
-                                  <div
-                                    className="
-                                      text-sm
-                                      mt-1
-                                    "
-                                  >
+                                    <div
+                                      className="
+                                        text-sm
+                                        text-gray-700
+                                        dark:text-gray-300
+                                        mt-1
+                                      "
+                                    >
 
-                                    {document.is_activated ? (
-
-                                      <span
-                                        className="
-                                          text-green-600
-                                          font-semibold
-                                        "
-                                      >
-                                        ✅ Activé
-                                      </span>
-
-                                    ) : (
+                                      🔑 Code :{" "}
 
                                       <span
                                         className="
-                                          text-orange-600
+                                          font-mono
                                           font-semibold
                                         "
                                       >
-                                        ⏳ Non activé
+                                        {
+                                          document.activation_code
+                                        }
                                       </span>
+
+                                    </div>
+
+
+                                    {/* ÉTAT ACTIVATION */}
+
+                                    <div
+                                      className="
+                                        text-sm
+                                        mt-1
+                                      "
+                                    >
+
+                                      {document.is_activated ? (
+
+                                        <span
+                                          className="
+                                            text-green-600
+                                            font-semibold
+                                          "
+                                        >
+                                          ✅ Activé
+                                        </span>
+
+                                      ) : (
+
+                                        <span
+                                          className="
+                                            text-orange-600
+                                            font-semibold
+                                          "
+                                        >
+                                          ⏳ Non activé
+                                        </span>
+
+                                      )}
+
+                                    </div>
+
+
+                                    {/* DATE ACTIVATION */}
+
+                                    {document.activated_at && (
+
+                                      <div
+                                        className="
+                                          text-xs
+                                          text-gray-500
+                                          mt-1
+                                        "
+                                      >
+
+                                        Activé le :{" "}
+
+                                        {new Date(
+                                          document.activated_at
+                                        ).toLocaleString()}
+
+                                      </div>
 
                                     )}
 
                                   </div>
 
+                                )
+                              )}
 
-                                  {/* DATE ACTIVATION */}
+                            </div>
 
-                                  {document.activated_at && (
+                          ) : (
 
-                                    <div
-                                      className="
-                                        text-xs
-                                        text-gray-500
-                                        mt-1
-                                      "
-                                    >
+                            <span
+                              className="
+                                text-gray-400
+                                italic
+                              "
+                            >
+                              Aucun document
+                            </span>
 
-                                      Activé le :{" "}
+                          )}
 
-                                      {new Date(
-                                        document.activated_at
-                                      ).toLocaleString()}
+                        </td>
 
-                                    </div>
+                      </tr>
 
-                                  )}
+                    );
 
-                                </div>
+                  }
+                )}
 
-                              )
-                            )}
+              </tbody>
 
-                          </div>
+            </table>
 
-                        ) : (
 
-                          <span
-                            className="
-                              text-gray-400
-                              italic
-                            "
-                          >
-                            Aucun document
-                          </span>
+            {/* ==================================================
+                CHARGEMENT ENTRE DEUX PAGES
+            ================================================== */}
 
-                        )}
+            {loadingListe &&
+            inscrits.length > 0 && (
 
-                      </td>
+              <p
+                className="
+                  text-center
+                  mt-4
+                  text-gray-600
+                  dark:text-gray-300
+                "
+              >
+                Chargement...
+              </p>
 
-                    </tr>
+            )}
+
+          </div>
+
+
+          {/* ==================================================
+              INFORMATIONS DE PAGINATION
+          ================================================== */}
+
+          {totalInscrits > 0 && (
+
+            <div
+              className="
+                text-center
+                text-sm
+                text-gray-600
+                dark:text-gray-300
+                mb-4
+              "
+            >
+
+              Affichage de{" "}
+
+              <span
+                className="font-semibold"
+              >
+                {startIndex}
+              </span>
+
+              {" "}à{" "}
+
+              <span
+                className="font-semibold"
+              >
+                {endIndex}
+              </span>
+
+              {" "}sur{" "}
+
+              <span
+                className="font-semibold"
+              >
+                {totalInscrits}
+              </span>
+
+              {" "}inscrit(s).
+
+              <div className="mt-1">
+
+                Page{" "}
+
+                <span
+                  className="font-semibold"
+                >
+                  {page}
+                </span>
+
+                {" "}sur{" "}
+
+                <span
+                  className="font-semibold"
+                >
+                  {totalPages}
+                </span>
+
+              </div>
+
+            </div>
+
+          )}
+
+
+          {/* ==================================================
+              PAGINATION
+          ================================================== */}
+
+          {totalPages > 1 && (
+
+            <div
+              className="
+                flex
+                flex-wrap
+                justify-center
+                items-center
+                gap-2
+                mt-6
+                mb-8
+              "
+            >
+
+              {/* ============================================
+                  PRÉCÉDENT
+              ============================================ */}
+
+              <button
+
+                onClick={() =>
+                  setPage(
+                    (currentPage) =>
+                      Math.max(
+                        currentPage - 1,
+                        1
+                      )
+                  )
+                }
+
+                disabled={
+                  page === 1 ||
+                  loadingListe
+                }
+
+                className={`
+                  px-4
+                  py-2
+                  rounded-xl
+                  font-semibold
+                  transition
+
+                  ${
+                    page === 1 ||
+                    loadingListe
+
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  }
+                `}
+              >
+                ← Précédent
+              </button>
+
+
+              {/* ============================================
+                  NUMÉROS DE PAGES
+              ============================================ */}
+
+              {visiblePages.map(
+                (
+                  pageNumber,
+                  index
+                ) => {
+
+                  const previousPage =
+                    visiblePages[
+                      index - 1
+                    ];
+
+                  const showEllipsis =
+                    previousPage !==
+                      undefined &&
+                    pageNumber -
+                      previousPage >
+                      1;
+
+
+                  return (
+
+                    <React.Fragment
+                      key={pageNumber}
+                    >
+
+                      {/* ====================================
+                          ...
+                      ==================================== */}
+
+                      {showEllipsis && (
+
+                        <span
+                          className="
+                            px-2
+                            text-gray-500
+                            dark:text-gray-400
+                          "
+                        >
+                          ...
+                        </span>
+
+                      )}
+
+
+                      {/* ====================================
+                          BOUTON PAGE
+                      ==================================== */}
+
+                      <button
+
+                        onClick={() =>
+                          setPage(
+                            pageNumber
+                          )
+                        }
+
+                        disabled={
+                          loadingListe
+                        }
+
+                        className={`
+                          min-w-[42px]
+                          px-3
+                          py-2
+                          rounded-xl
+                          font-semibold
+                          transition
+
+                          ${
+                            page ===
+                            pageNumber
+
+                              ? "bg-blue-700 text-white shadow-md"
+
+                              : "bg-white text-blue-700 border border-blue-300 hover:bg-blue-50 dark:bg-gray-800 dark:text-blue-300 dark:border-blue-700"
+                          }
+                        `}
+                      >
+                        {pageNumber}
+                      </button>
+
+                    </React.Fragment>
 
                   );
 
                 }
               )}
 
-            </tbody>
 
-          </table>
+              {/* ============================================
+                  SUIVANT
+              ============================================ */}
 
+              <button
 
-          {/* ==================================================
-              CHARGEMENT
-          ================================================== */}
+                onClick={() =>
+                  setPage(
+                    (currentPage) =>
+                      Math.min(
+                        currentPage + 1,
+                        totalPages
+                      )
+                  )
+                }
 
-          {loadingListe && (
+                disabled={
+                  page ===
+                    totalPages ||
+                  loadingListe
+                }
 
-            <p
-              className="
-                text-center
-                mt-4
-                text-gray-600
-                dark:text-gray-300
-              "
-            >
-              Chargement...
-            </p>
+                className={`
+                  px-4
+                  py-2
+                  rounded-xl
+                  font-semibold
+                  transition
+
+                  ${
+                    page ===
+                      totalPages ||
+                    loadingListe
+
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  }
+                `}
+              >
+                Suivant →
+              </button>
+
+            </div>
 
           )}
 
-        </div>
+        </>
 
       )}
 
@@ -1332,7 +2076,9 @@ const ListeInscrits: React.FC = () => {
         <button
 
           onClick={() =>
-            navigate("/admin/documents")
+            navigate(
+              "/admin/documents"
+            )
           }
 
           className="
@@ -1353,13 +2099,44 @@ const ListeInscrits: React.FC = () => {
 
 
         {/* ==================================================
+            👨‍🏫 GESTION DES ENSEIGNANTS
+        ================================================== */}
+
+        <button
+
+          onClick={() =>
+            navigate(
+              "/admin/enseignants"
+            )
+          }
+
+          className="
+            px-6
+            py-3
+            font-semibold
+            rounded-xl
+            bg-indigo-600
+            text-white
+            hover:bg-indigo-700
+            transition
+            w-64
+            text-center
+          "
+        >
+          👨‍🏫 GESTION DES ENSEIGNANTS
+        </button>
+
+
+        {/* ==================================================
             CODES D'ACTIVATION
         ================================================== */}
 
         <button
 
           onClick={() =>
-            navigate("/admin/codes-activation")
+            navigate(
+              "/admin/codes-activation"
+            )
           }
 
           className="
@@ -1386,7 +2163,9 @@ const ListeInscrits: React.FC = () => {
         <button
 
           onClick={() =>
-            navigate("/admin/historique-connections")
+            navigate(
+              "/admin/historique-connections"
+            )
           }
 
           className="
@@ -1413,7 +2192,9 @@ const ListeInscrits: React.FC = () => {
         <button
 
           onClick={() =>
-            navigate("/page2")
+            navigate(
+              "/page2"
+            )
           }
 
           disabled={
@@ -1463,6 +2244,52 @@ const ListeInscrits: React.FC = () => {
           </p>
 
         )}
+
+
+        {/* ==================================================
+            💬 CONVERSATIONS ADMIN
+            TOUJOURS TOUT EN BAS
+        ================================================== */}
+
+        <div
+          className="
+            w-full
+            flex
+            justify-center
+            mt-8
+            pt-6
+            border-t
+            border-gray-300
+            dark:border-gray-700
+          "
+        >
+
+          <button
+
+            onClick={() =>
+              navigate(
+                "/admin/questions"
+              )
+            }
+
+            className="
+              px-6
+              py-3
+              font-semibold
+              rounded-xl
+              bg-indigo-600
+              text-white
+              hover:bg-indigo-700
+              transition
+              w-64
+              text-center
+              shadow-md
+            "
+          >
+            💬 CONVERSATIONS ADMIN
+          </button>
+
+        </div>
 
       </div>
 
