@@ -53,7 +53,7 @@ const Login: React.FC = () => {
     setErreur(null);
 
     try {
-      const res = await fetch("https://code-backend-iuol.onrender.com/api/auth/login", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -84,6 +84,17 @@ const Login: React.FC = () => {
 
         loginWithPassword(token, dataUser);
         setUser(dataUser);
+
+        // 🔔 NOTIFICATION DE CONNEXION
+        try {
+          await fetch(`${import.meta.env.VITE_API_URL}/api/notify/connect`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: dataUser.email }),
+          });
+        } catch (notificationError) {
+          console.error("Erreur notification connexion :", notificationError);
+        }
 
         // 🔹 Redirection selon rôle
         if (dataUser.is_admin) {
