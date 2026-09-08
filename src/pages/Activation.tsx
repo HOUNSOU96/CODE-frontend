@@ -1,1082 +1,1559 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
 
-type Step = 1 | 2 | 3 | 4;
+const API_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-type ActivationTarget = "self" | "other" | null;
+// ============================================================
+// TYPES
+// ============================================================
+
+interface DocumentInfo {
+  id: number;
+  name: string;
+}
 
 interface UserInfo {
   id?: number;
   nom: string;
   prenom: string;
   email: string;
-  telephone: string;
-  pays?: string;
+  telephone?: string | null;
+  sexe?: string | null;
+  date_naissance?: string | null;
+  lieu_naissance?: string | null;
+  nationalite?: string | null;
+  pays_residence?: string | null;
 }
 
-const API_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:8000";
-
-// ==========================================================
-// PLAYLIST VIDÉO
-// ==========================================================
-// Tu peux ajouter d'autres vidéos plus tard.
-//
-// Exemple :
-//
-// const videoPlaylist = [
-//   "/videos/pre.mp4",
-//   "/videos/video3.mp4",
-//   "/videos/intro3.mp4",
-// ];
-//
-// ==========================================================
-
-const videoPlaylist = [
-  "/videos/pre.mp4",
-
-  // "/videos/video3.mp4",
-  // "/videos/intro3.mp4",
-];
-
-// ==========================================================
+// ============================================================
 // COMPOSANT
-// ==========================================================
+// ============================================================
 
 const Activation: React.FC = () => {
+  // ==========================================================
+  // ÉTAPE
+  // ==========================================================
 
-  // ========================================================
-  // VIDÉOS
-  // ========================================================
+  const [step, setStep] = useState(1);
 
-  const videoRef1 = useRef<HTMLVideoElement>(null);
-  const videoRef2 = useRef<HTMLVideoElement>(null);
-
-  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
-
-  const [fadeVideo1, setFadeVideo1] = useState(true);
-
-  const [videoFinished, setVideoFinished] = useState(false);
-
-  const [skipTimer, setSkipTimer] = useState(5);
-
-  const [soundUnlocked, setSoundUnlocked] = useState(true);
-
-  // ========================================================
-  // ACTIVATION
-  // ========================================================
-
-  const [step, setStep] = useState<Step>(1);
+  // ==========================================================
+  // ÉTAPE 1 — CODE
+  // ==========================================================
 
   const [email, setEmail] = useState("");
-
   const [code, setCode] = useState("");
 
+  // ==========================================================
+  // DOCUMENT
+  // ==========================================================
+
+  const [document, setDocument] =
+    useState<DocumentInfo | null>(null);
+
+  // ==========================================================
+  // ÉTAPE 2 — TYPE D'ACTIVATION
+  // ==========================================================
+
   const [target, setTarget] =
-    useState<ActivationTarget>(null);
+    useState<"self" | "other" | null>(null);
+
+  // ==========================================================
+  // ÉTAPE 3 — BÉNÉFICIAIRE
+  // ==========================================================
 
   const [beneficiaryEmail, setBeneficiaryEmail] =
     useState("");
 
-  const [userExists, setUserExists] =
-    useState<boolean | null>(null);
+  // ==========================================================
+  // IDENTITÉ
+  // ==========================================================
 
-  const [userInfo, setUserInfo] =
+  const [userExists, setUserExists] = useState(false);
+
+  const [user, setUser] =
     useState<UserInfo | null>(null);
 
-  // ========================================================
-  // INFORMATIONS UTILISATEUR
-  // ========================================================
-
   const [nom, setNom] = useState("");
-
   const [prenom, setPrenom] = useState("");
-
   const [telephone, setTelephone] = useState("");
-
   const [pays, setPays] = useState("");
-
-  const [ville, setVille] = useState("");
-
   const [password, setPassword] = useState("");
 
-  const [confirmPassword, setConfirmPassword] =
+  // ==========================================================
+  // PERSONNALISATION DU DOCUMENT
+  // ==========================================================
+
+  const [etablissement, setEtablissement] =
     useState("");
 
-  const [documentInfo, setDocumentInfo] =
-    useState<any>(null);
+  const [ville, setVille] =
+    useState("");
 
-  // ========================================================
-  // ÉTATS
-  // ========================================================
+  const [anneeScolaire, setAnneeScolaire] =
+    useState("");
 
-  const [loading, setLoading] = useState(false);
-
-  const [error, setError] = useState("");
-
-  const [success, setSuccess] = useState("");
+  const [photo, setPhoto] =
+    useState<File | null>(null);
 
   // ==========================================================
-  // LECTURE INITIALE DE LA VIDÉO
+  // RÉSULTAT
   // ==========================================================
 
-  useEffect(() => {
+  const [downloaded, setDownloaded] =
+    useState(false);
 
-    if (videoFinished) return;
-
-    if (videoPlaylist.length === 0) {
-      setVideoFinished(true);
-      return;
-    }
-
-    const currentRef = fadeVideo1
-      ? videoRef1.current
-      : videoRef2.current;
-
-    if (currentRef) {
-
-      currentRef.src =
-        videoPlaylist[currentVideoIndex];
-
-      currentRef.currentTime = 0;
-
-      currentRef.muted = !soundUnlocked;
-
-      currentRef.volume = 1;
-
-      currentRef
-        .play()
-        .catch(() => {});
-
-    }
-
-  }, [
-    currentVideoIndex,
-    fadeVideo1,
-    soundUnlocked,
-    videoFinished,
-  ]);
+  const [emailSent, setEmailSent] =
+    useState<boolean | null>(null);
 
   // ==========================================================
-  // COMPTEUR POUR PASSER LA VIDÉO
+  // CHARGEMENT / ERREUR
   // ==========================================================
 
-  useEffect(() => {
+  const [loading, setLoading] =
+    useState(false);
 
-    if (videoFinished) return;
-
-    const interval = setInterval(() => {
-
-      setSkipTimer((prev) =>
-        prev > 0 ? prev - 1 : 0
-      );
-
-    }, 1000);
-
-    return () =>
-      clearInterval(interval);
-
-  }, [videoFinished]);
+  const [error, setError] =
+    useState("");
 
   // ==========================================================
-  // VIDÉO TERMINÉE
+  // VIDÉO
   // ==========================================================
 
-  const handleVideoEnd = () => {
-    goNextVideo();
+  const [videoEnded, setVideoEnded] =
+    useState(false);
+
+  const videoRef =
+    useRef<HTMLVideoElement | null>(null);
+
+  const [videoSoundEnabled, setVideoSoundEnabled] =
+    useState(false);
+
+  // ==========================================================
+  // NOM DU DOCUMENT
+  // ==========================================================
+
+  const documentName =
+    document?.name || "votre document";
+
+  // ==========================================================
+  // FONCTION UTILITAIRE — NOM DE FICHIER
+  // ==========================================================
+
+  const getFallbackFilename = () => {
+    const safeName =
+      documentName
+        .normalize("NFD")
+        .replace(
+          /[\u0300-\u036f]/g,
+          ""
+        )
+        .replace(
+          /[^\w\s-]/g,
+          ""
+        )
+        .trim()
+        .replace(
+          /\s+/g,
+          "-"
+        );
+
+    return `${
+      safeName || "CODE-document"
+    }-personnalise.pdf`;
   };
 
   // ==========================================================
-  // PASSER LA VIDÉO
+  // FONCTION UTILITAIRE — ERREUR API
   // ==========================================================
 
-  const handleSkip = () => {
-
-    if (skipTimer === 0) {
-      goNextVideo();
-    }
-
-  };
-
-  // ==========================================================
-  // PASSER À LA VIDÉO SUIVANTE
-  // ==========================================================
-
-  const goNextVideo = () => {
-
-    // --------------------------------------------------------
-    // Dernière vidéo
-    // --------------------------------------------------------
+  const getApiError = async (
+    response: Response
+  ): Promise<string> => {
+    const contentType =
+      response.headers.get(
+        "content-type"
+      ) || "";
 
     if (
-      currentVideoIndex >=
-      videoPlaylist.length - 1
+      contentType.includes(
+        "application/json"
+      )
     ) {
+      try {
+        const data =
+          await response.json();
 
-      setVideoFinished(true);
+        if (
+          typeof data?.detail ===
+          "string"
+        ) {
+          switch (data.detail) {
+            case "DOCUMENT_PDF_NOT_CONFIGURED":
+              return "Le modèle PDF de ce document n'est pas encore disponible. L'activation n'a pas été effectuée.";
 
+            case "DOCUMENT_TEMPLATE_NOT_FOUND":
+              return "Le modèle PDF de ce document est actuellement indisponible. L'activation n'a pas été effectuée.";
+
+            case "DOCUMENT_ALREADY_ACTIVATED":
+              return "Ce code d'activation a déjà été utilisé.";
+
+            case "CODE_DOCUMENT_INVALID":
+              return "Le code d'activation est invalide ou n'existe pas.";
+
+            case "SELF_ACTIVATION_EMAIL_MISMATCH":
+              return "Pour une activation personnelle, l'e-mail du bénéficiaire doit être identique à l'e-mail utilisé lors de l'achat.";
+
+            case "EMAIL_CODE_MISMATCH":
+              return "L'adresse e-mail ne correspond pas à celle utilisée lors de l'achat de ce code.";
+
+            case "PHOTO_FORMAT_INVALID":
+              return "La photo doit être au format JPG, JPEG ou PNG.";
+
+            case "PHOTO_TOO_LARGE":
+              return "La photo ne doit pas dépasser 5 Mo.";
+
+            case "NOM_REQUIRED":
+              return "Le nom est obligatoire.";
+
+            case "PRENOM_REQUIRED":
+              return "Le prénom est obligatoire.";
+
+            case "PAYS_RESIDENCE_REQUIRED":
+              return "Le pays de résidence est obligatoire.";
+
+            case "PASSWORD_REQUIRED":
+              return "Veuillez définir un mot de passe.";
+
+            case "PASSWORD_TOO_SHORT":
+              return "Le mot de passe doit contenir au moins 6 caractères.";
+
+            case "ACTIVATION_TYPE_INVALID":
+              return "Le type d'activation est invalide.";
+
+            case "TYPST_NOT_AVAILABLE":
+              return "Le générateur de documents n'est pas disponible sur le serveur.";
+
+            case "PDF_GENERATION_TIMEOUT":
+              return "La génération du document a pris trop de temps. Veuillez réessayer.";
+
+            case "PDF_GENERATION_FAILED":
+              return "Une erreur est survenue pendant la génération du PDF.";
+
+            case "DOCUMENT_GENERATOR_NOT_SUPPORTED":
+              return "Le générateur de ce document n'est pas encore pris en charge.";
+
+            case "DOCUMENT_PDF_INVALID":
+              return "Le PDF généré est invalide ou vide.";
+
+            default:
+              return data.detail;
+          }
+        }
+
+        if (
+          typeof data?.message ===
+          "string"
+        ) {
+          return data.message;
+        }
+      } catch {
+        // Message générique ci-dessous.
+      }
+    }
+
+    return `Une erreur est survenue (${response.status}).`;
+  };
+
+  // ==========================================================
+  // VIDÉO — ACTIVATION DU SON
+  // ==========================================================
+
+  const enableVideoSound = async () => {
+    const video =
+      videoRef.current;
+
+    if (!video) {
       return;
     }
 
-    // --------------------------------------------------------
-    // Vidéo suivante
-    // --------------------------------------------------------
+    try {
+      video.muted = false;
+      video.volume = 1;
 
-    const nextIndex =
-      currentVideoIndex + 1;
+      setVideoSoundEnabled(true);
 
-    const fadeOut =
-      fadeVideo1
-        ? videoRef1.current
-        : videoRef2.current;
-
-    const fadeIn =
-      fadeVideo1
-        ? videoRef2.current
-        : videoRef1.current;
-
-    if (fadeOut && fadeIn) {
-
-      fadeIn.src =
-        videoPlaylist[nextIndex];
-
-      fadeIn.currentTime = 0;
-
-      fadeIn.volume = 0;
-
-      fadeIn.muted =
-        !soundUnlocked;
-
-      fadeIn
-        .play()
-        .catch(() => {});
-
-      let progress = 0;
-
-      const steps = 20;
-
-      const interval = setInterval(() => {
-
-        progress++;
-
-        const ratio =
-          progress / steps;
-
-        fadeOut.volume =
-          1 - ratio;
-
-        fadeIn.volume =
-          ratio;
-
-        fadeOut.style.opacity =
-          `${1 - ratio}`;
-
-        fadeIn.style.opacity =
-          `${ratio}`;
-
-        if (progress >= steps) {
-
-          clearInterval(interval);
-
-          fadeOut.pause();
-
-          fadeOut.volume = 1;
-
-          fadeIn.volume = 1;
-
-          setCurrentVideoIndex(
-            nextIndex
-          );
-
-          setFadeVideo1(
-            !fadeVideo1
-          );
-
-          setSkipTimer(5);
-        }
-
-      }, 35);
-
+      await video.play();
+    } catch {
+      setVideoSoundEnabled(
+        !video.muted
+      );
     }
-
   };
 
   // ==========================================================
-  // ACTIVER LE SON
+  // VIDÉO — INITIALISATION
   // ==========================================================
 
-  const enableSound = async () => {
+  useEffect(() => {
+    const video =
+      videoRef.current;
 
-    const currentRef =
-      fadeVideo1
-        ? videoRef1.current
-        : videoRef2.current;
-
-    if (currentRef) {
-
-      currentRef.muted = false;
-
-      currentRef.volume = 1;
-
-      try {
-
-        await currentRef.play();
-
-        setSoundUnlocked(true);
-
-      } catch {}
-
+    if (!video) {
+      return;
     }
 
-  };
+    video.volume = 1;
+    video.muted = false;
+  }, []);
 
   // ==========================================================
-  // ÉTAPE 1 : VÉRIFICATION EMAIL + CODE
+  // ÉTAPE 1 — VÉRIFICATION DU CODE
   // ==========================================================
 
-  const handleVerifyCode = async (
-    e: React.FormEvent
-  ) => {
-
-    e.preventDefault();
-
+  const verifyCode = async () => {
     setError("");
 
-    setLoading(true);
+    if (!email.trim()) {
+      setError(
+        "Veuillez saisir votre adresse e-mail."
+      );
+      return;
+    }
+
+    if (!code.trim()) {
+      setError(
+        "Veuillez saisir le code d'activation."
+      );
+      return;
+    }
 
     try {
+      setLoading(true);
 
-      const response = await fetch(
-        `${API_URL}/api/activation/verify`,
-        {
-          method: "POST",
+      const response =
+        await fetch(
+          `${API_URL}/api/activation/verify`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              email:
+                email.trim(),
+              activation_code:
+                code.trim(),
+            }),
+          }
+        );
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
+      if (!response.ok) {
+        const message =
+          await getApiError(
+            response
+          );
 
-          body: JSON.stringify({
-            email,
-            activation_code: code,
-          }),
-        }
-      );
+        throw new Error(
+          message
+        );
+      }
 
       const data =
         await response.json();
 
-      if (!response.ok) {
-
-        throw new Error(
-          data.detail ||
-            "Impossible de vérifier le code."
-        );
-
-      }
-
-      setDocumentInfo(
-        data.document
+      setDocument(
+        data.document ||
+          null
       );
 
       setStep(2);
-
-    } catch (err: any) {
-
+    } catch (err) {
       setError(
-        err.message ||
-          "Une erreur est survenue."
+        err instanceof Error
+          ? err.message
+          : "Impossible de vérifier le code."
       );
-
     } finally {
-
       setLoading(false);
-
     }
-
   };
 
   // ==========================================================
-  // ÉTAPE 2 : CHOIX DU BÉNÉFICIAIRE
+  // VÉRIFICATION DU BÉNÉFICIAIRE
   // ==========================================================
 
-  const handleTargetChoice = async (
-    selectedTarget:
-      | "self"
-      | "other"
-  ) => {
+  const verifyBeneficiary =
+    async (
+      beneficiary: string
+    ) => {
+      setError("");
 
-    setError("");
+      if (!beneficiary.trim()) {
+        setError(
+          "L'adresse e-mail du bénéficiaire est obligatoire."
+        );
+        return;
+      }
 
-    setTarget(
-      selectedTarget
-    );
+      try {
+        setLoading(true);
 
-    if (
-      selectedTarget === "self"
-    ) {
+        const response =
+          await fetch(
+            `${API_URL}/api/activation/check-user`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+              body: JSON.stringify({
+                email:
+                  beneficiary.trim(),
+              }),
+            }
+          );
 
-      await verifyBeneficiary(
-        email
+        if (!response.ok) {
+          const message =
+            await getApiError(
+              response
+            );
+
+          throw new Error(
+            message
+          );
+        }
+
+        const data =
+          await response.json();
+
+        if (data.exists) {
+          setUserExists(true);
+
+          setUser(
+            data.user
+          );
+
+          setNom(
+            data.user.nom ||
+              ""
+          );
+
+          setPrenom(
+            data.user.prenom ||
+              ""
+          );
+
+          setTelephone(
+            data.user.telephone ||
+              ""
+          );
+
+          setPays(
+            data.user.pays_residence ||
+              ""
+          );
+        } else {
+          setUserExists(false);
+          setUser(null);
+
+          setNom("");
+          setPrenom("");
+          setTelephone("");
+          setPays("");
+          setPassword("");
+        }
+
+        setStep(4);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Impossible de vérifier le bénéficiaire."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+  // ==========================================================
+  // ÉTAPE 2 — CHOIX DU BÉNÉFICIAIRE
+  // ==========================================================
+
+  const handleTargetSelection =
+    async (
+      selectedTarget:
+        | "self"
+        | "other"
+    ) => {
+      setError("");
+
+      setTarget(
+        selectedTarget
       );
 
-    } else {
+      if (
+        selectedTarget ===
+        "self"
+      ) {
+        setBeneficiaryEmail(
+          email.trim()
+        );
+
+        await verifyBeneficiary(
+          email
+        );
+
+        return;
+      }
 
       setBeneficiaryEmail("");
-
-      setUserExists(null);
-
-      setUserInfo(null);
-
       setStep(3);
-
-    }
-
-  };
+    };
 
   // ==========================================================
-  // VÉRIFIER LE COMPTE DU BÉNÉFICIAIRE
+  // ÉTAPE 3 — AUTRE BÉNÉFICIAIRE
   // ==========================================================
 
-  const verifyBeneficiary = async (
-    beneficiary: string
+  const continueWithBeneficiary =
+    async () => {
+      setError("");
+
+      if (
+        !beneficiaryEmail.trim()
+      ) {
+        setError(
+          "Veuillez saisir l'adresse e-mail du bénéficiaire."
+        );
+
+        return;
+      }
+
+      await verifyBeneficiary(
+        beneficiaryEmail
+      );
+    };
+
+  // ==========================================================
+  // PHOTO
+  // ==========================================================
+
+  const handlePhotoChange = (
+    event: React.ChangeEvent<HTMLInputElement>
   ) => {
-
     setError("");
 
-    setLoading(true);
+    const file =
+      event.target.files?.[0] ||
+      null;
 
-    try {
-
-      const response =
-        await fetch(
-          `${API_URL}/api/activation/check-user`,
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-
-            body: JSON.stringify({
-              email: beneficiary,
-            }),
-          }
-        );
-
-      const data =
-        await response.json();
-
-      if (!response.ok) {
-
-        throw new Error(
-          data.detail ||
-            "Impossible de vérifier le compte."
-        );
-
-      }
-
-      setUserExists(
-        data.exists
-      );
-
-      if (data.exists) {
-
-        setUserInfo(
-          data.user
-        );
-
-        setNom(
-          data.user.nom || ""
-        );
-
-        setPrenom(
-          data.user.prenom || ""
-        );
-
-        setTelephone(
-          data.user.telephone || ""
-        );
-
-        setPays(
-          data.user.pays || ""
-        );
-
-        setStep(4);
-
-      } else {
-
-        setStep(4);
-
-      }
-
-    } catch (err: any) {
-
-      setError(
-        err.message ||
-          "Erreur lors de la vérification du compte."
-      );
-
-    } finally {
-
-      setLoading(false);
-
+    if (!file) {
+      setPhoto(null);
+      return;
     }
 
-  };
-
-  // ==========================================================
-  // POUR AUTRUI : VÉRIFIER L'EMAIL
-  // ==========================================================
-
-  const handleVerifyOther = async (
-    e: React.FormEvent
-  ) => {
-
-    e.preventDefault();
+    const allowedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+    ];
 
     if (
-      !beneficiaryEmail.trim()
+      !allowedTypes.includes(
+        file.type
+      )
     ) {
-
       setError(
-        "Veuillez renseigner l'adresse e-mail du bénéficiaire."
+        "La photo doit être au format .jpg, .jpeg ou .png."
       );
+
+      event.target.value =
+        "";
+
+      setPhoto(null);
 
       return;
     }
 
-    await verifyBeneficiary(
-      beneficiaryEmail.trim()
-    );
+    const maxSize =
+      5 * 1024 * 1024;
 
+    if (
+      file.size >
+      maxSize
+    ) {
+      setError(
+        "La photo ne doit pas dépasser 5 Mo."
+      );
+
+      event.target.value =
+        "";
+
+      setPhoto(null);
+
+      return;
+    }
+
+    setPhoto(file);
   };
 
   // ==========================================================
-  // ACTIVATION FINALE
+  // ACTIVATION + GÉNÉRATION PDF
   // ==========================================================
 
-  const handleActivation = async (
-    e: React.FormEvent
-  ) => {
+  const handleActivation =
+    async () => {
+      setError("");
+      setDownloaded(false);
+      setEmailSent(null);
 
-    e.preventDefault();
+      // ------------------------------------------------------
+      // Validation identité nouveau compte
+      // ------------------------------------------------------
 
+      if (!userExists) {
+        if (!nom.trim()) {
+          setError(
+            "Le nom est obligatoire."
+          );
+          return;
+        }
+
+        if (!prenom.trim()) {
+          setError(
+            "Le prénom est obligatoire."
+          );
+          return;
+        }
+
+        if (!pays.trim()) {
+          setError(
+            "Le pays de résidence est obligatoire."
+          );
+          return;
+        }
+
+        if (!password.trim()) {
+          setError(
+            "Veuillez définir un mot de passe."
+          );
+          return;
+        }
+
+        if (
+          password.length < 6
+        ) {
+          setError(
+            "Le mot de passe doit contenir au moins 6 caractères."
+          );
+          return;
+        }
+      }
+
+      // ------------------------------------------------------
+      // Détermination e-mail bénéficiaire
+      // ------------------------------------------------------
+
+      const finalBeneficiaryEmail =
+        target === "self"
+          ? email.trim()
+          : beneficiaryEmail.trim();
+
+      if (
+        !finalBeneficiaryEmail
+      ) {
+        setError(
+          "L'adresse e-mail du bénéficiaire est obligatoire."
+        );
+        return;
+      }
+
+      // ------------------------------------------------------
+      // FormData
+      // ------------------------------------------------------
+
+      const formData =
+        new FormData();
+
+      formData.append(
+        "activation_code",
+        code.trim()
+      );
+
+      formData.append(
+        "buyer_email",
+        email.trim()
+      );
+
+      formData.append(
+        "activation_type",
+        target || "self"
+      );
+
+      formData.append(
+        "beneficiary_email",
+        finalBeneficiaryEmail
+      );
+
+      // ------------------------------------------------------
+      // Identité
+      // ------------------------------------------------------
+
+      if (!userExists) {
+        formData.append(
+          "nom",
+          nom.trim()
+        );
+
+        formData.append(
+          "prenom",
+          prenom.trim()
+        );
+
+        if (
+          telephone.trim()
+        ) {
+          formData.append(
+            "telephone",
+            telephone.trim()
+          );
+        }
+
+        formData.append(
+          "pays_residence",
+          pays.trim()
+        );
+
+        if (
+          password.trim()
+        ) {
+          formData.append(
+            "password",
+            password
+          );
+        }
+      }
+
+      // ------------------------------------------------------
+      // Personnalisation
+      // ------------------------------------------------------
+
+      if (
+        etablissement.trim()
+      ) {
+        formData.append(
+          "etablissement",
+          etablissement.trim()
+        );
+      }
+
+      if (
+        ville.trim()
+      ) {
+        formData.append(
+          "ville",
+          ville.trim()
+        );
+      }
+
+      if (
+        anneeScolaire.trim()
+      ) {
+        formData.append(
+          "annee_scolaire",
+          anneeScolaire.trim()
+        );
+      }
+
+      if (photo) {
+        formData.append(
+          "photo",
+          photo
+        );
+      }
+
+      // ------------------------------------------------------
+      // Activation
+      // ------------------------------------------------------
+
+      try {
+        setLoading(true);
+
+        const response =
+          await fetch(
+            `${API_URL}/api/activation/activate`,
+            {
+              method: "POST",
+              body: formData,
+            }
+          );
+
+        if (!response.ok) {
+          const message =
+            await getApiError(
+              response
+            );
+
+          throw new Error(
+            message
+          );
+        }
+
+        // ----------------------------------------------------
+        // Vérification PDF
+        // ----------------------------------------------------
+
+        const contentType =
+          response.headers.get(
+            "content-type"
+          ) || "";
+
+        if (
+          !contentType.includes(
+            "application/pdf"
+          )
+        ) {
+          throw new Error(
+            "Le serveur n'a pas retourné le PDF attendu."
+          );
+        }
+
+        const pdfBlob =
+          await response.blob();
+
+        if (
+          pdfBlob.size === 0
+        ) {
+          throw new Error(
+            "Le PDF généré est vide."
+          );
+        }
+
+        // ----------------------------------------------------
+        // Téléchargement
+        // ----------------------------------------------------
+
+        const blobUrl =
+          window.URL.createObjectURL(
+            pdfBlob
+          );
+
+        const downloadLink =
+          window.document.createElement(
+            "a"
+          );
+
+        downloadLink.href =
+          blobUrl;
+
+        const contentDisposition =
+          response.headers.get(
+            "Content-Disposition"
+          );
+
+        let filename =
+          getFallbackFilename();
+
+        if (
+          contentDisposition
+        ) {
+          const filenameMatch =
+            contentDisposition.match(
+              /filename="?([^"]+)"?/i
+            );
+
+          if (
+            filenameMatch?.[1]
+          ) {
+            filename =
+              filenameMatch[1];
+          }
+        }
+
+        downloadLink.download =
+          filename;
+
+        window.document.body.appendChild(
+          downloadLink
+        );
+
+        downloadLink.click();
+
+        window.document.body.removeChild(
+          downloadLink
+        );
+
+        window.URL.revokeObjectURL(
+          blobUrl
+        );
+
+        setDownloaded(true);
+
+        // ----------------------------------------------------
+        // Statut e-mail
+        // ----------------------------------------------------
+
+        const emailStatus =
+          response.headers.get(
+            "X-Email-Sent"
+          );
+
+        setEmailSent(
+          emailStatus ===
+            "true"
+        );
+
+        // ----------------------------------------------------
+        // Nettoyage local de la photo
+        // ----------------------------------------------------
+
+        setPhoto(null);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Impossible d'activer le document."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+  // ==========================================================
+  // RETOUR
+  // ==========================================================
+
+  const goBack = () => {
     setError("");
 
-    setSuccess("");
-
-    // --------------------------------------------------------
-    // Si le compte n'existe pas
-    // --------------------------------------------------------
-
-    if (!userExists) {
-
-      if (
-        !nom ||
-        !prenom ||
-        !telephone ||
-        !pays
-      ) {
-
-        setError(
-          "Veuillez renseigner toutes les informations demandées."
-        );
-
-        return;
-      }
-
-      if (!password) {
-
-        setError(
-          "Veuillez créer un mot de passe."
-        );
-
-        return;
-      }
-
-      if (
-        password !==
-        confirmPassword
-      ) {
-
-        setError(
-          "Les mots de passe ne correspondent pas."
-        );
-
-        return;
-      }
-
-    }
-
-    setLoading(true);
-
-    try {
-
-      const response =
-        await fetch(
-          `${API_URL}/api/activation/activate`,
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-
-            body: JSON.stringify({
-
-              activation_code:
-                code,
-
-              buyer_email:
-                email,
-
-              activation_type:
-                target,
-
-              beneficiary_email:
-                target === "self"
-                  ? email
-                  : beneficiaryEmail,
-
-              nom:
-                userExists
-                  ? undefined
-                  : nom,
-
-              prenom:
-                userExists
-                  ? undefined
-                  : prenom,
-
-              telephone:
-                userExists
-                  ? undefined
-                  : telephone,
-
-              pays_residence:
-                userExists
-                  ? undefined
-                  : pays,
-
-              password:
-                userExists
-                  ? undefined
-                  : password,
-
-            }),
-          }
-        );
-
-      const data =
-        await response.json();
-
-      if (!response.ok) {
-
-        throw new Error(
-          data.detail ||
-            "L'activation du document a échoué."
-        );
-
-      }
-
-      setSuccess(
-        "Votre document a été activé avec succès."
+    if (step > 1) {
+      setStep(
+        step - 1
       );
-
-      setStep(4);
-
-    } catch (err: any) {
-
-      setError(
-        err.message ||
-          "Une erreur est survenue pendant l'activation."
-      );
-
-    } finally {
-
-      setLoading(false);
-
     }
-
   };
 
   // ==========================================================
-  // AFFICHAGE
+  // CLASSES COMMUNES
+  // ==========================================================
+
+  const cardClass = `
+    bg-white/85
+    backdrop-blur-xl
+    rounded-3xl
+    border
+    border-white/60
+    shadow-2xl
+    shadow-black/10
+    dark:bg-gray-900/85
+    dark:border-gray-700/70
+    dark:shadow-black/30
+  `;
+
+  const inputClass = `
+    w-full
+    px-4
+    py-3.5
+    border
+    border-gray-300
+    rounded-xl
+    bg-white/90
+    text-gray-900
+    outline-none
+    transition
+    focus:ring-4
+    focus:ring-blue-500/10
+    focus:border-blue-500
+    dark:border-gray-700
+    dark:bg-gray-950/90
+    dark:text-white
+    dark:placeholder-gray-500
+  `;
+
+  // ==========================================================
+  // RENDU
   // ==========================================================
 
   return (
+  <div className="relative z-20 min-h-screen w-full bg-transparent">
 
-    <div className="min-h-screen flex items-center justify-center px-4 py-10 relative bg-black">
+      {/* ======================================================
+          CONTENU
+      ====================================================== */}
 
-      {/* ==================================================== */}
-      {/* VIDÉOS D'INTRODUCTION */}
-      {/* ==================================================== */}
+      <div
+        className="
+          max-w-5xl
+          mx-auto
+          py-8
+          sm:py-10
+        "
+      >
 
-      {!videoFinished && (
-        <>
+        {/* ====================================================
+            EN-TÊTE DE PAGE
+        ==================================================== */}
 
-          {/* Vidéo 1 */}
-
-          <video
-            ref={videoRef1}
-            className="
-              absolute inset-0
-              w-full h-full
-              object-cover
-              opacity-100
-              transition-opacity
-              duration-300
-            "
-            playsInline
-            onEnded={handleVideoEnd}
-          />
-
-          {/* Vidéo 2 */}
-
-          <video
-            ref={videoRef2}
-            className="
-              absolute inset-0
-              w-full h-full
-              object-cover
-              opacity-0
-              transition-opacity
-              duration-300
-            "
-            playsInline
-            onEnded={handleVideoEnd}
-          />
-
-          {/* ------------------------------------------------ */}
-          {/* BOUTON SON */}
-          {/* ------------------------------------------------ */}
-
-          {!soundUnlocked && (
-
-            <button
-              onClick={enableSound}
-              className="
-                absolute
-                top-4
-                left-4
-                z-10
-                bg-yellow-500
-                text-black
-                px-3
-                py-2
-                rounded-lg
-                shadow-lg
-                hover:bg-yellow-400
-                transition
-              "
-            >
-              🔊 Activer le son
-            </button>
-
-          )}
-
-          {/* ------------------------------------------------ */}
-          {/* BOUTON PASSER */}
-          {/* ------------------------------------------------ */}
-
-          <div
-            className="
-              absolute
-              bottom-4
-              left-4
-              z-10
-            "
-          >
-
-            {skipTimer > 0 ? (
-
-              <div
-                className="
-                  bg-gray-700/60
-                  text-white
-                  px-3
-                  py-2
-                  rounded-lg
-                  backdrop-blur-sm
-                "
-              >
-                Passer dans {skipTimer}s
-              </div>
-
-            ) : (
-
-              <button
-                onClick={handleSkip}
-                className="
-                  bg-yellow-500
-                  text-black
-                  px-4
-                  py-2
-                  rounded-lg
-                  font-semibold
-                  shadow-lg
-                  hover:bg-yellow-400
-                  transition
-                "
-              >
-                Passer la vidéo
-              </button>
-
-            )}
-
-          </div>
-
-        </>
-      )}
-
-      {/* ==================================================== */}
-      {/* CONTENU APRÈS LA VIDÉO */}
-      {/* ==================================================== */}
-
-      {videoFinished && (
-
-        <motion.div
-          initial={{
-            opacity: 0,
-            y: 20,
-          }}
-          animate={{
-            opacity: 1,
-            y: 0,
-          }}
-          transition={{
-            duration: 0.5,
-          }}
+        <div
           className="
-            bg-white
-            dark:bg-gray-900
-            w-full
-            max-w-3xl
-            p-6
-            sm:p-8
-            rounded-2xl
-            shadow-xl
-            z-20
-            text-gray-900
-            dark:text-white
+            mb-6
+            flex
+            flex-col
+            sm:flex-row
+            sm:items-center
+            sm:justify-between
+            gap-4
           "
         >
-
-          {/* ================================================= */}
-          {/* TOUT LE CONTENU DE LA PAGE EST DANS CE DIV */}
-          {/* ================================================= */}
-
-          {/* ------------------------------------------------- */}
-          {/* EN-TÊTE */}
-          {/* ------------------------------------------------- */}
-
-          <div className="text-center mb-8">
-
-            <Link
-              to="/login"
-              className="
-                inline-flex
-                items-center
-                text-sm
-                text-blue-600
-                dark:text-blue-400
-                hover:text-blue-800
-                dark:hover:text-blue-300
-                mb-5
-              "
-            >
-              ← Retour à la connexion
-            </Link>
-
-            <h1
-              className="
-                text-3xl
-                font-bold
-                text-blue-700
-                dark:text-white
-              "
-            >
-              ACTIVER MON DOCUMENT
-            </h1>
-
-            <p
-              className="
-                mt-2
-                text-gray-600
-                dark:text-gray-300
-              "
-            >
-              Activez votre document CODE
-              en quelques étapes.
-            </p>
-
-          </div>
-
-          {/* ------------------------------------------------- */}
-          {/* INDICATEUR D'ÉTAPES */}
-          {/* ------------------------------------------------- */}
 
           <div
             className="
               flex
               items-center
-              justify-center
-              mb-8
+              gap-4
             "
           >
 
-            {[1, 2, 3, 4].map(
-              (item, index) => (
+            <div
+              className="
+                w-14
+                h-14
+                shrink-0
+                rounded-2xl
+                bg-gradient-to-br
+                from-blue-600
+                via-indigo-600
+                to-violet-700
+                text-white
+                flex
+                items-center
+                justify-center
+                shadow-xl
+                shadow-blue-600/30
+                font-black
+                text-2xl
+                border
+                border-white/20
+              "
+            >
+              C
+            </div>
 
+            <div>
+
+              <p
+                className="
+                  text-sm
+                  font-semibold
+                  text-blue-700
+                  dark:text-blue-300
+                "
+              >
+                CODE
+              </p>
+
+              <h1
+                className="
+                  text-2xl
+                  sm:text-3xl
+                  font-black
+                  tracking-tight
+                  text-blue-700
+                  dark:text-white
+                "
+              >
+                Activation de votre document
+              </h1>
+
+              {document && (
+                <p
+                  className="
+                    mt-1
+                    text-sm
+                    text-gray-700
+                    dark:text-gray-300
+                  "
+                >
+                  Document :
+                  {" "}
+                  <span
+                    className="
+                      font-extrabold
+                      text-blue-700
+                      dark:text-blue-400
+                    "
+                  >
+                    {document.name}
+                  </span>
+                </p>
+              )}
+
+            </div>
+
+          </div>
+
+          <Link
+            to="/"
+            className="
+              self-start
+              sm:self-auto
+              px-4
+              py-2.5
+              rounded-xl
+              bg-white/80
+              backdrop-blur
+              border
+              border-white/70
+              text-blue-700
+              hover:bg-white
+              hover:-translate-y-0.5
+              transition
+              shadow-lg
+              font-semibold
+              dark:bg-gray-900/80
+              dark:border-gray-700
+              dark:text-blue-300
+              dark:hover:bg-gray-800
+            "
+          >
+            ← Accueil
+          </Link>
+
+        </div>
+
+        {/* ====================================================
+            INDICATEUR D'ÉTAPES
+        ==================================================== */}
+
+        <div
+          className="
+            mb-8
+            rounded-2xl
+            border
+            border-white/60
+            bg-white/80
+            backdrop-blur-xl
+            p-4
+            sm:p-6
+            shadow-xl
+            dark:border-gray-700/70
+            dark:bg-gray-900/80
+          "
+        >
+
+          <div
+            className="
+              flex
+              items-center
+              justify-between
+              gap-2
+            "
+          >
+
+            {[
+              {
+                number: 1,
+                label: "Code",
+              },
+              {
+                number: 2,
+                label: "Bénéficiaire",
+              },
+              {
+                number: 3,
+                label: "E-mail",
+              },
+              {
+                number: 4,
+                label: "Personnalisation",
+              },
+            ].map(
+              (
+                item
+              ) => (
                 <React.Fragment
-                  key={item}
+                  key={
+                    item.number
+                  }
                 >
 
                   <div
-                    className={`
-                      w-9
-                      h-9
-                      rounded-full
+                    className="
                       flex
+                      flex-col
                       items-center
-                      justify-center
-                      text-sm
-                      font-semibold
-                      ${
-                        step >= item
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300"
-                      }
-                    `}
+                      min-w-0
+                    "
                   >
-                    {item}
-                  </div>
-
-                  {index < 3 && (
 
                     <div
                       className={`
-                        w-12
-                        h-1
+                        w-10
+                        h-10
+                        rounded-full
+                        flex
+                        items-center
+                        justify-center
+                        font-bold
+                        transition-all
+                        duration-300
                         ${
-                          step > item
+                          step >=
+                          item.number
+                            ? "bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-lg shadow-blue-600/30"
+                            : "bg-gray-100/90 text-gray-500 dark:bg-gray-800/90 dark:text-gray-500"
+                        }
+                      `}
+                    >
+                      {step >
+                      item.number
+                        ? "✓"
+                        : item.number}
+                    </div>
+
+                    <span
+                      className="
+                        text-[11px]
+                        sm:text-xs
+                        mt-2
+                        text-center
+                        font-medium
+                        text-gray-700
+                        dark:text-gray-400
+                      "
+                    >
+                      {item.label}
+                    </span>
+
+                  </div>
+
+                  {item.number <
+                    4 && (
+                    <div
+                      className={`
+                        flex-1
+                        h-1
+                        rounded-full
+                        mx-1
+                        sm:mx-2
+                        transition-all
+                        duration-300
+                        ${
+                          step >
+                          item.number
                             ? "bg-blue-600"
-                            : "bg-gray-200 dark:bg-gray-700"
+                            : "bg-gray-300/80 dark:bg-gray-700"
                         }
                       `}
                     />
-
                   )}
 
                 </React.Fragment>
-
               )
             )}
 
           </div>
 
-          {/* ------------------------------------------------- */}
-          {/* ERREUR */}
-          {/* ------------------------------------------------- */}
+        </div>
 
-          {error && (
+        {/* ====================================================
+            ERREUR
+        ==================================================== */}
 
-            <div
-              className="
-                mb-6
-                rounded-lg
-                bg-red-50
-                dark:bg-red-900/30
-                border
-                border-red-200
-                dark:border-red-800
-                px-4
-                py-3
-                text-sm
-                text-red-700
-                dark:text-red-300
-              "
-            >
-              {error}
-            </div>
-
-          )}
-
-          {/* ------------------------------------------------- */}
-          {/* SUCCÈS */}
-          {/* ------------------------------------------------- */}
-
-          {success && (
+        {error && (
+          <div
+            className="
+              mb-6
+              p-4
+              rounded-2xl
+              border
+              border-red-300
+              bg-red-50/90
+              backdrop-blur
+              text-red-700
+              shadow-lg
+              dark:border-red-900/70
+              dark:bg-red-950/70
+              dark:text-red-300
+            "
+          >
 
             <div
               className="
-                mb-6
-                rounded-lg
-                bg-green-50
-                dark:bg-green-900/30
-                border
-                border-green-200
-                dark:border-green-800
-                px-4
-                py-3
-                text-sm
-                text-green-700
-                dark:text-green-300
+                flex
+                items-start
+                gap-3
               "
             >
-              {success}
+
+              <span
+                className="
+                  w-8
+                  h-8
+                  shrink-0
+                  rounded-full
+                  bg-red-100
+                  flex
+                  items-center
+                  justify-center
+                  font-black
+                  dark:bg-red-900/60
+                "
+              >
+                !
+              </span>
+
+              <p
+                className="
+                  text-sm
+                  sm:text-base
+                  font-medium
+                  pt-1
+                "
+              >
+                {error}
+              </p>
+
             </div>
 
-          )}
+          </div>
+        )}
 
-          {/* ================================================= */}
-          {/* ÉTAPE 1 */}
-          {/* ================================================= */}
+        {/* ====================================================
+            ÉTAPE 1
+        ==================================================== */}
 
-          {step === 1 && (
+        {step === 1 && (
+          <div
+            className={`
+              ${cardClass}
+              overflow-hidden
+            `}
+          >
 
-            <form
-              onSubmit={
-                handleVerifyCode
-              }
+            <div
+              className="
+                bg-gradient-to-r
+                from-blue-600/95
+                via-indigo-600/95
+                to-violet-700/95
+                p-6
+                sm:p-8
+                text-white
+              "
             >
 
-              <div className="mb-6">
+              <div
+                className="
+                  flex
+                  items-start
+                  gap-4
+                "
+              >
 
-                <h2
+                <div
                   className="
-                    text-xl
-                    font-bold
-                    text-gray-900
-                    dark:text-white
+                    w-12
+                    h-12
+                    rounded-2xl
+                    bg-white/15
+                    border
+                    border-white/20
+                    flex
+                    items-center
+                    justify-center
+                    text-2xl
+                    shrink-0
                   "
                 >
-                  Vérification du document
-                </h2>
+                  🔐
+                </div>
 
-                <p
-                  className="
-                    mt-1
-                    text-sm
-                    text-gray-500
-                    dark:text-gray-300
-                  "
-                >
-                  Entrez l'adresse e-mail
-                  utilisée lors de l'achat
-                  ainsi que le code figurant
-                  sur votre document.
-                </p>
+                <div>
+
+                  <h2
+                    className="
+                      text-xl
+                      sm:text-2xl
+                      font-extrabold
+                    "
+                  >
+                    Vérification du code
+                  </h2>
+
+                  <p
+                    className="
+                      text-blue-100
+                      mt-1
+                      text-sm
+                      sm:text-base
+                    "
+                  >
+                    Activez votre document en toute simplicité.
+                  </p>
+
+                </div>
 
               </div>
 
-              <div className="space-y-5">
+            </div>
 
-                {/* Email */}
+            <div
+              className="
+                p-5
+                sm:p-8
+              "
+            >
+
+              <p
+                className="
+                  text-gray-700
+                  dark:text-gray-300
+                  mb-6
+                "
+              >
+                Saisissez l'adresse e-mail utilisée lors de
+                l'achat ainsi que votre code d'activation.
+              </p>
+
+              {/* =================================================
+                  VIDÉO
+              ================================================= */}
+
+              {!videoEnded && (
+                <div
+                  className="
+                    mb-8
+                    rounded-2xl
+                    overflow-hidden
+                    border
+                    border-gray-800/60
+                    bg-gray-950
+                    shadow-2xl
+                  "
+                >
+
+                  <video
+                    ref={videoRef}
+                    className="
+                      w-full
+                      aspect-video
+                      object-cover
+                      bg-black
+                    "
+                    controls
+                    playsInline
+                    preload="metadata"
+                    onVolumeChange={(event) =>
+                      setVideoSoundEnabled(
+                        !event.currentTarget
+                          .muted
+                      )
+                    }
+                    onLoadedMetadata={(
+                      event
+                    ) => {
+                      event.currentTarget.volume =
+                        1;
+
+                      event.currentTarget.muted =
+                        false;
+
+                      setVideoSoundEnabled(
+                        true
+                      );
+                    }}
+                    onEnded={() =>
+                      setVideoEnded(
+                        true
+                      )
+                    }
+                  >
+
+                    <source
+                      src="/videos/pre.mp4"
+                      type="video/mp4"
+                    />
+
+                    Votre navigateur ne prend pas en charge
+                    la lecture vidéo.
+
+                  </video>
+
+                  <div
+                    className="
+                      flex
+                      flex-col
+                      sm:flex-row
+                      sm:items-center
+                      sm:justify-between
+                      gap-3
+                      p-3
+                      sm:p-4
+                      bg-gray-900
+                      text-white
+                    "
+                  >
+
+                    <p
+                      className="
+                        text-xs
+                        sm:text-sm
+                        text-gray-300
+                      "
+                    >
+                      {videoSoundEnabled
+                        ? "🔊 Le son de la vidéo est activé."
+                        : "🔇 Le son de la vidéo est désactivé."}
+                    </p>
+
+                    {!videoSoundEnabled && (
+                      <button
+                        type="button"
+                        onClick={
+                          enableVideoSound
+                        }
+                        className="
+                          inline-flex
+                          items-center
+                          justify-center
+                          gap-2
+                          px-4
+                          py-2
+                          rounded-xl
+                          bg-blue-600
+                          hover:bg-blue-500
+                          text-white
+                          text-sm
+                          font-bold
+                          transition
+                        "
+                      >
+                        🔊 Activer le son
+                      </button>
+                    )}
+
+                  </div>
+
+                </div>
+              )}
+
+              {/* =================================================
+                  FORMULAIRE
+              ================================================= */}
+
+              <div
+                className="
+                  space-y-5
+                "
+              >
 
                 <div>
 
@@ -1084,9 +1561,9 @@ const Activation: React.FC = () => {
                     className="
                       block
                       text-sm
-                      font-medium
+                      font-bold
                       text-gray-700
-                      dark:text-white
+                      dark:text-gray-300
                       mb-2
                     "
                   >
@@ -1102,30 +1579,11 @@ const Activation: React.FC = () => {
                       )
                     }
                     placeholder="exemple@email.com"
-                    required
-                    className="
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-300
-                      dark:border-gray-600
-                      bg-white
-                      dark:bg-gray-800
-                      text-gray-900
-                      dark:text-white
-                      px-4
-                      py-3
-                      outline-none
-                      focus:border-blue-600
-                      focus:ring-2
-                      focus:ring-blue-100
-                      dark:focus:ring-blue-900
-                    "
+                    autoComplete="email"
+                    className={inputClass}
                   />
 
                 </div>
-
-                {/* Code */}
 
                 <div>
 
@@ -1133,13 +1591,13 @@ const Activation: React.FC = () => {
                     className="
                       block
                       text-sm
-                      font-medium
+                      font-bold
                       text-gray-700
-                      dark:text-white
+                      dark:text-gray-300
                       mb-2
                     "
                   >
-                    Code du document
+                    Code d'activation
                   </label>
 
                   <input
@@ -1147,301 +1605,379 @@ const Activation: React.FC = () => {
                     value={code}
                     onChange={(e) =>
                       setCode(
-                        e.target.value.toUpperCase()
+                        e.target.value
                       )
                     }
                     placeholder="CODE-XXXX-XXXX-XXXX-XXXX"
-                    required
-                    className="
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-300
-                      dark:border-gray-600
-                      bg-white
-                      dark:bg-gray-800
-                      text-gray-900
-                      dark:text-white
-                      px-4
-                      py-3
+                    autoComplete="off"
+                    className={`
+                      ${inputClass}
                       uppercase
-                      tracking-wider
-                      outline-none
-                      focus:border-blue-600
-                      focus:ring-2
-                      focus:ring-blue-100
-                      dark:focus:ring-blue-900
-                    "
+                      tracking-wide
+                    `}
                   />
 
                 </div>
 
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="
-                  w-full
-                  mt-7
-                  rounded-xl
-                  bg-blue-600
-                  hover:bg-blue-700
-                  disabled:bg-blue-300
-                  text-white
-                  font-semibold
-                  py-3
-                  transition
-                "
-              >
-                {loading
-                  ? "Vérification..."
-                  : "Vérifier mon document"}
-              </button>
-
-            </form>
-
-          )}
-
-          {/* ================================================= */}
-          {/* ÉTAPE 2 */}
-          {/* ================================================= */}
-
-          {step === 2 && (
-
-            <div>
-
-              <div
-                className="
-                  text-center
-                  mb-7
-                "
-              >
-
-                <div
+                <button
+                  type="button"
+                  onClick={
+                    verifyCode
+                  }
+                  disabled={loading}
                   className="
-                    mx-auto
-                    mb-4
-                    w-14
-                    h-14
-                    rounded-full
-                    bg-green-100
-                    dark:bg-green-900/40
-                    flex
-                    items-center
-                    justify-center
-                    text-2xl
-                  "
-                >
-                  ✓
-                </div>
-
-                <h2
-                  className="
-                    text-xl
+                    w-full
+                    bg-gradient-to-r
+                    from-blue-600
+                    to-indigo-700
+                    hover:from-blue-700
+                    hover:to-indigo-800
+                    disabled:from-gray-400
+                    disabled:to-gray-500
+                    text-white
                     font-bold
-                    text-gray-900
-                    dark:text-white
+                    py-3.5
+                    px-6
+                    rounded-xl
+                    shadow-xl
+                    shadow-blue-600/25
+                    transition-all
+                    duration-200
+                    active:scale-[0.99]
                   "
                 >
-                  Document reconnu
-                </h2>
-
-                {documentInfo && (
-
-                  <p
-                    className="
-                      mt-2
-                      text-sm
-                      text-gray-600
-                      dark:text-gray-300
-                    "
-                  >
-                    {documentInfo.nom ||
-                      "Document CODE"}
-                  </p>
-
-                )}
-
-              </div>
-
-              <p
-                className="
-                  text-center
-                  text-gray-600
-                  dark:text-gray-300
-                  mb-6
-                "
-              >
-                Pour qui souhaitez-vous
-                activer ce document ?
-              </p>
-
-              <div
-                className="
-                  grid
-                  md:grid-cols-2
-                  gap-4
-                "
-              >
-
-                {/* POUR MOI */}
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleTargetChoice(
-                      "self"
-                    )
-                  }
-                  disabled={loading}
-                  className="
-                    rounded-2xl
-                    border-2
-                    border-gray-200
-                    dark:border-gray-700
-                    hover:border-blue-600
-                    hover:bg-blue-50
-                    dark:hover:bg-blue-900/20
-                    p-6
-                    text-left
-                    transition
-                  "
-                >
-
-                  <div className="text-3xl mb-3">
-                    👤
-                  </div>
-
-                  <h3
-                    className="
-                      font-bold
-                      text-gray-900
-                      dark:text-white
-                    "
-                  >
-                    Pour moi
-                  </h3>
-
-                  <p
-                    className="
-                      text-sm
-                      text-gray-500
-                      dark:text-gray-300
-                      mt-1
-                    "
-                  >
-                    Je vais utiliser ce
-                    document personnellement.
-                  </p>
-
-                </button>
-
-                {/* POUR AUTRUI */}
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleTargetChoice(
-                      "other"
-                    )
-                  }
-                  disabled={loading}
-                  className="
-                    rounded-2xl
-                    border-2
-                    border-gray-200
-                    dark:border-gray-700
-                    hover:border-blue-600
-                    hover:bg-blue-50
-                    dark:hover:bg-blue-900/20
-                    p-6
-                    text-left
-                    transition
-                  "
-                >
-
-                  <div className="text-3xl mb-3">
-                    👥
-                  </div>
-
-                  <h3
-                    className="
-                      font-bold
-                      text-gray-900
-                      dark:text-white
-                    "
-                  >
-                    Pour autrui
-                  </h3>
-
-                  <p
-                    className="
-                      text-sm
-                      text-gray-500
-                      dark:text-gray-300
-                      mt-1
-                    "
-                  >
-                    Ce document est destiné
-                    à une autre personne.
-                  </p>
-
+                  {loading
+                    ? "Vérification..."
+                    : "Vérifier le code →"}
                 </button>
 
               </div>
 
             </div>
 
-          )}
+          </div>
+        )}
 
-          {/* ================================================= */}
-          {/* ÉTAPE 3 */}
-          {/* ================================================= */}
+        {/* ====================================================
+            ÉTAPE 2
+        ==================================================== */}
 
-          {step === 3 && (
+        {step === 2 && (
+          <div
+            className={`
+              ${cardClass}
+              p-6
+              sm:p-8
+            `}
+          >
 
-            <form
-              onSubmit={
-                handleVerifyOther
-              }
+            <div
+              className="
+                text-center
+                max-w-2xl
+                mx-auto
+                mb-8
+              "
             >
 
-              <div className="mb-6">
+              <div
+                className="
+                  mx-auto
+                  w-16
+                  h-16
+                  rounded-2xl
+                  bg-blue-100
+                  text-blue-700
+                  flex
+                  items-center
+                  justify-center
+                  text-3xl
+                  mb-4
+                  dark:bg-blue-950
+                  dark:text-blue-300
+                "
+              >
+                👥
+              </div>
 
-                <h2
+              <h2
+                className="
+                  text-2xl
+                  sm:text-3xl
+                  font-extrabold
+                  text-gray-900
+                  dark:text-white
+                "
+              >
+                Qui va utiliser le document ?
+              </h2>
+
+              <p
+                className="
+                  text-gray-700
+                  dark:text-gray-400
+                  mt-2
+                "
+              >
+                Indiquez si le document est destiné à vous-même
+                ou à une autre personne.
+              </p>
+
+            </div>
+
+            <div
+              className="
+                grid
+                md:grid-cols-2
+                gap-5
+              "
+            >
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleTargetSelection(
+                    "self"
+                  )
+                }
+                disabled={loading}
+                className="
+                  group
+                  border-2
+                  border-gray-200
+                  bg-white/70
+                  hover:border-blue-500
+                  hover:bg-blue-50/90
+                  rounded-2xl
+                  p-6
+                  sm:p-8
+                  text-left
+                  transition-all
+                  duration-200
+                  hover:-translate-y-1
+                  hover:shadow-xl
+                  dark:border-gray-700
+                  dark:bg-gray-950/50
+                  dark:hover:border-blue-500
+                  dark:hover:bg-blue-950/40
+                "
+              >
+
+                <div
                   className="
+                    w-14
+                    h-14
+                    rounded-2xl
+                    bg-blue-100
+                    flex
+                    items-center
+                    justify-center
+                    text-3xl
+                    mb-5
+                    dark:bg-blue-950
+                  "
+                >
+                  👤
+                </div>
+
+                <h3
+                  className="
+                    font-extrabold
                     text-xl
-                    font-bold
                     text-gray-900
                     dark:text-white
                   "
                 >
-                  Bénéficiaire du document
-                </h2>
+                  Pour moi
+                </h3>
 
                 <p
                   className="
-                    mt-2
                     text-sm
-                    text-gray-600
-                    dark:text-gray-300
+                    text-gray-700
+                    dark:text-gray-400
+                    mt-2
+                    leading-relaxed
                   "
                 >
-                  Renseignez l'adresse
-                  e-mail de la personne
-                  qui utilisera ce document.
+                  Le document sera associé à votre compte et
+                  personnalisé avec vos informations.
                 </p>
 
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleTargetSelection(
+                    "other"
+                  )
+                }
+                disabled={loading}
+                className="
+                  group
+                  border-2
+                  border-gray-200
+                  bg-white/70
+                  hover:border-indigo-500
+                  hover:bg-indigo-50/90
+                  rounded-2xl
+                  p-6
+                  sm:p-8
+                  text-left
+                  transition-all
+                  duration-200
+                  hover:-translate-y-1
+                  hover:shadow-xl
+                  dark:border-gray-700
+                  dark:bg-gray-950/50
+                  dark:hover:border-indigo-500
+                  dark:hover:bg-indigo-950/40
+                "
+              >
+
+                <div
+                  className="
+                    w-14
+                    h-14
+                    rounded-2xl
+                    bg-indigo-100
+                    flex
+                    items-center
+                    justify-center
+                    text-3xl
+                    mb-5
+                    dark:bg-indigo-950
+                  "
+                >
+                  👥
+                </div>
+
+                <h3
+                  className="
+                    font-extrabold
+                    text-xl
+                    text-gray-900
+                    dark:text-white
+                  "
+                >
+                  Pour une autre personne
+                </h3>
+
+                <p
+                  className="
+                    text-sm
+                    text-gray-700
+                    dark:text-gray-400
+                    mt-2
+                    leading-relaxed
+                  "
+                >
+                  Le document sera personnalisé pour un autre
+                  bénéficiaire.
+                </p>
+
+              </button>
+
+            </div>
+
+            <button
+              type="button"
+              onClick={
+                goBack
+              }
+              className="
+                mt-8
+                text-gray-700
+                hover:text-gray-950
+                dark:text-gray-400
+                dark:hover:text-white
+                font-semibold
+                transition
+              "
+            >
+              ← Retour
+            </button>
+
+          </div>
+        )}
+
+        {/* ====================================================
+            ÉTAPE 3
+        ==================================================== */}
+
+        {step === 3 && (
+          <div
+            className={`
+              ${cardClass}
+              p-6
+              sm:p-8
+            `}
+          >
+
+            <div
+              className="
+                text-center
+                max-w-2xl
+                mx-auto
+                mb-8
+              "
+            >
+
+              <div
+                className="
+                  mx-auto
+                  w-16
+                  h-16
+                  rounded-2xl
+                  bg-indigo-100
+                  text-indigo-700
+                  flex
+                  items-center
+                  justify-center
+                  text-3xl
+                  mb-4
+                  dark:bg-indigo-950
+                  dark:text-indigo-300
+                "
+              >
+                ✉️
               </div>
+
+              <h2
+                className="
+                  text-2xl
+                  sm:text-3xl
+                  font-extrabold
+                  text-gray-900
+                  dark:text-white
+                "
+              >
+                E-mail du bénéficiaire
+              </h2>
+
+              <p
+                className="
+                  text-gray-700
+                  dark:text-gray-400
+                  mt-2
+                "
+              >
+                Saisissez l'adresse e-mail de la personne qui
+                recevra et utilisera le document.
+              </p>
+
+            </div>
+
+            <div>
 
               <label
                 className="
                   block
                   text-sm
-                  font-medium
+                  font-bold
                   text-gray-700
-                  dark:text-white
+                  dark:text-gray-300
                   mb-2
                 "
               >
@@ -1459,291 +1995,223 @@ const Activation: React.FC = () => {
                   )
                 }
                 placeholder="beneficiaire@email.com"
-                required
-                className="
-                  w-full
-                  rounded-xl
-                  border
-                  border-gray-300
-                  dark:border-gray-600
-                  bg-white
-                  dark:bg-gray-800
-                  text-gray-900
-                  dark:text-white
-                  px-4
-                  py-3
-                  outline-none
-                  focus:border-blue-600
-                  focus:ring-2
-                  focus:ring-blue-100
-                  dark:focus:ring-blue-900
-                "
+                autoComplete="email"
+                className={inputClass}
               />
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="
-                  w-full
-                  mt-6
-                  rounded-xl
-                  bg-blue-600
-                  hover:bg-blue-700
-                  disabled:bg-blue-300
-                  text-white
-                  font-semibold
-                  py-3
-                "
-              >
-                {loading
-                  ? "Vérification..."
-                  : "Continuer"}
-              </button>
+            </div>
+
+            <div
+              className="
+                flex
+                items-center
+                justify-between
+                mt-8
+                gap-4
+              "
+            >
 
               <button
                 type="button"
-                onClick={() =>
-                  setStep(2)
+                onClick={
+                  goBack
                 }
                 className="
-                  w-full
-                  mt-3
-                  text-sm
-                  text-gray-500
-                  dark:text-gray-300
-                  hover:text-gray-700
+                  text-gray-700
+                  hover:text-gray-950
+                  dark:text-gray-400
                   dark:hover:text-white
+                  font-semibold
                 "
               >
                 ← Retour
               </button>
 
-            </form>
+              <button
+                type="button"
+                onClick={
+                  continueWithBeneficiary
+                }
+                disabled={loading}
+                className="
+                  bg-gradient-to-r
+                  from-blue-600
+                  to-indigo-700
+                  hover:from-blue-700
+                  hover:to-indigo-800
+                  disabled:from-gray-400
+                  disabled:to-gray-500
+                  text-white
+                  font-bold
+                  py-3.5
+                  px-6
+                  rounded-xl
+                  shadow-xl
+                  shadow-blue-600/25
+                  transition
+                "
+              >
+                {loading
+                  ? "Vérification..."
+                  : "Continuer →"}
+              </button>
 
-          )}
+            </div>
 
-          {/* ================================================= */}
-          {/* ÉTAPE 4 */}
-          {/* ================================================= */}
+          </div>
+        )}
 
-          {step === 4 && !success && (
+        {/* ====================================================
+            ÉTAPE 4
+        ==================================================== */}
 
-            <form
-              onSubmit={
-                handleActivation
-              }
+        {step === 4 && (
+          <div
+            className="
+              space-y-6
+            "
+          >
+
+            {/* ==================================================
+                IDENTITÉ
+            ================================================== */}
+
+            <div
+              className={`
+                ${cardClass}
+                p-6
+                sm:p-8
+              `}
             >
 
-              <div className="mb-6">
+              <div
+                className="
+                  flex
+                  items-start
+                  gap-4
+                  mb-7
+                "
+              >
 
-                <h2
+                <div
                   className="
-                    text-xl
-                    font-bold
-                    text-gray-900
-                    dark:text-white
+                    w-12
+                    h-12
+                    shrink-0
+                    rounded-2xl
+                    bg-green-100
+                    text-green-700
+                    flex
+                    items-center
+                    justify-center
+                    text-2xl
+                    dark:bg-green-950
+                    dark:text-green-300
                   "
                 >
-                  {userExists
-                    ? "Compte trouvé"
-                    : "Créer votre compte"}
-                </h2>
+                  👤
+                </div>
 
-                {userExists ? (
+                <div>
 
-                  <div
+                  <h2
                     className="
-                      mt-3
-                      rounded-xl
-                      bg-blue-50
-                      dark:bg-blue-900/30
-                      border
-                      border-blue-100
-                      dark:border-blue-800
-                      p-4
-                      text-sm
-                      text-blue-800
-                      dark:text-blue-200
+                      text-xl
+                      sm:text-2xl
+                      font-extrabold
+                      text-gray-900
+                      dark:text-white
                     "
                   >
-
-                    <p className="font-semibold">
-                      Ce bénéficiaire possède
-                      déjà un compte CODE.
-                    </p>
-
-                    <p className="mt-1">
-                      Ses informations seront
-                      automatiquement associées
-                      au document.
-                    </p>
-
-                  </div>
-
-                ) : (
+                    Informations du bénéficiaire
+                  </h2>
 
                   <p
                     className="
-                      mt-2
-                      text-sm
-                      text-gray-600
-                      dark:text-gray-300
+                      text-gray-700
+                      dark:text-gray-400
+                      mt-1
                     "
                   >
-                    Aucun compte n'a été trouvé
-                    avec cette adresse e-mail.
-                    Renseignez les informations
-                    nécessaires pour créer le compte.
+                    Les informations du bénéficiaire serviront
+                    à personnaliser {documentName}.
                   </p>
-
-                )}
-
-              </div>
-
-              {/* ------------------------------------------------ */}
-              {/* COMPTE EXISTANT */}
-              {/* ------------------------------------------------ */}
-
-              {userExists ? (
-
-                <div className="space-y-3">
-
-                  <div
-                    className="
-                      flex
-                      justify-between
-                      border-b
-                      border-gray-200
-                      dark:border-gray-700
-                      pb-3
-                    "
-                  >
-
-                    <span
-                      className="
-                        text-gray-500
-                        dark:text-gray-400
-                      "
-                    >
-                      Nom
-                    </span>
-
-                    <span
-                      className="
-                        font-semibold
-                        text-gray-900
-                        dark:text-white
-                      "
-                    >
-                      {userInfo?.nom}
-                    </span>
-
-                  </div>
-
-                  <div
-                    className="
-                      flex
-                      justify-between
-                      border-b
-                      border-gray-200
-                      dark:border-gray-700
-                      pb-3
-                    "
-                  >
-
-                    <span
-                      className="
-                        text-gray-500
-                        dark:text-gray-400
-                      "
-                    >
-                      Prénom
-                    </span>
-
-                    <span
-                      className="
-                        font-semibold
-                        text-gray-900
-                        dark:text-white
-                      "
-                    >
-                      {userInfo?.prenom}
-                    </span>
-
-                  </div>
-
-                  <div
-                    className="
-                      flex
-                      justify-between
-                      border-b
-                      border-gray-200
-                      dark:border-gray-700
-                      pb-3
-                    "
-                  >
-
-                    <span
-                      className="
-                        text-gray-500
-                        dark:text-gray-400
-                      "
-                    >
-                      E-mail
-                    </span>
-
-                    <span
-                      className="
-                        font-semibold
-                        text-gray-900
-                        dark:text-white
-                      "
-                    >
-                      {userInfo?.email}
-                    </span>
-
-                  </div>
-
-                  <div
-                    className="
-                      flex
-                      justify-between
-                    "
-                  >
-
-                    <span
-                      className="
-                        text-gray-500
-                        dark:text-gray-400
-                      "
-                    >
-                      Téléphone
-                    </span>
-
-                    <span
-                      className="
-                        font-semibold
-                        text-gray-900
-                        dark:text-white
-                      "
-                    >
-                      {userInfo?.telephone ||
-                        "-"}
-                    </span>
-
-                  </div>
 
                 </div>
 
-              ) : (
+              </div>
 
-                /* ------------------------------------------------ */
-                /* CRÉATION DE COMPTE */
-                /* ------------------------------------------------ */
+              {userExists ? (
 
-                <div className="space-y-4">
+                <div
+                  className="
+                    space-y-5
+                  "
+                >
 
-                  {/* Nom + prénom */}
+                  <div
+                    className="
+                      p-4
+                      bg-green-50/90
+                      border
+                      border-green-200
+                      rounded-2xl
+                      dark:bg-green-950/40
+                      dark:border-green-900
+                    "
+                  >
+
+                    <div
+                      className="
+                        flex
+                        items-center
+                        gap-3
+                      "
+                    >
+
+                      <div
+                        className="
+                          w-10
+                          h-10
+                          bg-green-100
+                          rounded-full
+                          flex
+                          items-center
+                          justify-center
+                          dark:bg-green-900/50
+                        "
+                      >
+                        ✓
+                      </div>
+
+                      <div>
+
+                        <p
+                          className="
+                            font-bold
+                            text-green-800
+                            dark:text-green-300
+                          "
+                        >
+                          Compte existant
+                        </p>
+
+                        <p
+                          className="
+                            text-sm
+                            text-green-700
+                            dark:text-green-400
+                          "
+                        >
+                          Les informations de votre compte ont
+                          été récupérées automatiquement.
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                  </div>
 
                   <div
                     className="
@@ -1759,10 +2227,10 @@ const Activation: React.FC = () => {
                         className="
                           block
                           text-sm
-                          font-medium
+                          font-semibold
                           text-gray-700
-                          dark:text-white
-                          mb-2
+                          dark:text-gray-300
+                          mb-1
                         "
                       >
                         Nom
@@ -1770,25 +2238,22 @@ const Activation: React.FC = () => {
 
                       <input
                         type="text"
-                        value={nom}
-                        onChange={(e) =>
-                          setNom(
-                            e.target.value
-                          )
+                        value={
+                          nom
                         }
-                        required
+                        disabled
                         className="
                           w-full
-                          rounded-xl
-                          border
-                          border-gray-300
-                          dark:border-gray-600
-                          bg-white
-                          dark:bg-gray-800
-                          text-gray-900
-                          dark:text-white
                           px-4
                           py-3
+                          bg-gray-100/90
+                          border
+                          border-gray-300
+                          rounded-xl
+                          text-gray-700
+                          dark:bg-gray-800/90
+                          dark:border-gray-700
+                          dark:text-gray-300
                         "
                       />
 
@@ -1800,36 +2265,33 @@ const Activation: React.FC = () => {
                         className="
                           block
                           text-sm
-                          font-medium
+                          font-semibold
                           text-gray-700
-                          dark:text-white
-                          mb-2
+                          dark:text-gray-300
+                          mb-1
                         "
                       >
-                        Prénom
+                        Prénom(s)
                       </label>
 
                       <input
                         type="text"
-                        value={prenom}
-                        onChange={(e) =>
-                          setPrenom(
-                            e.target.value
-                          )
+                        value={
+                          prenom
                         }
-                        required
+                        disabled
                         className="
                           w-full
-                          rounded-xl
-                          border
-                          border-gray-300
-                          dark:border-gray-600
-                          bg-white
-                          dark:bg-gray-800
-                          text-gray-900
-                          dark:text-white
                           px-4
                           py-3
+                          bg-gray-100/90
+                          border
+                          border-gray-300
+                          rounded-xl
+                          text-gray-700
+                          dark:bg-gray-800/90
+                          dark:border-gray-700
+                          dark:text-gray-300
                         "
                       />
 
@@ -1837,50 +2299,219 @@ const Activation: React.FC = () => {
 
                   </div>
 
-                  {/* Téléphone */}
-
                   <div>
 
                     <label
                       className="
                         block
                         text-sm
-                        font-medium
+                        font-semibold
                         text-gray-700
-                        dark:text-white
-                        mb-2
+                        dark:text-gray-300
+                        mb-1
                       "
                     >
-                      Téléphone
+                      E-mail
                     </label>
 
                     <input
-                      type="tel"
-                      value={telephone}
-                      onChange={(e) =>
-                        setTelephone(
-                          e.target.value
+                      type="email"
+                      value={
+                        user?.email ||
+                        (
+                          target ===
+                          "self"
+                            ? email
+                            : beneficiaryEmail
                         )
                       }
-                      required
+                      disabled
                       className="
                         w-full
-                        rounded-xl
-                        border
-                        border-gray-300
-                        dark:border-gray-600
-                        bg-white
-                        dark:bg-gray-800
-                        text-gray-900
-                        dark:text-white
                         px-4
                         py-3
+                        bg-gray-100/90
+                        border
+                        border-gray-300
+                        rounded-xl
+                        text-gray-700
+                        dark:bg-gray-800/90
+                        dark:border-gray-700
+                        dark:text-gray-300
                       "
                     />
 
                   </div>
 
-                  {/* Pays */}
+                  <div
+                    className="
+                      grid
+                      md:grid-cols-2
+                      gap-4
+                    "
+                  >
+
+                    <div>
+
+                      <label
+                        className="
+                          block
+                          text-sm
+                          font-semibold
+                          text-gray-700
+                          dark:text-gray-300
+                          mb-1
+                        "
+                      >
+                        Téléphone
+                      </label>
+
+                      <input
+                        type="text"
+                        value={
+                          telephone
+                        }
+                        disabled
+                        className="
+                          w-full
+                          px-4
+                          py-3
+                          bg-gray-100/90
+                          border
+                          border-gray-300
+                          rounded-xl
+                          text-gray-700
+                          dark:bg-gray-800/90
+                          dark:border-gray-700
+                          dark:text-gray-300
+                        "
+                      />
+
+                    </div>
+
+                    <div>
+
+                      <label
+                        className="
+                          block
+                          text-sm
+                          font-semibold
+                          text-gray-700
+                          dark:text-gray-300
+                          mb-1
+                        "
+                      >
+                        Pays de résidence
+                      </label>
+
+                      <input
+                        type="text"
+                        value={
+                          pays
+                        }
+                        disabled
+                        className="
+                          w-full
+                          px-4
+                          py-3
+                          bg-gray-100/90
+                          border
+                          border-gray-300
+                          rounded-xl
+                          text-gray-700
+                          dark:bg-gray-800/90
+                          dark:border-gray-700
+                          dark:text-gray-300
+                        "
+                      />
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              ) : (
+
+                <div
+                  className="
+                    space-y-5
+                  "
+                >
+
+                  <div
+                    className="
+                      grid
+                      md:grid-cols-2
+                      gap-4
+                    "
+                  >
+
+                    <div>
+
+                      <label
+                        className="
+                          block
+                          text-sm
+                          font-semibold
+                          text-gray-700
+                          dark:text-gray-300
+                          mb-2
+                        "
+                      >
+                        Nom *
+                      </label>
+
+                      <input
+                        type="text"
+                        value={
+                          nom
+                        }
+                        onChange={(e) =>
+                          setNom(
+                            e.target.value
+                          )
+                        }
+                        placeholder="Nom"
+                        autoComplete="family-name"
+                        className={inputClass}
+                      />
+
+                    </div>
+
+                    <div>
+
+                      <label
+                        className="
+                          block
+                          text-sm
+                          font-semibold
+                          text-gray-700
+                          dark:text-gray-300
+                          mb-2
+                        "
+                      >
+                        Prénom(s) *
+                      </label>
+
+                      <input
+                        type="text"
+                        value={
+                          prenom
+                        }
+                        onChange={(e) =>
+                          setPrenom(
+                            e.target.value
+                          )
+                        }
+                        placeholder="Prénom(s)"
+                        autoComplete="given-name"
+                        className={inputClass}
+                      />
+
+                    </div>
+
+                  </div>
 
                   <div>
 
@@ -1888,126 +2519,165 @@ const Activation: React.FC = () => {
                       className="
                         block
                         text-sm
-                        font-medium
+                        font-semibold
                         text-gray-700
-                        dark:text-white
+                        dark:text-gray-300
                         mb-2
                       "
                     >
-                      Pays
+                      E-mail
                     </label>
 
                     <input
-                      type="text"
-                      value={pays}
-                      onChange={(e) =>
-                        setPays(
-                          e.target.value
-                        )
+                      type="email"
+                      value={
+                        target ===
+                        "self"
+                          ? email
+                          : beneficiaryEmail
                       }
-                      required
+                      disabled
                       className="
                         w-full
-                        rounded-xl
-                        border
-                        border-gray-300
-                        dark:border-gray-600
-                        bg-white
-                        dark:bg-gray-800
-                        text-gray-900
-                        dark:text-white
                         px-4
                         py-3
+                        bg-gray-100/90
+                        border
+                        border-gray-300
+                        rounded-xl
+                        text-gray-700
+                        dark:bg-gray-800/90
+                        dark:border-gray-700
+                        dark:text-gray-300
                       "
                     />
 
                   </div>
 
-                  {/* Mot de passe */}
+                  <div
+                    className="
+                      grid
+                      md:grid-cols-2
+                      gap-4
+                    "
+                  >
 
-                  <div>
+                    <div>
 
-                    <label
-                      className="
-                        block
-                        text-sm
-                        font-medium
-                        text-gray-700
-                        dark:text-white
-                        mb-2
-                      "
-                    >
-                      Créer un mot de passe
-                    </label>
+                      <label
+                        className="
+                          block
+                          text-sm
+                          font-semibold
+                          text-gray-700
+                          dark:text-gray-300
+                          mb-2
+                        "
+                      >
+                        Téléphone
+                        <span
+                          className="
+                            text-gray-400
+                            font-normal
+                          "
+                        >
+                          {" "}
+                          (facultatif)
+                        </span>
+                      </label>
 
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) =>
-                        setPassword(
-                          e.target.value
-                        )
-                      }
-                      required
-                      className="
-                        w-full
-                        rounded-xl
-                        border
-                        border-gray-300
-                        dark:border-gray-600
-                        bg-white
-                        dark:bg-gray-800
-                        text-gray-900
-                        dark:text-white
-                        px-4
-                        py-3
-                      "
-                    />
+                      <input
+                        type="tel"
+                        value={
+                          telephone
+                        }
+                        onChange={(e) =>
+                          setTelephone(
+                            e.target.value
+                          )
+                        }
+                        placeholder="+229 ..."
+                        autoComplete="tel"
+                        className={inputClass}
+                      />
+
+                    </div>
+
+                    <div>
+
+                      <label
+                        className="
+                          block
+                          text-sm
+                          font-semibold
+                          text-gray-700
+                          dark:text-gray-300
+                          mb-2
+                        "
+                      >
+                        Pays de résidence *
+                      </label>
+
+                      <input
+                        type="text"
+                        value={
+                          pays
+                        }
+                        onChange={(e) =>
+                          setPays(
+                            e.target.value
+                          )
+                        }
+                        placeholder="Bénin"
+                        autoComplete="country-name"
+                        className={inputClass}
+                      />
+
+                    </div>
 
                   </div>
 
-                  {/* Confirmation */}
-
                   <div>
 
                     <label
                       className="
                         block
                         text-sm
-                        font-medium
+                        font-semibold
                         text-gray-700
-                        dark:text-white
+                        dark:text-gray-300
                         mb-2
                       "
                     >
-                      Confirmer le mot de passe
+                      Mot de passe *
                     </label>
 
                     <input
                       type="password"
                       value={
-                        confirmPassword
+                        password
                       }
                       onChange={(e) =>
-                        setConfirmPassword(
+                        setPassword(
                           e.target.value
                         )
                       }
-                      required
-                      className="
-                        w-full
-                        rounded-xl
-                        border
-                        border-gray-300
-                        dark:border-gray-600
-                        bg-white
-                        dark:bg-gray-800
-                        text-gray-900
-                        dark:text-white
-                        px-4
-                        py-3
-                      "
+                      placeholder="Au moins 6 caractères"
+                      autoComplete="new-password"
+                      className={inputClass}
                     />
+
+                    <p
+                      className="
+                        text-xs
+                        text-gray-600
+                        dark:text-gray-500
+                        mt-2
+                      "
+                    >
+                      Ce mot de passe permettra au bénéficiaire
+                      de se connecter à son compte.
+                    </p>
 
                   </div>
 
@@ -2015,146 +2685,871 @@ const Activation: React.FC = () => {
 
               )}
 
-              {/* ------------------------------------------------ */}
-              {/* BOUTON ACTIVATION */}
-              {/* ------------------------------------------------ */}
+            </div>
 
-              <button
-                type="submit"
-                disabled={loading}
+            {/* ==================================================
+                PERSONNALISATION
+            ================================================== */}
+
+            <div
+              className={`
+                ${cardClass}
+                p-6
+                sm:p-8
+              `}
+            >
+
+              <div
                 className="
-                  w-full
-                  mt-7
-                  rounded-xl
-                  bg-blue-600
-                  hover:bg-blue-700
-                  disabled:bg-blue-300
-                  text-white
-                  font-semibold
-                  py-3
-                  transition
+                  flex
+                  items-start
+                  gap-4
+                  mb-7
                 "
               >
-                {loading
-                  ? "Activation..."
-                  : "Activer le document"}
-              </button>
 
-            </form>
+                <div
+                  className="
+                    w-12
+                    h-12
+                    shrink-0
+                    rounded-2xl
+                    bg-violet-100
+                    text-violet-700
+                    flex
+                    items-center
+                    justify-center
+                    text-2xl
+                    dark:bg-violet-950
+                    dark:text-violet-300
+                  "
+                >
+                  ✨
+                </div>
 
-          )}
+                <div>
 
-          {/* ================================================= */}
-          {/* SUCCÈS */}
-          {/* ================================================= */}
+                  <h2
+                    className="
+                      text-xl
+                      sm:text-2xl
+                      font-extrabold
+                      text-gray-900
+                      dark:text-white
+                    "
+                  >
+                    Personnalisation de {documentName}
+                  </h2>
 
-          {success && (
+                  <p
+                    className="
+                      text-gray-700
+                      dark:text-gray-400
+                      mt-1
+                    "
+                  >
+                    Ces informations sont facultatives. Elles
+                    servent uniquement à personnaliser le PDF
+                    qui sera généré pour vous.
+                  </p>
+
+                </div>
+
+              </div>
+
+              <div
+                className="
+                  space-y-5
+                "
+              >
+
+                {/* =================================================
+                    ÉTABLISSEMENT
+                ================================================= */}
+
+                <div>
+
+                  <label
+                    className="
+                      block
+                      text-sm
+                      font-semibold
+                      text-gray-700
+                      dark:text-gray-300
+                      mb-2
+                    "
+                  >
+                    Établissement
+                    <span
+                      className="
+                        text-gray-400
+                        font-normal
+                      "
+                    >
+                      {" "}
+                      (facultatif)
+                    </span>
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      etablissement
+                    }
+                    onChange={(e) =>
+                      setEtablissement(
+                        e.target.value
+                      )
+                    }
+                    placeholder="Nom de l'établissement"
+                    className={inputClass}
+                  />
+
+                </div>
+
+                {/* =================================================
+                    VILLE
+                ================================================= */}
+
+                <div>
+
+                  <label
+                    className="
+                      block
+                      text-sm
+                      font-semibold
+                      text-gray-700
+                      dark:text-gray-300
+                      mb-2
+                    "
+                  >
+                    Ville / Commune
+                    <span
+                      className="
+                        text-gray-400
+                        font-normal
+                      "
+                    >
+                      {" "}
+                      (facultatif)
+                    </span>
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      ville
+                    }
+                    onChange={(e) =>
+                      setVille(
+                        e.target.value
+                      )
+                    }
+                    placeholder="Ville ou commune"
+                    className={inputClass}
+                  />
+
+                </div>
+
+                {/* =================================================
+                    ANNÉE SCOLAIRE
+                ================================================= */}
+
+                <div>
+
+                  <label
+                    className="
+                      block
+                      text-sm
+                      font-semibold
+                      text-gray-700
+                      dark:text-gray-300
+                      mb-2
+                    "
+                  >
+                    Année scolaire
+                    <span
+                      className="
+                        text-gray-400
+                        font-normal
+                      "
+                    >
+                      {" "}
+                      (facultatif)
+                    </span>
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      anneeScolaire
+                    }
+                    onChange={(e) =>
+                      setAnneeScolaire(
+                        e.target.value
+                      )
+                    }
+                    placeholder="Exemple : 2026-2027"
+                    className={inputClass}
+                  />
+
+                </div>
+
+                {/* =================================================
+                    PHOTO
+                ================================================= */}
+
+                <div>
+
+                  <label
+                    className="
+                      block
+                      text-sm
+                      font-semibold
+                      text-gray-700
+                      dark:text-gray-300
+                      mb-2
+                    "
+                  >
+                    Photo
+                    <span
+                      className="
+                        text-gray-400
+                        font-normal
+                      "
+                    >
+                      {" "}
+                      (facultatif)
+                    </span>
+                  </label>
+
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/jpg"
+                    onChange={
+                      handlePhotoChange
+                    }
+                    className="
+                      w-full
+                      px-4
+                      py-3
+                      border
+                      border-gray-300
+                      rounded-xl
+                      bg-white/90
+                      text-gray-900
+                      dark:border-gray-700
+                      dark:bg-gray-950/90
+                      dark:text-gray-200
+                    "
+                  />
+
+                  <p
+                    className="
+                      text-xs
+                      text-gray-600
+                      dark:text-gray-500
+                      mt-2
+                    "
+                  >
+                    Formats acceptés : .jpg, .jpeg et .png.
+                    Taille maximale : 5 Mo.
+                  </p>
+
+                  {photo && (
+                    <div
+                      className="
+                        mt-3
+                        p-3
+                        bg-blue-50/90
+                        border
+                        border-blue-200
+                        rounded-xl
+                        dark:bg-blue-950/40
+                        dark:border-blue-900
+                      "
+                    >
+
+                      <p
+                        className="
+                          text-sm
+                          text-blue-800
+                          dark:text-blue-300
+                        "
+                      >
+                        📷 Photo sélectionnée :
+                        {" "}
+                        <span
+                          className="
+                            font-bold
+                          "
+                        >
+                          {photo.name}
+                        </span>
+                      </p>
+
+                    </div>
+                  )}
+
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* ==================================================
+                RÉCAPITULATIF
+            ================================================== */}
 
             <div
               className="
-                text-center
-                py-6
+                bg-gray-100/85
+                backdrop-blur-xl
+                rounded-3xl
+                border
+                border-white/60
+                p-6
+                sm:p-8
+                shadow-xl
+                dark:bg-gray-900/85
+                dark:border-gray-700/70
               "
             >
 
               <div
                 className="
-                  mx-auto
-                  w-20
-                  h-20
-                  rounded-full
-                  bg-green-100
-                  dark:bg-green-900/40
                   flex
                   items-center
-                  justify-center
-                  text-4xl
-                  text-green-600
-                  dark:text-green-400
+                  gap-3
                   mb-5
                 "
               >
-                ✓
+
+                <div
+                  className="
+                    w-10
+                    h-10
+                    rounded-xl
+                    bg-gray-200/90
+                    flex
+                    items-center
+                    justify-center
+                    dark:bg-gray-800
+                  "
+                >
+                  📋
+                </div>
+
+                <h3
+                  className="
+                    font-extrabold
+                    text-lg
+                    text-gray-900
+                    dark:text-white
+                  "
+                >
+                  Récapitulatif
+                </h3>
+
               </div>
 
-              <h2
+              <div
                 className="
-                  text-2xl
-                  font-bold
-                  text-gray-900
-                  dark:text-white
+                  grid
+                  sm:grid-cols-2
+                  gap-3
+                  text-sm
                 "
               >
-                Document activé !
-              </h2>
 
-              <p
-                className="
-                  mt-3
-                  text-gray-600
-                  dark:text-gray-300
-                "
-              >
-                Votre document est maintenant
-                associé au compte bénéficiaire.
-              </p>
+                <p
+                  className="
+                    p-3
+                    rounded-xl
+                    bg-white/90
+                    dark:bg-gray-950/90
+                  "
+                >
+                  <span
+                    className="
+                      font-bold
+                      text-gray-700
+                      dark:text-gray-300
+                    "
+                  >
+                    Document :
+                  </span>
+                  {" "}
+                  {documentName}
+                </p>
 
-              <Link
-                to="/login"
-                className="
-                  inline-block
-                  mt-7
-                  rounded-xl
-                  bg-blue-600
-                  hover:bg-blue-700
-                  text-white
-                  font-semibold
-                  px-6
-                  py-3
-                "
-              >
-                Aller à la connexion
-              </Link>
+                <p
+                  className="
+                    p-3
+                    rounded-xl
+                    bg-white/90
+                    dark:bg-gray-950/90
+                  "
+                >
+                  <span
+                    className="
+                      font-bold
+                      text-gray-700
+                      dark:text-gray-300
+                    "
+                  >
+                    Bénéficiaire :
+                  </span>
+                  {" "}
+                  {prenom} {nom}
+                </p>
+
+                <p
+                  className="
+                    p-3
+                    rounded-xl
+                    bg-white/90
+                    dark:bg-gray-950/90
+                  "
+                >
+                  <span
+                    className="
+                      font-bold
+                      text-gray-700
+                      dark:text-gray-300
+                    "
+                  >
+                    E-mail :
+                  </span>
+                  {" "}
+                  {target ===
+                  "self"
+                    ? email
+                    : beneficiaryEmail}
+                </p>
+
+                {etablissement && (
+                  <p
+                    className="
+                      p-3
+                      rounded-xl
+                      bg-white/90
+                      dark:bg-gray-950/90
+                    "
+                  >
+                    <span
+                      className="
+                        font-bold
+                        text-gray-700
+                        dark:text-gray-300
+                      "
+                    >
+                      Établissement :
+                    </span>
+                    {" "}
+                    {etablissement}
+                  </p>
+                )}
+
+                {ville && (
+                  <p
+                    className="
+                      p-3
+                      rounded-xl
+                      bg-white/90
+                      dark:bg-gray-950/90
+                    "
+                  >
+                    <span
+                      className="
+                        font-bold
+                        text-gray-700
+                        dark:text-gray-300
+                      "
+                    >
+                      Ville / Commune :
+                    </span>
+                    {" "}
+                    {ville}
+                  </p>
+                )}
+
+                {anneeScolaire && (
+                  <p
+                    className="
+                      p-3
+                      rounded-xl
+                      bg-white/90
+                      dark:bg-gray-950/90
+                    "
+                  >
+                    <span
+                      className="
+                        font-bold
+                        text-gray-700
+                        dark:text-gray-300
+                      "
+                    >
+                      Année scolaire :
+                    </span>
+                    {" "}
+                    {anneeScolaire}
+                  </p>
+                )}
+
+                <p
+                  className="
+                    p-3
+                    rounded-xl
+                    bg-white/90
+                    dark:bg-gray-950/90
+                  "
+                >
+                  <span
+                    className="
+                      font-bold
+                      text-gray-700
+                      dark:text-gray-300
+                    "
+                  >
+                    Photo :
+                  </span>
+                  {" "}
+                  {photo
+                    ? "Oui"
+                    : "Non"}
+                </p>
+
+              </div>
 
             </div>
 
-          )}
+            {/* ==================================================
+                BOUTONS
+            ================================================== */}
 
-          {/* ------------------------------------------------- */}
-          {/* PIED DE PAGE */}
-          {/* ------------------------------------------------- */}
+            {!downloaded && (
+              <div
+                className="
+                  flex
+                  flex-col-reverse
+                  sm:flex-row
+                  sm:items-center
+                  sm:justify-between
+                  gap-4
+                "
+              >
 
-          <p
-            className="
-              text-center
-              text-sm
-              text-gray-500
-              dark:text-gray-400
-              mt-6
-            "
-          >
-            Vous avez déjà un compte ?{" "}
+                <button
+                  type="button"
+                  onClick={
+                    goBack
+                  }
+                  disabled={loading}
+                  className="
+                    text-gray-700
+                    hover:text-gray-950
+                    disabled:text-gray-400
+                    dark:text-gray-400
+                    dark:hover:text-white
+                    font-semibold
+                  "
+                >
+                  ← Retour
+                </button>
 
-            <Link
-              to="/login"
-              className="
-                text-blue-600
-                dark:text-blue-400
-                font-medium
-                hover:underline
-              "
-            >
-              Se connecter
-            </Link>
+                <button
+                  type="button"
+                  onClick={
+                    handleActivation
+                  }
+                  disabled={loading}
+                  className="
+                    w-full
+                    sm:w-auto
+                    bg-gradient-to-r
+                    from-blue-600
+                    via-indigo-600
+                    to-violet-600
+                    hover:from-blue-700
+                    hover:via-indigo-700
+                    hover:to-violet-700
+                    disabled:from-gray-400
+                    disabled:via-gray-400
+                    disabled:to-gray-500
+                    text-white
+                    font-extrabold
+                    py-4
+                    px-8
+                    rounded-2xl
+                    shadow-2xl
+                    shadow-blue-600/25
+                    transition-all
+                    duration-200
+                    active:scale-[0.99]
+                  "
+                >
+                  {loading
+                    ? "Génération du PDF..."
+                    : `Activer et générer ${documentName}`}
+                </button>
 
-          </p>
+              </div>
+            )}
 
-        </motion.div>
+            {/* ==================================================
+                SUCCÈS
+            ================================================== */}
 
-      )}
+            {downloaded && (
+              <div
+                className={`
+                  ${cardClass}
+                  p-6
+                  sm:p-8
+                  border-green-300
+                  dark:border-green-900
+                `}
+              >
+
+                <div
+                  className="
+                    text-center
+                  "
+                >
+
+                  <div
+                    className="
+                      mx-auto
+                      w-20
+                      h-20
+                      bg-green-100
+                      text-green-600
+                      rounded-full
+                      flex
+                      items-center
+                      justify-center
+                      text-4xl
+                      mb-5
+                      shadow-xl
+                      dark:bg-green-950
+                      dark:text-green-400
+                    "
+                  >
+                    ✓
+                  </div>
+
+                  <h2
+                    className="
+                      text-2xl
+                      sm:text-3xl
+                      font-extrabold
+                      text-gray-900
+                      dark:text-white
+                    "
+                  >
+                    {documentName} activé !
+                  </h2>
+
+                  <p
+                    className="
+                      text-gray-700
+                      dark:text-gray-400
+                      mt-2
+                    "
+                  >
+                    Votre document personnalisé a été généré
+                    avec succès.
+                  </p>
+
+                </div>
+
+                {/* =================================================
+                    TÉLÉCHARGEMENT
+                ================================================= */}
+
+                <div
+                  className="
+                    mt-7
+                    p-5
+                    bg-green-50/90
+                    border
+                    border-green-200
+                    rounded-2xl
+                    dark:bg-green-950/30
+                    dark:border-green-900
+                  "
+                >
+
+                  <p
+                    className="
+                      font-bold
+                      text-green-800
+                      dark:text-green-300
+                    "
+                  >
+                    ✓ PDF téléchargé
+                  </p>
+
+                  <p
+                    className="
+                      text-sm
+                      text-green-700
+                      dark:text-green-400
+                      mt-1
+                    "
+                  >
+                    Votre fichier{" "}
+                    <span
+                      className="font-bold"
+                    >
+                      {documentName}
+                    </span>{" "}
+                    personnalisé a été téléchargé sur votre appareil.
+                  </p>
+
+                </div>
+
+                {/* =================================================
+                    E-MAIL
+                ================================================= */}
+
+                {emailSent ===
+                  true && (
+                  <div
+                    className="
+                      mt-4
+                      p-5
+                      bg-blue-50/90
+                      border
+                      border-blue-200
+                      rounded-2xl
+                      dark:bg-blue-950/30
+                      dark:border-blue-900
+                    "
+                  >
+
+                    <p
+                      className="
+                        font-bold
+                        text-blue-800
+                        dark:text-blue-300
+                      "
+                    >
+                      ✓ PDF envoyé par e-mail
+                    </p>
+
+                    <p
+                      className="
+                        text-sm
+                        text-blue-700
+                        dark:text-blue-400
+                        mt-1
+                      "
+                    >
+                      Le même document PDF a été envoyé à :
+                      {" "}
+                      <span
+                        className="
+                          font-bold
+                        "
+                      >
+                        {target ===
+                        "self"
+                          ? email
+                          : beneficiaryEmail}
+                      </span>
+                    </p>
+
+                  </div>
+                )}
+
+                {emailSent ===
+                  false && (
+                  <div
+                    className="
+                      mt-4
+                      p-5
+                      bg-yellow-50/90
+                      border
+                      border-yellow-200
+                      rounded-2xl
+                      dark:bg-yellow-950/30
+                      dark:border-yellow-900
+                    "
+                  >
+
+                    <p
+                      className="
+                        font-bold
+                        text-yellow-800
+                        dark:text-yellow-300
+                      "
+                    >
+                      ⚠ PDF téléchargé, mais e-mail non envoyé
+                    </p>
+
+                    <p
+                      className="
+                        text-sm
+                        text-yellow-700
+                        dark:text-yellow-400
+                        mt-1
+                      "
+                    >
+                      Le document a bien été généré et téléchargé.
+                      Un problème est survenu lors de son envoi
+                      par e-mail.
+                    </p>
+
+                  </div>
+                )}
+
+                {/* =================================================
+                    COMPTE
+                ================================================= */}
+
+                <div
+                  className="
+                    mt-7
+                    text-center
+                  "
+                >
+
+                  <Link
+                    to="/login"
+                    className="
+                      inline-flex
+                      items-center
+                      justify-center
+                      bg-gray-900
+                      hover:bg-black
+                      text-white
+                      font-bold
+                      py-3.5
+                      px-7
+                      rounded-xl
+                      transition
+                      shadow-xl
+                      dark:bg-white
+                      dark:text-gray-900
+                      dark:hover:bg-gray-200
+                    "
+                  >
+                    Se connecter à CODE
+                  </Link>
+
+                </div>
+
+              </div>
+            )}
+
+          </div>
+        )}
+
+      </div>
 
     </div>
-
   );
 };
 

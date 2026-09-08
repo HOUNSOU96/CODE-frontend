@@ -251,7 +251,7 @@ import Couture from "./pages/Etudiant/Metiers/Couture";
 import Cuisine from "./pages/Etudiant/Metiers/Cuisine";
 import Electricite from "./pages/Etudiant/Metiers/Electricite";
 import Mecanique from "./pages/Etudiant/Metiers/Mecanique";
-import Menuiserie from "./pages/Etudiant/Metiers/Menuiserie";
+import Menuiserie from "./pages/Etudiant/Metiers/Menuiserie";  
 
 
 
@@ -404,7 +404,7 @@ const protectedPages = [
     Component: Academique,
   },
 
-
+  
   // ========================================================
   // ANCIENNES PAGES HOME
   // ========================================================
@@ -823,7 +823,7 @@ const AnimatedRoutes: React.FC = () => {
 
         <Route
           path="/login"
-          element={<Login />}
+          element={<Layout><Login /></Layout>}
         />
 
         <Route
@@ -848,7 +848,7 @@ const AnimatedRoutes: React.FC = () => {
 
         <Route
           path="/admin/codes-activation"
-          element={<AdminActivationCodes />}
+          element={<Layout><AdminActivationCodes /></Layout>}
         />
 
         {/* ==================================================
@@ -993,166 +993,1074 @@ const AnimatedRoutes: React.FC = () => {
     AFRIQUE
 ============================================================ */}
 
+<Route
+  path="/domaines/afrique"
+  element={
+    <Layout>
+      <Afrique />
+    </Layout>
+  }
+/>
 
-<Route path="/domaines/afrique" element={<Afrique />} />
-<Route path="/domaines/afrique/cultures-africaines" element={<CulturesAfricaines />} />
-<Route path="/domaines/afrique/economie-africaine" element={<EconomieAfricaine />} />
-<Route path="/domaines/afrique/education-afrique" element={<EducationAfrique />} />
-<Route path="/domaines/afrique/entrepreneuriat-afrique" element={<EntrepreneuriatAfrique />} />
-<Route path="/domaines/afrique/geographie-afrique" element={<GeographieAfrique />} />
-<Route path="/domaines/afrique/histoire-afrique" element={<HistoireAfrique />} />
-<Route path="/domaines/afrique/langues-africaines" element={<LanguesAfricaines />} />
-<Route path="/domaines/afrique/sciences-technologies-afrique" element={<SciencesTechnologiesAfrique />} />
+<Route
+  path="/domaines/afrique/cultures-africaines"
+  element={
+    <Layout>
+      <CulturesAfricaines />
+    </Layout>
+  }
+/>
 
+<Route
+  path="/domaines/afrique/economie-africaine"
+  element={
+    <Layout>
+      <EconomieAfricaine />
+    </Layout>
+  }
+/>
 
+<Route
+  path="/domaines/afrique/education-afrique"
+  element={
+    <Layout>
+      <EducationAfrique />
+    </Layout>
+  }
+/>
 
-<Route path="/domaines/arts" element={<Arts />} />
-<Route path="/domaines/arts/arts-plastiques" element={<ArtsPlastiques />} />
-<Route path="/domaines/arts/cinema" element={<Cinema />} />
-<Route path="/domaines/arts/danse" element={<Danse />} />
-<Route path="/domaines/arts/musique" element={<Musique />} />
-<Route path="/domaines/arts/photographie" element={<Photographie />} />
-<Route path="/domaines/arts/theatre" element={<Theatre />} />
+<Route
+  path="/domaines/afrique/entrepreneuriat-afrique"
+  element={
+    <Layout>
+      <EntrepreneuriatAfrique />
+    </Layout>
+  }
+/>
 
+<Route
+  path="/domaines/afrique/geographie-afrique"
+  element={
+    <Layout>
+      <GeographieAfrique />
+    </Layout>
+  }
+/>
 
+<Route
+  path="/domaines/afrique/histoire-afrique"
+  element={
+    <Layout>
+      <HistoireAfrique />
+    </Layout>
+  }
+/>
 
-<Route path="/domaines/autres" element={<Autres />} />
-<Route path="/domaines/autres/competences-transversales" element={<CompetencesTransversales />} />
-<Route path="/domaines/autres/culture-generale" element={<CultureGenerale />} />
-<Route path="/domaines/autres/loisirs" element={<Loisirs />} />
-<Route path="/domaines/autres/vie-quotidienne" element={<VieQuotidienne />} />
+<Route
+  path="/domaines/afrique/langues-africaines"
+  element={
+    <Layout>
+      <LanguesAfricaines />
+    </Layout>
+  }
+/>
 
-
-
-<Route path="/domaines/developpement-humain" element={<DeveloppementHumain />} />
-<Route path="/domaines/developpement-humain/developpement-personnel" element={<DeveloppementPersonnel />} />
-<Route path="/domaines/developpement-humain/gestion-temps" element={<GestionTemps />} />
-<Route path="/domaines/developpement-humain/leadership" element={<Leadership />} />
-<Route path="/domaines/developpement-humain/pensee-critique" element={<PenseeCritique />} />
-<Route path="/domaines/developpement-humain/prise-decision" element={<PriseDecision />} />
-<Route path="/domaines/developpement-humain/relations-humaines" element={<RelationsHumaines />} />
-
-
-
-
-<Route path="/domaines/environnement" element={<Environnement />} />
-<Route path="/domaines/environnement/agriculture-durable" element={<AgricultureDurable />} />
-<Route path="/domaines/environnement/biodiversite" element={<Biodiversite />} />
-<Route path="/domaines/environnement/climat" element={<Climat />} />
-<Route path="/domaines/environnement/eau" element={<Eau />} />
-<Route path="/domaines/environnement/ecologie" element={<Ecologie />} />
-<Route path="/domaines/environnement/gestion-dechets" element={<GestionDechets />}
+<Route
+  path="/domaines/afrique/sciences-technologies-afrique"
+  element={
+    <Layout>
+      <SciencesTechnologiesAfrique />
+    </Layout>
+  }
 />
 
 
-<Route path="/domaines/finance" element={<Finance />} />
-<Route path="/domaines/finance/banque" element={<Banque />} />
-<Route path="/domaines/finance/comptabilite" element={<Comptabilite />} />
-<Route path="/domaines/finance/economie" element={<Economie />} />
-<Route path="/domaines/finance/finance-personnelle" element={<FinancePersonnelle />} />
-<Route path="/domaines/finance/fiscalite" element={<Fiscalite />} />
-<Route path="/domaines/finance/investissement" element={<Investissement />} />
+{/* ============================================================
+    ARTS
+============================================================ */}
+
+<Route
+  path="/domaines/arts"
+  element={
+    <Layout>
+      <Arts />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/arts/arts-plastiques"
+  element={
+    <Layout>
+      <ArtsPlastiques />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/arts/cinema"
+  element={
+    <Layout>
+      <Cinema />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/arts/danse"
+  element={
+    <Layout>
+      <Danse />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/arts/musique"
+  element={
+    <Layout>
+      <Musique />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/arts/photographie"
+  element={
+    <Layout>
+      <Photographie />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/arts/theatre"
+  element={
+    <Layout>
+      <Theatre />
+    </Layout>
+  }
+/>
 
 
+{/* ============================================================
+    AUTRES
+============================================================ */}
+
+<Route
+  path="/domaines/autres"
+  element={
+    <Layout>
+      <Autres />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/autres/competences-transversales"
+  element={
+    <Layout>
+      <CompetencesTransversales />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/autres/culture-generale"
+  element={
+    <Layout>
+      <CultureGenerale />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/autres/loisirs"
+  element={
+    <Layout>
+      <Loisirs />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/autres/vie-quotidienne"
+  element={
+    <Layout>
+      <VieQuotidienne />
+    </Layout>
+  }
+/>
 
 
-<Route path="/domaines/jeux" element={<Jeux />} />
-<Route path="/domaines/jeux/echecs" element={<Echecs />} />
-<Route path="/domaines/jeux/game-design" element={<GameDesign />} />
-<Route path="/domaines/jeux/jeux-mathematiques" element={<JeuxMathematiques />} />
-<Route path="/domaines/jeux/jeux-societe" element={<JeuxSociete />} />
-<Route path="/domaines/jeux/jeux-strategie" element={<JeuxStrategie />} />
-<Route path="/domaines/jeux/puzzles" element={<Puzzles />} />
+{/* ============================================================
+    DÉVELOPPEMENT HUMAIN
+============================================================ */}
+
+<Route
+  path="/domaines/developpement-humain"
+  element={
+    <Layout>
+      <DeveloppementHumain />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/developpement-humain/developpement-personnel"
+  element={
+    <Layout>
+      <DeveloppementPersonnel />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/developpement-humain/gestion-temps"
+  element={
+    <Layout>
+      <GestionTemps />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/developpement-humain/leadership"
+  element={
+    <Layout>
+      <Leadership />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/developpement-humain/pensee-critique"
+  element={
+    <Layout>
+      <PenseeCritique />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/developpement-humain/prise-decision"
+  element={
+    <Layout>
+      <PriseDecision />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/developpement-humain/relations-humaines"
+  element={
+    <Layout>
+      <RelationsHumaines />
+    </Layout>
+  }
+/>
 
 
+{/* ============================================================
+    ENVIRONNEMENT
+============================================================ */}
+
+<Route
+  path="/domaines/environnement"
+  element={
+    <Layout>
+      <Environnement />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/environnement/agriculture-durable"
+  element={
+    <Layout>
+      <AgricultureDurable />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/environnement/biodiversite"
+  element={
+    <Layout>
+      <Biodiversite />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/environnement/climat"
+  element={
+    <Layout>
+      <Climat />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/environnement/eau"
+  element={
+    <Layout>
+      <Eau />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/environnement/ecologie"
+  element={
+    <Layout>
+      <Ecologie />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/environnement/gestion-dechets"
+  element={
+    <Layout>
+      <GestionDechets />
+    </Layout>
+  }
+/>
 
 
+{/* ============================================================
+    FINANCE
+============================================================ */}
 
-<Route path="/domaines/metiers" element={<Metiers />} />
-<Route path="/domaines/metiers/agriculture" element={<Agriculture />} />
-<Route path="/domaines/metiers/construction" element={<Construction />} />
-<Route path="/domaines/metiers/couture" element={<Couture />} />
-<Route path="/domaines/metiers/cuisine" element={<Cuisine />} />
-<Route path="/domaines/metiers/electricite" element={<Electricite />} />
-<Route path="/domaines/metiers/mecanique" element={<Mecanique />} />
-<Route path="/domaines/metiers/menuiserie" element={<Menuiserie />} />
+<Route
+  path="/domaines/finance"
+  element={
+    <Layout>
+      <Finance />
+    </Layout>
+  }
+/>
 
+<Route
+  path="/domaines/finance/banque"
+  element={
+    <Layout>
+      <Banque />
+    </Layout>
+  }
+/>
 
+<Route
+  path="/domaines/finance/comptabilite"
+  element={
+    <Layout>
+      <Comptabilite />
+    </Layout>
+  }
+/>
 
-<Route path="/domaines/pedagogie" element={<Pedagogie />} />
-<Route path="/domaines/pedagogie/didactique" element={<Didactique />} />
-<Route path="/domaines/pedagogie/evaluation" element={<EvaluationPedagogique />} />
-<Route path="/domaines/pedagogie/ingenierie-pedagogique" element={<IngenieriePedagogique />} />
-<Route path="/domaines/pedagogie/pedagogie-generale" element={<PedagogieGenerale />} />
-<Route path="/domaines/pedagogie/psychologie-education" element={<PsychologieEducation />} />
-<Route path="/domaines/pedagogie/technologies-educatives" element={<TechnologiesEducatives />} />
+<Route
+  path="/domaines/finance/economie"
+  element={
+    <Layout>
+      <Economie />
+    </Layout>
+  }
+/>
 
+<Route
+  path="/domaines/finance/finance-personnelle"
+  element={
+    <Layout>
+      <FinancePersonnelle />
+    </Layout>
+  }
+/>
 
+<Route
+  path="/domaines/finance/fiscalite"
+  element={
+    <Layout>
+      <Fiscalite />
+    </Layout>
+  }
+/>
 
-<Route path="/domaines/professionnelle" element={<Professionnelle />} />
-<Route path="/domaines/professionnelle/commerce" element={<Commerce />} />
-<Route path="/domaines/professionnelle/communication" element={<Communication />} />
-<Route path="/domaines/professionnelle/entrepreneuriat" element={<Entrepreneuriat />} />
-<Route path="/domaines/professionnelle/gestion" element={<Gestion />} />
-<Route path="/domaines/professionnelle/management" element={<Management />} />
-<Route path="/domaines/professionnelle/marketing" element={<Marketing />} />
-
-
-
-
-<Route path="/domaines/recherche" element={<Recherche />} />
-<Route path="/domaines/recherche/analyse-donnees" element={<AnalyseDonnees />} />
-<Route path="/domaines/recherche/bibliographie" element={<Bibliographie />} />
-<Route path="/domaines/recherche/communication-scientifique" element={<CommunicationScientifique />} />
-<Route path="/domaines/recherche/methodologie" element={<Methodologie />} />
-<Route path="/domaines/recherche/redaction-scientifique" element={<RedactionScientifique />} />
-<Route path="/domaines/recherche/statistiques" element={<StatistiquesRecherche />} />
-
-
-
-<Route path="/domaines/sante" element={<Sante />} />
-<Route path="/domaines/sante/hygiene" element={<Hygiene />} />
-<Route path="/domaines/sante/medecine" element={<Medecine />} />
-<Route path="/domaines/sante/nutrition" element={<Nutrition />} />
-<Route path="/domaines/sante/pharmacie" element={<Pharmacie />} />
-<Route path="/domaines/sante/sante-publique" element={<SantePublique />} />
-<Route path="/domaines/sante/soins-infirmiers" element={<SoinsInfirmiers />} />
-
-
-<Route path="/domaines/sciences-innovation" element={<SciencesInnovation />} />
-<Route path="/domaines/sciences-innovation/astronomie" element={<Astronomie />} />
-<Route path="/domaines/sciences-innovation/biotechnologies" element={<Biotechnologies />} />
-<Route path="/domaines/sciences-innovation/materiaux" element={<Materiaux />} />
-<Route path="/domaines/sciences-innovation/nanotechnologies" element={<Nanotechnologies />} />
-<Route path="/domaines/sciences-innovation/sciences-chimiques" element={<SciencesChimiques />} />
-<Route path="/domaines/sciences-innovation/sciences-physiques" element={<SciencesPhysiques />} />
-<Route path="/domaines/sciences-innovation/sciences-spatiales" element={<SciencesSpatiales />} />
-
-
-
-<Route path="/domaines/societe" element={<Societe />} />
-<Route path="/domaines/societe/anthropologie" element={<Anthropologie />} />
-<Route path="/domaines/societe/citoyennete" element={<Citoyennete />} />
-<Route path="/domaines/societe/droit" element={<Droit />} />
-<Route path="/domaines/societe/geographie" element={<Geographie />} />
-<Route path="/domaines/societe/histoire" element={<Histoire />} />
-<Route path="/domaines/societe/institutions" element={<Institutions />} />
-<Route path="/domaines/societe/medias" element={<Medias />} />
-<Route path="/domaines/societe/sociologie" element={<Sociologie />} />
+<Route
+  path="/domaines/finance/investissement"
+  element={
+    <Layout>
+      <Investissement />
+    </Layout>
+  }
+/>
 
 
+{/* ============================================================
+    JEUX
+============================================================ */}
+
+<Route
+  path="/domaines/jeux"
+  element={
+    <Layout>
+      <Jeux />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/jeux/echecs"
+  element={
+    <Layout>
+      <Echecs />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/jeux/game-design"
+  element={
+    <Layout>
+      <GameDesign />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/jeux/jeux-mathematiques"
+  element={
+    <Layout>
+      <JeuxMathematiques />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/jeux/jeux-societe"
+  element={
+    <Layout>
+      <JeuxSociete />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/jeux/jeux-strategie"
+  element={
+    <Layout>
+      <JeuxStrategie />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/jeux/puzzles"
+  element={
+    <Layout>
+      <Puzzles />
+    </Layout>
+  }
+/>
 
 
-<Route path="/domaines/technologies" element={<Technologies />} />
-<Route path="/domaines/technologies/cybersecurite" element={<Cybersecurite />} />
-<Route path="/domaines/technologies/data-science" element={<DataScience />} />
-<Route path="/domaines/technologies/design-numerique" element={<DesignNumerique />} />
-<Route path="/domaines/technologies/electronique" element={<Electronique />} />
-<Route path="/domaines/technologies/intelligence-artificielle" element={<IntelligenceArtificielle />} />
-<Route path="/domaines/technologies/programmation" element={<Programmation />} />
-<Route path="/domaines/technologies/reseaux" element={<Reseaux />} />
-<Route path="/domaines/technologies/robotique" element={<Robotique />} />
+{/* ============================================================
+    MÉTIERS
+============================================================ */}
 
+<Route
+  path="/domaines/metiers"
+  element={
+    <Layout>
+      <Metiers />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/metiers/agriculture"
+  element={
+    <Layout>
+      <Agriculture />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/metiers/construction"
+  element={
+    <Layout>
+      <Construction />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/metiers/couture"
+  element={
+    <Layout>
+      <Couture />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/metiers/cuisine"
+  element={
+    <Layout>
+      <Cuisine />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/metiers/electricite"
+  element={
+    <Layout>
+      <Electricite />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/metiers/mecanique"
+  element={
+    <Layout>
+      <Mecanique />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/metiers/menuiserie"
+  element={
+    <Layout>
+      <Menuiserie />
+    </Layout>
+  }
+/>
+
+
+{/* ============================================================
+    PÉDAGOGIE
+============================================================ */}
+
+<Route
+  path="/domaines/pedagogie"
+  element={
+    <Layout>
+      <Pedagogie />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/pedagogie/didactique"
+  element={
+    <Layout>
+      <Didactique />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/pedagogie/evaluation"
+  element={
+    <Layout>
+      <EvaluationPedagogique />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/pedagogie/ingenierie-pedagogique"
+  element={
+    <Layout>
+      <IngenieriePedagogique />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/pedagogie/pedagogie-generale"
+  element={
+    <Layout>
+      <PedagogieGenerale />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/pedagogie/psychologie-education"
+  element={
+    <Layout>
+      <PsychologieEducation />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/pedagogie/technologies-educatives"
+  element={
+    <Layout>
+      <TechnologiesEducatives />
+    </Layout>
+  }
+/>
+
+
+{/* ============================================================
+    PROFESSIONNELLE
+============================================================ */}
+
+<Route
+  path="/domaines/professionnelle"
+  element={
+    <Layout>
+      <Professionnelle />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/professionnelle/commerce"
+  element={
+    <Layout>
+      <Commerce />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/professionnelle/communication"
+  element={
+    <Layout>
+      <Communication />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/professionnelle/entrepreneuriat"
+  element={
+    <Layout>
+      <Entrepreneuriat />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/professionnelle/gestion"
+  element={
+    <Layout>
+      <Gestion />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/professionnelle/management"
+  element={
+    <Layout>
+      <Management />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/professionnelle/marketing"
+  element={
+    <Layout>
+      <Marketing />
+    </Layout>
+  }
+/>
+
+
+{/* ============================================================
+    RECHERCHE
+============================================================ */}
+
+<Route
+  path="/domaines/recherche"
+  element={
+    <Layout>
+      <Recherche />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/recherche/analyse-donnees"
+  element={
+    <Layout>
+      <AnalyseDonnees />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/recherche/bibliographie"
+  element={
+    <Layout>
+      <Bibliographie />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/recherche/communication-scientifique"
+  element={
+    <Layout>
+      <CommunicationScientifique />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/recherche/methodologie"
+  element={
+    <Layout>
+      <Methodologie />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/recherche/redaction-scientifique"
+  element={
+    <Layout>
+      <RedactionScientifique />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/recherche/statistiques"
+  element={
+    <Layout>
+      <StatistiquesRecherche />
+    </Layout>
+  }
+/>
+
+
+{/* ============================================================
+    SANTÉ
+============================================================ */}
+
+<Route
+  path="/domaines/sante"
+  element={
+    <Layout>
+      <Sante />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/sante/hygiene"
+  element={
+    <Layout>
+      <Hygiene />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/sante/medecine"
+  element={
+    <Layout>
+      <Medecine />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/sante/nutrition"
+  element={
+    <Layout>
+      <Nutrition />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/sante/pharmacie"
+  element={
+    <Layout>
+      <Pharmacie />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/sante/sante-publique"
+  element={
+    <Layout>
+      <SantePublique />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/sante/soins-infirmiers"
+  element={
+    <Layout>
+      <SoinsInfirmiers />
+    </Layout>
+  }
+/>
+
+
+{/* ============================================================
+    SCIENCES & INNOVATION
+============================================================ */}
+
+<Route
+  path="/domaines/sciences-innovation"
+  element={
+    <Layout>
+      <SciencesInnovation />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/sciences-innovation/astronomie"
+  element={
+    <Layout>
+      <Astronomie />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/sciences-innovation/biotechnologies"
+  element={
+    <Layout>
+      <Biotechnologies />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/sciences-innovation/materiaux"
+  element={
+    <Layout>
+      <Materiaux />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/sciences-innovation/nanotechnologies"
+  element={
+    <Layout>
+      <Nanotechnologies />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/sciences-innovation/sciences-chimiques"
+  element={
+    <Layout>
+      <SciencesChimiques />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/sciences-innovation/sciences-physiques"
+  element={
+    <Layout>
+      <SciencesPhysiques />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/sciences-innovation/sciences-spatiales"
+  element={
+    <Layout>
+      <SciencesSpatiales />
+    </Layout>
+  }
+/>
+
+
+{/* ============================================================
+    SOCIÉTÉ
+============================================================ */}
+
+<Route
+  path="/domaines/societe"
+  element={
+    <Layout>
+      <Societe />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/societe/anthropologie"
+  element={
+    <Layout>
+      <Anthropologie />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/societe/citoyennete"
+  element={
+    <Layout>
+      <Citoyennete />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/societe/droit"
+  element={
+    <Layout>
+      <Droit />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/societe/geographie"
+  element={
+    <Layout>
+      <Geographie />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/societe/histoire"
+  element={
+    <Layout>
+      <Histoire />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/societe/institutions"
+  element={
+    <Layout>
+      <Institutions />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/societe/medias"
+  element={
+    <Layout>
+      <Medias />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/societe/sociologie"
+  element={
+    <Layout>
+      <Sociologie />
+    </Layout>
+  }
+/>
+
+
+{/* ============================================================
+    TECHNOLOGIES
+============================================================ */}
+
+<Route
+  path="/domaines/technologies"
+  element={
+    <Layout>
+      <Technologies />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/technologies/cybersecurite"
+  element={
+    <Layout>
+      <Cybersecurite />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/technologies/data-science"
+  element={
+    <Layout>
+      <DataScience />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/technologies/design-numerique"
+  element={
+    <Layout>
+      <DesignNumerique />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/technologies/electronique"
+  element={
+    <Layout>
+      <Electronique />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/technologies/intelligence-artificielle"
+  element={
+    <Layout>
+      <IntelligenceArtificielle />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/technologies/programmation"
+  element={
+    <Layout>
+      <Programmation />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/technologies/reseaux"
+  element={
+    <Layout>
+      <Reseaux />
+    </Layout>
+  }
+/>
+
+<Route
+  path="/domaines/technologies/robotique"
+  element={
+    <Layout>
+      <Robotique />
+    </Layout>
+  }
+/>
 
 
 
