@@ -97,11 +97,27 @@ const Login: React.FC = () => {
         }
 
         // 🔹 Redirection selon rôle
-        if (dataUser.is_admin) {
-          navigate("/liste-inscrits");
-        } else {
-          navigate("/page2");
-        }
+        if (
+  dataUser.enseignant &&
+  dataUser.enseignant_actif &&
+  !dataUser.teacher_profile_validated
+) {
+  // Compte administrateur + enseignant :
+  // le profil enseignant doit être complété en premier.
+  navigate("/enseignant/profil");
+} else if (
+  dataUser.enseignant &&
+  dataUser.enseignant_actif
+) {
+  // Enseignant actif avec profil validé
+  navigate("/enseignant");
+} else if (dataUser.is_admin) {
+  // Administrateur uniquement
+  navigate("/liste-inscrits");
+} else {
+  // Utilisateur normal
+  navigate("/page2");
+}
       } else {
         throw new Error("Réponse invalide du serveur");
       }

@@ -56,6 +56,8 @@ import AdminDocuments from "./pages/AdminDocuments";
 import AdminActivationCodes from "./pages/AdminActivationCodes";
 import ListeInscrits from "./pages/ListeInscrits";
 import ConversationsEnseignantsAdmin from "./pages/admin/ConversationsEnseignantsAdmin";
+import ProfilEnseignant from "./pages/Enseignant/ProfilEnseignant";
+import Enseignant from "./pages/Enseignant/Enseignant";
 // ==========================================================
 // PAGES PROTÉGÉES — ANCIENNE STRUCTURE
 // ==========================================================
@@ -2234,6 +2236,38 @@ const AnimatedRoutes: React.FC = () => {
     </RequireAuth>
   }
 />
+
+{/* ==================================================
+    PROFIL — ENSEIGNANT
+    ================================================== */}
+
+<Route
+  path="/enseignant/profil"
+  element={
+    <RequireAuth>
+      <Layout>
+        <ProfilEnseignant />
+      </Layout>
+    </RequireAuth>
+  }
+/>
+
+
+{/* ==================================================
+    ESPACE PRINCIPAL — ENSEIGNANT
+    ================================================== */}
+
+<Route
+  path="/enseignant"
+  element={
+    <RequireAuth>
+      <Layout>
+        <Enseignant />
+      </Layout>
+    </RequireAuth>
+  }
+/>
+
 
 
 {/* ==================================================

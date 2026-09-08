@@ -11,4 +11,5 @@ export type User = {
 
   enseignant?: boolean;
   enseignant_actif?: boolean;
+  teacher_profile_validated?: boolean;
 };
