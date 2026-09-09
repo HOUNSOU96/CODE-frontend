@@ -35,7 +35,7 @@ import ConversationEnseignant from "./pages/Enseignant/ConversationEnseignant";
 import QuestionsAdmin from "./pages/admin/QuestionsAdmin";
 import ConversationAdmin from "./pages/admin/ConversationAdmin";
 import GestionEnseignants from "./pages/admin/GestionEnseignants";
-
+import EnsProfil from "./pages/Enseignant/EnsProfil";
 
 
 // ==========================================================
@@ -878,17 +878,6 @@ const AnimatedRoutes: React.FC = () => {
 
 
 
-
- <Route
-  path="/domaines/academique"
-  element={
-    <RequireAuth>
-      <Layout>
-        <Academique />
-      </Layout>
-    </RequireAuth>
-  }
-/>
 
 
 
@@ -2268,6 +2257,15 @@ const AnimatedRoutes: React.FC = () => {
   }
 />
 
+
+<Route
+  path="/enseignant/profil/:email"
+  element={
+    <RequireAuth>
+      <EnsProfil />
+    </RequireAuth>
+  }
+/>
 
 
 {/* ==================================================

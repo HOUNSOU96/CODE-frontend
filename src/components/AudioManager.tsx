@@ -10,7 +10,7 @@ const audioPlaylist = [
 ];
 
 // Pages où la musique doit s’arrêter automatiquement
-const shouldPauseAudio = ["/accueil", "/inscription", "/remediationvideo"];
+const shouldPauseAudio = ["/activation", "/accueil", "/inscription", "/remediationvideo"];
 
 // Global audio partagé
 let globalAudio: HTMLAudioElement | null = null;

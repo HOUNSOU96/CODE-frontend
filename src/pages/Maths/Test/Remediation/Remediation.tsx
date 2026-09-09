@@ -1,4 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import {
   useLocation,
@@ -40,6 +44,16 @@ type QuestionRemediation = {
 
   classe?: string | null;
 
+  /*
+   * ========================================================
+   * ENSEIGNANT
+   * ========================================================
+   *
+   * Email de l'enseignant ayant proposé la question.
+   */
+
+  enseignant?: string | null;
+
   situation?: {
     texte?: string;
     image?: string;
@@ -50,6 +64,37 @@ type QuestionRemediation = {
   [key: string]: any;
 };
 
+
+/*
+ * ==========================================================
+ * PROFIL PUBLIC DE L'ENSEIGNANT
+ * ==========================================================
+ */
+
+type TeacherProfile = {
+  id?: number;
+
+  nom: string;
+
+  prenom: string;
+
+  email: string;
+
+  telephone?: string | null;
+
+  pays_residence?: string | null;
+
+  teacher_photo?: string | null;
+
+  subjects?: string[];
+};
+
+
+/*
+ * ==========================================================
+ * RÉSULTATS
+ * ==========================================================
+ */
 
 type ResultatType = {
   note: number;
@@ -77,6 +122,12 @@ type ResultatType = {
   [key: string]: any;
 };
 
+
+/*
+ * ==========================================================
+ * LOCATION STATE
+ * ==========================================================
+ */
 
 type LocationState = {
   resultats?: ResultatType;
@@ -123,16 +174,19 @@ const niveauxSansSerie = [
 
 const Remediation: React.FC = () => {
 
-
+  /*
+   * ========================================================
+   * REMONTER EN HAUT À L'ARRIVÉE
+   * ========================================================
+   */
 
   useEffect(() => {
-  // Remonter complètement en haut à l'arrivée sur la page
-  window.scrollTo({
-    top: 0,
-    left: 0,
-    behavior: "instant",
-  });
-}, []);
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: "instant",
+    });
+  }, []);
 
 
   const location = useLocation();
@@ -216,14 +270,35 @@ const Remediation: React.FC = () => {
 
   /*
    * ========================================================
-   * NIVEAU / SÉRIE
+   * PROFILS DES ENSEIGNANTS
    * ========================================================
    *
-   * Ces variables servent uniquement pour le contexte
-   * général de la page.
+   * La clé est l'adresse email de l'enseignant.
    *
-   * Pour chaque question, la classe affichée sera
-   * question.niveau.
+   * Exemple :
+   *
+   * {
+   *   "enseignant@email.com": {
+   *      nom: "...",
+   *      prenom: "...",
+   *      ...
+   *   }
+   * }
+   */
+
+  const [teacherProfiles, setTeacherProfiles] =
+    useState<
+      Record<
+        string,
+        TeacherProfile | null
+      >
+    >({});
+
+
+  /*
+   * ========================================================
+   * NIVEAU / SÉRIE
+   * ========================================================
    */
 
   const niveau =
@@ -367,6 +442,7 @@ const Remediation: React.FC = () => {
               {
                 params: {
                   niveau,
+
                   serie:
                     serie ||
                     undefined,
@@ -433,7 +509,8 @@ const Remediation: React.FC = () => {
   const toutesLesQuestions =
     useMemo<QuestionRemediation[]>(() => {
 
-      let questions: QuestionRemediation[] = [];
+      let questions:
+        QuestionRemediation[] = [];
 
 
       /*
@@ -528,6 +605,170 @@ const Remediation: React.FC = () => {
 
   /*
    * ========================================================
+   * RÉCUPÉRATION DES PROFILS ENSEIGNANTS
+   * ========================================================
+   *
+   * On récupère tous les emails présents dans les questions.
+   *
+   * Le Set évite de faire plusieurs requêtes pour le même
+   * enseignant.
+   */
+
+  useEffect(() => {
+
+    const recupererProfilsEnseignants =
+      async () => {
+
+        /*
+         * --------------------------------------------------
+         * EXTRAIRE LES EMAILS UNIQUES
+         * --------------------------------------------------
+         */
+
+        const emails = [
+          ...new Set(
+            toutesLesQuestions
+              .map(
+                (question) =>
+                  question.enseignant
+              )
+              .filter(
+                (
+                  email
+                ): email is string =>
+                  typeof email ===
+                    "string" &&
+                  email.trim() !== ""
+              )
+          ),
+        ];
+
+
+        /*
+         * Aucun enseignant
+         */
+
+        if (
+          emails.length === 0
+        ) {
+
+          setTeacherProfiles({});
+
+          return;
+
+        }
+
+
+        /*
+         * --------------------------------------------------
+         * PROFILS
+         * --------------------------------------------------
+         */
+
+        const profiles:
+          Record<
+            string,
+            TeacherProfile | null
+          > = {};
+
+
+        /*
+         * --------------------------------------------------
+         * UNE REQUÊTE PAR ENSEIGNANT
+         * --------------------------------------------------
+         */
+
+        await Promise.all(
+          emails.map(
+            async (email) => {
+
+              /*
+               * Si le profil est déjà en mémoire,
+               * inutile de refaire la requête.
+               */
+
+              if (
+                teacherProfiles[email]
+              ) {
+
+                profiles[email] =
+                  teacherProfiles[email];
+
+                return;
+
+              }
+
+
+              try {
+
+                const res =
+                  await api.get(
+                    "/api/teacher/public-profile",
+                    {
+                      params: {
+                        email,
+                      },
+                    }
+                  );
+
+
+                profiles[email] =
+                  res.data;
+
+
+                console.log(
+                  "👨‍🏫 Profil enseignant récupéré :",
+                  res.data
+                );
+
+              } catch (error) {
+
+                console.error(
+                  `❌ Impossible de récupérer le profil de ${email}`,
+                  error
+                );
+
+                profiles[email] =
+                  null;
+
+              }
+
+            }
+          )
+        );
+
+
+        /*
+         * --------------------------------------------------
+         * ENREGISTRER LES PROFILS
+         * --------------------------------------------------
+         */
+
+        setTeacherProfiles(
+          (previous) => ({
+            ...previous,
+            ...profiles,
+          })
+        );
+
+      };
+
+
+    if (
+      toutesLesQuestions.length > 0
+    ) {
+
+      recupererProfilsEnseignants();
+
+    }
+
+  }, [
+    toutesLesQuestions,
+  ]);
+
+
+  /*
+   * ========================================================
    * DEBUG QUESTIONS
    * ========================================================
    */
@@ -552,6 +793,7 @@ const Remediation: React.FC = () => {
       toutesLesQuestions
     );
 
+
     toutesLesQuestions.forEach(
       (
         question,
@@ -561,27 +803,36 @@ const Remediation: React.FC = () => {
         console.log(
           `📌 Question ${index + 1}`,
           {
-            niveau: question.niveau,
+            niveau:
+              question.niveau,
+
             bonne_reponse:
               question.bonne_reponse ??
               question.bonneReponse,
+
             reponse_apprenant:
               question.reponse_apprenant ??
               question.reponseUser ??
               question.reponse_user,
-            choix: question.choix,
+
+            choix:
+              question.choix,
+
+            enseignant:
+              question.enseignant,
           }
         );
 
       }
     );
 
+
     console.log(
       "================================================"
     );
 
   }, [
-    toutesLesQuestions
+    toutesLesQuestions,
   ]);
 
 
@@ -600,8 +851,11 @@ const Remediation: React.FC = () => {
         valeur === undefined ||
         valeur === null
       ) {
+
         return "";
+
       }
+
 
       return String(valeur)
         .trim()
@@ -628,14 +882,20 @@ const Remediation: React.FC = () => {
     ): string | null => {
 
       if (
-        !Array.isArray(question.choix)
+        !Array.isArray(
+          question.choix
+        )
       ) {
+
         return null;
+
       }
 
 
       const reponseNormalisee =
-        normaliser(reponse);
+        normaliser(
+          reponse
+        );
 
 
       if (
@@ -643,7 +903,9 @@ const Remediation: React.FC = () => {
           reponseNormalisee
         )
       ) {
+
         return null;
+
       }
 
 
@@ -656,7 +918,9 @@ const Remediation: React.FC = () => {
         index < 0 ||
         index >= question.choix.length
       ) {
+
         return null;
+
       }
 
 
@@ -671,9 +935,6 @@ const Remediation: React.FC = () => {
    * ========================================================
    * BONNE RÉPONSE
    * ========================================================
-   *
-   * Cette fonction retourne TOUJOURS le contenu du choix,
-   * jamais uniquement la lettre.
    */
 
   const getBonneReponseAffichage =
@@ -689,7 +950,9 @@ const Remediation: React.FC = () => {
       if (
         bonneReponse === undefined ||
         bonneReponse === null ||
-        String(bonneReponse).trim() === ""
+        String(
+          bonneReponse
+        ).trim() === ""
       ) {
 
         return "Non précisée";
@@ -698,13 +961,10 @@ const Remediation: React.FC = () => {
 
 
       const bonneReponseTexte =
-        String(bonneReponse).trim();
+        String(
+          bonneReponse
+        ).trim();
 
-
-      /*
-       * Cas :
-       * bonne_reponse = "a"
-       */
 
       const contenuChoix =
         getChoixDepuisLettre(
@@ -722,11 +982,6 @@ const Remediation: React.FC = () => {
       }
 
 
-      /*
-       * Cas :
-       * bonne_reponse contient déjà le texte.
-       */
-
       return bonneReponseTexte;
 
     };
@@ -736,16 +991,6 @@ const Remediation: React.FC = () => {
    * ========================================================
    * RÉPONSE APPRENANT
    * ========================================================
-   *
-   * Cette fonction transforme :
-   *
-   * "a" → contenu du choix A
-   * "b" → contenu du choix B
-   * "c" → contenu du choix C
-   * "d" → contenu du choix D
-   *
-   * Si le backend fournit déjà le texte,
-   * le texte est conservé.
    */
 
   const getReponseUserAffichage =
@@ -762,7 +1007,9 @@ const Remediation: React.FC = () => {
       if (
         reponseUser === undefined ||
         reponseUser === null ||
-        String(reponseUser).trim() === ""
+        String(
+          reponseUser
+        ).trim() === ""
       ) {
 
         return "Aucune réponse";
@@ -771,12 +1018,10 @@ const Remediation: React.FC = () => {
 
 
       const reponseTexte =
-        String(reponseUser).trim();
+        String(
+          reponseUser
+        ).trim();
 
-
-      /*
-       * Conversion lettre → contenu du choix.
-       */
 
       const contenuChoix =
         getChoixDepuisLettre(
@@ -794,10 +1039,6 @@ const Remediation: React.FC = () => {
       }
 
 
-      /*
-       * La réponse est déjà le contenu.
-       */
-
       return reponseTexte;
 
     };
@@ -807,19 +1048,6 @@ const Remediation: React.FC = () => {
    * ========================================================
    * VÉRIFIER SI LA QUESTION EST CORRECTE
    * ========================================================
-   *
-   * Cette fonction gère les deux formats :
-   *
-   * 1. bonne_reponse = "d"
-   *    reponse_apprenant = "d"
-   *
-   * 2. bonne_reponse = "La bonne réponse"
-   *    reponse_apprenant = "La bonne réponse"
-   *
-   * Elle gère également :
-   *
-   * bonne_reponse = "La bonne réponse"
-   * reponse_apprenant = "d"
    */
 
   const estQuestionCorrecte =
@@ -837,12 +1065,6 @@ const Remediation: React.FC = () => {
         question.bonne_reponse ??
         question.bonneReponse;
 
-
-      /*
-       * Une réponse ou une bonne réponse absente
-       * signifie que la question ne peut pas être
-       * considérée comme correcte.
-       */
 
       if (
         reponseUser === undefined ||
@@ -879,20 +1101,17 @@ const Remediation: React.FC = () => {
 
 
       /*
-       * ------------------------------------------------------
        * CAS 1 :
        * Les deux réponses sont des lettres.
-       *
-       * Exemple :
-       *
-       * apprenant = "d"
-       * bonne     = "d"
-       * ------------------------------------------------------
        */
 
       if (
-        /^[a-e]$/.test(userNormalise) &&
-        /^[a-e]$/.test(bonneNormalisee)
+        /^[a-e]$/.test(
+          userNormalise
+        ) &&
+        /^[a-e]$/.test(
+          bonneNormalisee
+        )
       ) {
 
         return (
@@ -904,21 +1123,18 @@ const Remediation: React.FC = () => {
 
 
       /*
-       * ------------------------------------------------------
        * CAS 2 :
-       * L'apprenant répond par une lettre mais la bonne
-       * réponse contient le texte du choix.
-       *
-       * Exemple :
-       *
-       * apprenant = "d"
-       * bonne     = "Un angle qui mesure 360 degrés"
-       * ------------------------------------------------------
+       * L'apprenant répond par une lettre,
+       * la bonne réponse contient le texte.
        */
 
       if (
-        /^[a-e]$/.test(userNormalise) &&
-        Array.isArray(question.choix)
+        /^[a-e]$/.test(
+          userNormalise
+        ) &&
+        Array.isArray(
+          question.choix
+        )
       ) {
 
         const contenuChoixUser =
@@ -945,21 +1161,18 @@ const Remediation: React.FC = () => {
 
 
       /*
-       * ------------------------------------------------------
        * CAS 3 :
-       * La bonne réponse est une lettre mais l'apprenant
-       * a envoyé directement le contenu du choix.
-       *
-       * Exemple :
-       *
-       * bonne     = "d"
-       * apprenant = "Un angle qui mesure 360 degrés"
-       * ------------------------------------------------------
+       * La bonne réponse est une lettre,
+       * l'apprenant fournit le texte.
        */
 
       if (
-        /^[a-e]$/.test(bonneNormalisee) &&
-        Array.isArray(question.choix)
+        /^[a-e]$/.test(
+          bonneNormalisee
+        ) &&
+        Array.isArray(
+          question.choix
+        )
       ) {
 
         const contenuChoixBonne =
@@ -986,10 +1199,8 @@ const Remediation: React.FC = () => {
 
 
       /*
-       * ------------------------------------------------------
        * CAS 4 :
-       * Les deux réponses sont directement du texte.
-       * ------------------------------------------------------
+       * Les deux sont directement du texte.
        */
 
       return (
@@ -1026,22 +1237,6 @@ const Remediation: React.FC = () => {
    * ========================================================
    * CLASSE / NIVEAU DE LA QUESTION
    * ========================================================
-   *
-   * IMPORTANT :
-   *
-   * On utilise UNIQUEMENT question.niveau.
-   *
-   * On ne met plus :
-   *
-   * question.classe
-   * niveau de l'apprenant
-   *
-   * Ainsi une question de niveau 6e affichera :
-   *
-   * 🎓 Classe
-   * 6e
-   *
-   * même si l'apprenant est en 3e.
    */
 
   const getClasseQuestion =
@@ -1291,539 +1486,122 @@ const Remediation: React.FC = () => {
 
   return (
 
-    
-
-     <div className="w-full max-w-5xl mx-auto bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-6 sm:p-10 space-y-8">
+    <div className="w-full max-w-5xl mx-auto bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-6 sm:p-10 space-y-8">
 
 
-        {/* ==================================================
-            EN-TÊTE
-        ================================================== */}
+      {/* ==================================================
+          EN-TÊTE
+      ================================================== */}
 
-        <div className="text-center">
+      <div className="text-center">
 
-          <h1 className="text-4xl font-extrabold text-center text-blue-700">
-          
+        <h1 className="text-4xl font-extrabold text-center text-blue-700">
 
-            REMÉDIATION: {" "}
-            {titreNiveau}
+          REMÉDIATION:{" "}
 
-          </h1>
+          {titreNiveau}
 
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+        </h1>
 
-            Consultez les résultats détaillés
-            de votre évaluation avant de
-            poursuivre le programme. Ce contenu disparait lorsque vous cliquez sur CONTINUEZ en bas de la page
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+
+          Consultez les résultats détaillés
+          de votre évaluation avant de
+          poursuivre le programme. Ce contenu
+          disparait lorsque vous cliquez sur
+          CONTINUEZ en bas de la page
+
+        </p>
+
+      </div>
+
+
+      {/* ==================================================
+          ERREUR
+      ================================================== */}
+
+      {errorResultats && (
+
+        <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 p-5 rounded-lg">
+
+          <p className="text-red-700 dark:text-red-300 font-semibold">
+
+            ❌ {errorResultats}
 
           </p>
 
         </div>
 
+      )}
 
-        {/* ==================================================
-            ERREUR
-        ================================================== */}
 
-        {errorResultats && (
+      {/* ==================================================
+          INFORMATIONS GÉNÉRALES
+      ================================================== */}
 
-          <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 p-5 rounded-lg">
+      {resultats && (
 
-            <p className="text-red-700 dark:text-red-300 font-semibold">
+        <section className="bg-gray-100 dark:bg-gray-700 p-6 rounded-xl shadow-md">
 
-              ❌ {errorResultats}
+          <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">
 
-            </p>
+            📊 Résultats de l'évaluation
 
-          </div>
+          </h2>
 
-        )}
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-        {/* ==================================================
-            INFORMATIONS GÉNÉRALES
-        ================================================== */}
 
-        {resultats && (
+            {/* NOTE */}
 
-          <section className="bg-gray-100 dark:bg-gray-700 p-6 rounded-xl shadow-md">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
 
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
 
-              📊 Résultats de l'évaluation
-
-            </h2>
-
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-
-              {/* NOTE */}
-
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-
-                  Note
-
-                </p>
-
-                <p className="text-2xl font-bold text-green-600">
-
-                  {resultats.note}/20
-
-                </p>
-
-              </div>
-
-
-              {/* MENTION */}
-
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-
-                  Mention
-
-                </p>
-
-                <p className="font-bold text-blue-700 dark:text-blue-300">
-
-                  {resultats.mention}
-
-                </p>
-
-              </div>
-
-
-
-              {/* QUESTIONS */}
-
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-
-                  Nombre de questions
-
-                </p>
-
-                <p className="text-2xl font-bold text-blue-600">
-
-                  {toutesLesQuestions.length}
-
-                </p>
-
-              </div>
-
-
-              {/* NOTIONS */}
-
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-
-                  Nombre de notions non acquises
-
-                </p>
-
-                <p className="text-2xl font-bold text-purple-600">
-
-                  {notionsBrutes.length}
-
-                </p>
-
-              </div>
-
-            </div>
-
-          </section>
-
-        )}
-
-
-        {/* ==================================================
-            RÉSULTATS DÉTAILLÉS
-        ================================================== */}
-
-        <section className="bg-gray-50 dark:bg-gray-700 p-6 rounded-xl shadow-inner">
-
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6 border-b border-gray-300 dark:border-gray-600 pb-3">
-
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-
-              Analyse des réponses
-
-            </h2>
-
-            <span className="inline-flex items-center justify-center bg-blue-600 text-white px-4 py-2 rounded-full font-semibold">
-
-              {toutesLesQuestions.length} question
-              {toutesLesQuestions.length > 1
-                ? "s"
-                : ""}
-
-            </span>
-
-          </div>
-
-
-          {/* ==================================================
-              AUCUNE QUESTION
-          ================================================== */}
-
-          {toutesLesQuestions.length === 0 && (
-
-            <div className="bg-yellow-50 dark:bg-yellow-900/30 border-l-4 border-yellow-500 p-6 rounded-lg">
-
-              <p className="text-yellow-800 dark:text-yellow-200 font-semibold text-center">
-
-                ⚠️ Aucune question n'a été reçue.
+                Note
 
               </p>
 
-              <p className="text-sm text-yellow-700 dark:text-yellow-300 text-center mt-2">
+              <p className="text-2xl font-bold text-green-600">
 
-                Vérifie dans la console :
+                {resultats.note}/20
 
               </p>
 
-              <pre className="mt-3 bg-gray-900 text-green-300 p-4 rounded-lg text-xs overflow-auto">
-
-                location.state.questionsRemediation
-
-              </pre>
-
             </div>
 
-          )}
 
+            {/* MENTION */}
 
-          {/* ==================================================
-              QUESTIONS
-          ================================================== */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
 
-          {toutesLesQuestions.length > 0 && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">
 
-            <div className="space-y-6">
-
-              {toutesLesQuestions.map(
-                (
-                  question,
-                  index
-                ) => {
-
-                  const correcte =
-                    estQuestionCorrecte(
-                      question
-                    );
-
-
-                  const reponseUser =
-                    getReponseUserAffichage(
-                      question
-                    );
-
-
-                  const bonneReponse =
-                    getBonneReponseAffichage(
-                      question
-                    );
-
-
-                  return (
-
-                    <article
-                      key={String(
-                        question.id
-                      )}
-                      className={`rounded-xl shadow-md overflow-hidden border-l-4 ${
-                        correcte
-                          ? "border-green-500 bg-green-50 dark:bg-green-900/20"
-                          : "border-red-500 bg-red-50 dark:bg-red-900/20"
-                      }`}
-                    >
-
-
-                      {/* EN-TÊTE */}
-
-                      <div
-                        className={`px-5 py-4 ${
-                          correcte
-                            ? "bg-green-100 dark:bg-green-900/40"
-                            : "bg-red-100 dark:bg-red-900/40"
-                        }`}
-                      >
-
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-
-                          <h3 className="font-bold text-lg text-gray-800 dark:text-white">
-
-                            Question {index + 1}
-
-                          </h3>
-
-
-                          <span
-                            className={`inline-flex items-center justify-center px-4 py-1 rounded-full font-bold ${
-                              correcte
-                                ? "bg-green-600 text-white"
-                                : "bg-red-600 text-white"
-                            }`}
-                          >
-
-                            {correcte
-                              ? "✅ Correcte"
-                              : "❌ Incorrecte"}
-
-                          </span>
-
-                        </div>
-
-                      </div>
-
-
-                      {/* CONTENU */}
-
-                      <div className="p-5 space-y-4">
-
-
-                        {/* QUESTION */}
-
-                        <div>
-
-                          <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-
-                            Énoncé
-
-                          </p>
-
-                          <div
-                            className="font-semibold text-gray-800 dark:text-white leading-relaxed"
-                            dangerouslySetInnerHTML={{
-                              __html:
-                                question.question ??
-                                "Question non disponible",
-                            }}
-                          />
-
-                        </div>
-
-
-                        {/* CLASSE + NOTION */}
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-
-                          {/* NIVEAU PROPRE À LA QUESTION */}
-
-                          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
-
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-
-                              🎓 Classe
-
-                            </p>
-
-                            <p className="font-semibold text-blue-700 dark:text-blue-300">
-
-                              {getClasseQuestion(
-                                question
-                              )}
-
-                            </p>
-
-                          </div>
-
-
-                          {/* NOTION */}
-
-                          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
-
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-
-                              📚 Notion
-
-                            </p>
-
-                            <p className="font-semibold text-purple-700 dark:text-purple-300">
-
-                              {getNotionQuestion(
-                                question
-                              )}
-
-                            </p>
-
-                          </div>
-
-                        </div>
-
-
-                        {/* CHOIX */}
-
-                        {Array.isArray(
-                          question.choix
-                        ) &&
-                          question.choix.length >
-                            0 && (
-
-                            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-
-                              <p className="text-sm text-gray-500 dark:text-gray-400 font-semibold mb-2">
-
-                                Choix proposés
-
-                              </p>
-
-
-                              <div className="space-y-2">
-
-                                {question.choix.map(
-                                  (
-                                    choix,
-                                    choixIndex
-                                  ) => {
-
-                                    const lettre =
-                                      String.fromCharCode(
-                                        65 +
-                                        choixIndex
-                                      );
-
-
-                                    return (
-
-                                      <div
-                                        key={
-                                          choixIndex
-                                        }
-                                        className="p-2 rounded bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
-                                      >
-
-                                        <strong>
-                                          {lettre}.
-                                        </strong>{" "}
-
-                                        {choix}
-
-                                      </div>
-
-                                    );
-
-                                  }
-                                )}
-
-                              </div>
-
-                            </div>
-
-                          )}
-
-
-                        {/* ==================================================
-                            BONNE RÉPONSE
-                            
-                            IMPORTANT :
-                            Elle est maintenant affichée POUR TOUTES
-                            LES QUESTIONS, même si l'apprenant
-                            a correctement répondu.
-                        ================================================== */}
-
-                        <div className="bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-lg p-4">
-
-                          <p className="text-sm text-green-700 dark:text-green-300 font-semibold mb-1">
-
-                            ✅ Bonne réponse
-
-                          </p>
-
-                          <p className="font-bold text-green-800 dark:text-green-200">
-
-                            {bonneReponse}
-
-                          </p>
-
-                        </div>
-
-
-                        {/* ==================================================
-                            RÉPONSE APPRENANT
-                            
-                            IMPORTANT :
-                            On affiche le CONTENU du choix,
-                            jamais simplement "a", "b", "c", "d".
-                        ================================================== */}
-
-                        <div
-                          className={`rounded-lg p-4 border ${
-                            correcte
-                              ? "bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700"
-                              : "bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-700"
-                          }`}
-                        >
-
-                          <p
-                            className={`text-sm font-semibold mb-1 ${
-                              correcte
-                                ? "text-green-700 dark:text-green-300"
-                                : "text-red-700 dark:text-red-300"
-                            }`}
-                          >
-
-                            {correcte
-                              ? "✅ Votre choix"
-                              : "❌ Votre choix"}
-
-                          </p>
-
-                          <p
-                            className={`font-bold ${
-                              correcte
-                                ? "text-green-800 dark:text-green-200"
-                                : "text-red-800 dark:text-red-200"
-                            }`}
-                          >
-
-                            {reponseUser}
-
-                          </p>
-
-                        </div>
-
-
-                      </div>
-
-                    </article>
-
-                  );
-
-                }
-              )}
-
-            </div>
-
-          )}
-
-        </section>
-
-
-        {/* ==================================================
-            RÉSUMÉ
-        ================================================== */}
-
-        {toutesLesQuestions.length > 0 && (
-
-          <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
-
-            <div className="bg-blue-50 dark:bg-blue-900/30 p-5 rounded-xl shadow-md text-center">
-
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-
-                Total
+                Mention
 
               </p>
 
-              <p className="text-3xl font-bold text-blue-700 dark:text-blue-200">
+              <p className="font-bold text-blue-700 dark:text-blue-300">
+
+                {resultats.mention}
+
+              </p>
+
+            </div>
+
+
+            {/* QUESTIONS */}
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+
+                Nombre de questions
+
+              </p>
+
+              <p className="text-2xl font-bold text-blue-600">
 
                 {toutesLesQuestions.length}
 
@@ -1832,173 +1610,777 @@ const Remediation: React.FC = () => {
             </div>
 
 
-            <div className="bg-green-50 dark:bg-green-900/30 p-5 rounded-xl shadow-md text-center">
+            {/* NOTIONS */}
 
-              <p className="text-sm text-green-700 dark:text-green-300">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
 
-                Correctes
+              <p className="text-sm text-gray-500 dark:text-gray-400">
 
-              </p>
-
-              <p className="text-3xl font-bold text-green-700 dark:text-green-200">
-
-                {questionsCorrectes.length}
+                Nombre de notions non acquises
 
               </p>
 
-            </div>
+              <p className="text-2xl font-bold text-purple-600">
 
-
-            <div className="bg-red-50 dark:bg-red-900/30 p-5 rounded-xl shadow-md text-center">
-
-              <p className="text-sm text-red-700 dark:text-red-200">
-
-                Incorrectes
-
-              </p>
-
-              <p className="text-3xl font-bold text-red-700 dark:text-red-200">
-
-                {questionsIncorrectes.length}
+                {notionsBrutes.length}
 
               </p>
 
             </div>
 
-          </section>
+          </div>
 
-        )}
+        </section>
+
+      )}
+
+
+      {/* ==================================================
+          RÉSULTATS DÉTAILLÉS
+      ================================================== */}
+
+      <section className="bg-gray-50 dark:bg-gray-700 p-6 rounded-xl shadow-inner">
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6 border-b border-gray-300 dark:border-gray-600 pb-3">
+
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+
+            Analyse des réponses
+
+          </h2>
+
+          <span className="inline-flex items-center justify-center bg-blue-600 text-white px-4 py-2 rounded-full font-semibold">
+
+            {toutesLesQuestions.length} question
+            {toutesLesQuestions.length > 1
+              ? "s"
+              : ""}
+
+          </span>
+
+        </div>
 
 
         {/* ==================================================
-            NOTIONS NON ACQUISES
+            AUCUNE QUESTION
         ================================================== */}
 
-        {notionsBrutes.length > 0 && (
+        {toutesLesQuestions.length === 0 && (
 
-          <section className="bg-purple-50 dark:bg-purple-900/30 p-6 rounded-xl shadow-md">
+          <div className="bg-yellow-50 dark:bg-yellow-900/30 border-l-4 border-yellow-500 p-6 rounded-lg">
 
-            <h2 className="text-xl font-semibold text-purple-700 dark:text-purple-200 mb-4">
+            <p className="text-yellow-800 dark:text-yellow-200 font-semibold text-center">
 
-              📚 Notions à revoir
+              ⚠️ Aucune question n'a été reçue.
 
-            </h2>
+            </p>
 
-            <div className="flex flex-wrap gap-2">
+            <p className="text-sm text-yellow-700 dark:text-yellow-300 text-center mt-2">
 
-              {notionsBrutes.map(
-                (
-                  notion,
-                  index
-                ) => (
+              Vérifie dans la console :
 
-                  <span
-                    key={`${notion}-${index}`}
-                    className="px-4 py-2 rounded-full bg-purple-600 text-white font-semibold text-sm"
-                  >
+            </p>
 
-                    {notion}
+            <pre className="mt-3 bg-gray-900 text-green-300 p-4 rounded-lg text-xs overflow-auto">
 
-                  </span>
+              location.state.questionsRemediation
 
-                )
-              )}
+            </pre>
 
-            </div>
-
-          </section>
+          </div>
 
         )}
 
 
         {/* ==================================================
-            MESSAGE
+            QUESTIONS
         ================================================== */}
 
         {toutesLesQuestions.length > 0 && (
 
-          <section
-            className={`p-6 rounded-xl shadow-md ${
-              questionsIncorrectes.length > 0
-                ? "bg-blue-50 dark:bg-blue-900/30"
-                : "bg-green-50 dark:bg-green-900/30"
-            }`}
-          >
+          <div className="space-y-6">
 
-            {questionsIncorrectes.length > 0 ? (
+            {toutesLesQuestions.map(
+              (
+                question,
+                index
+              ) => {
 
-              <>
+                const correcte =
+                  estQuestionCorrecte(
+                    question
+                  );
 
-                <h2 className="text-xl font-semibold text-blue-700 dark:text-blue-200 mb-3">
 
-                  📚 Poursuivre la remédiation
+                const reponseUser =
+                  getReponseUserAffichage(
+                    question
+                  );
 
-                </h2>
 
-                <p className="text-gray-700 dark:text-gray-200">
+                const bonneReponse =
+                  getBonneReponseAffichage(
+                    question
+                  );
 
-                  Les réponses incorrectes
-                  permettent d'identifier les
-                  notions qui nécessitent une
-                  remédiation.
 
-                </p>
+                /*
+                 * =================================================
+                 * PROFIL ENSEIGNANT DE CETTE QUESTION
+                 * =================================================
+                 */
 
-              </>
+                const teacherEmail =
+                  question.enseignant ??
+                  "";
 
-            ) : (
 
-              <>
+                const teacher =
+                  teacherEmail
+                    ? teacherProfiles[
+                        teacherEmail
+                      ]
+                    : null;
 
-                <h2 className="text-xl font-semibold text-green-700 dark:text-green-300 mb-3">
 
-                  🎉 Évaluation réussie
+                /*
+                 * =================================================
+                 * URL COMPLÈTE DE LA PHOTO DE L'ENSEIGNANT
+                 * =================================================
+                 *
+                 * Le backend peut renvoyer :
+                 *
+                 * /images/enseignants/photo.jpg
+                 *
+                 * ou directement :
+                 *
+                 * https://...
+                 *
+                 * On construit donc automatiquement l'URL
+                 * complète lorsque le chemin est relatif.
+                 */
 
-                </h2>
+                const teacherPhoto =
+                  teacher?.teacher_photo
+                    ? teacher.teacher_photo.startsWith(
+                        "http"
+                      )
+                      ? teacher.teacher_photo
+                      : `${
+                          api.defaults.baseURL?.replace(
+                            /\/$/,
+                            ""
+                          ) || ""
+                        }/${teacher.teacher_photo.replace(
+                          /^\//,
+                          ""
+                        )}`
+                    : null;
 
-                <p className="text-gray-700 dark:text-gray-200">
 
-                  Toutes les questions sont
-                  correctes.
+                /*
+                 * Initiales si aucune photo
+                 */
 
-                </p>
+                const teacherInitials =
+                  teacher
+                    ? `${teacher.prenom?.[0] ?? ""}${teacher.nom?.[0] ?? ""}`
+                        .toUpperCase()
+                    : "?";
 
-              </>
 
+                return (
+
+                  <article
+                    key={String(
+                      question.id
+                    )}
+                    className={`rounded-xl shadow-md overflow-hidden border-l-4 ${
+                      correcte
+                        ? "border-green-500 bg-green-50 dark:bg-green-900/20"
+                        : "border-red-500 bg-red-50 dark:bg-red-900/20"
+                    }`}
+                  >
+
+
+                    {/* ==================================================
+                        EN-TÊTE
+                    ================================================== */}
+
+                    <div
+                      className={`px-5 py-4 ${
+                        correcte
+                          ? "bg-green-100 dark:bg-green-900/40"
+                          : "bg-red-100 dark:bg-red-900/40"
+                      }`}
+                    >
+
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+
+                        <h3 className="font-bold text-lg text-gray-800 dark:text-white">
+
+                          Question{" "}
+                          {index + 1}
+
+                        </h3>
+
+
+                        <span
+                          className={`inline-flex items-center justify-center px-4 py-1 rounded-full font-bold ${
+                            correcte
+                              ? "bg-green-600 text-white"
+                              : "bg-red-600 text-white"
+                          }`}
+                        >
+
+                          {correcte
+                            ? "✅ Correcte"
+                            : "❌ Incorrecte"}
+
+                        </span>
+
+                      </div>
+
+                    </div>
+
+
+                    {/* ==================================================
+                        CONTENU
+                    ================================================== */}
+
+                    <div className="p-5 space-y-4">
+
+
+                      {/* =================================================
+                          QUESTION
+                      ================================================= */}
+
+                      <div>
+
+                        <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
+
+                          Énoncé
+
+                        </p>
+
+                        <div
+                          className="font-semibold text-gray-800 dark:text-white leading-relaxed"
+                          dangerouslySetInnerHTML={{
+                            __html:
+                              question.question ??
+                              "Question non disponible",
+                          }}
+                        />
+
+                      </div>
+
+
+                      {/* =================================================
+                          ENSEIGNANT
+                      ================================================= */}
+
+                      {teacherEmail && (
+
+                        <div className="flex items-center gap-3 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-3">
+
+                          {/* =============================================
+                              PHOTO
+                          ============================================= */}
+
+                          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-blue-500 bg-gray-200 dark:bg-gray-700">
+
+                            {teacherPhoto ? (
+
+                              <img
+                                src={
+                                  teacherPhoto
+                                }
+                                alt={
+                                  teacher
+                                    ? `Photo de ${teacher.prenom} ${teacher.nom}`
+                                    : "Photo de l'enseignant"
+                                }
+                                className="h-full w-full object-cover"
+                                onError={(
+                                  event
+                                ) => {
+                                  event.currentTarget.style.display =
+                                    "none";
+                                }}
+                              />
+
+                            ) : (
+
+                              <div className="flex h-full w-full items-center justify-center text-sm font-bold text-gray-500 dark:text-gray-300">
+
+                                {teacherInitials}
+
+                              </div>
+
+                            )}
+
+                          </div>
+
+
+                          {/* =============================================
+                              NOM
+                          ============================================= */}
+
+                          <div className="min-w-0 flex-1">
+
+                            <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+
+                              Question proposée par
+
+                            </p>
+
+
+                            {teacher ? (
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  navigate(
+                                    `/enseignant/profil/${encodeURIComponent(
+                                      teacher.email
+                                    )}`
+                                  )
+                                }
+                                className="font-semibold text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 hover:underline transition text-left"
+                              >
+
+                                {teacher.prenom}{" "}
+                                {teacher.nom}
+
+                              </button>
+
+                            ) : (
+
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+
+                                Chargement de l'enseignant...
+
+                              </p>
+
+                            )}
+
+                          </div>
+
+
+                          {/* =============================================
+                              PETIT INDICATEUR
+                          ============================================= */}
+
+                          {teacher && (
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                navigate(
+                                  `/enseignant/profil/${encodeURIComponent(
+                                    teacher.email
+                                  )}`
+                                )
+                              }
+                              className="hidden sm:flex items-center justify-center h-9 w-9 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition"
+                              title="Voir le profil de l'enseignant"
+                            >
+
+                              →
+
+                            </button>
+
+                          )}
+
+                        </div>
+
+                      )}
+
+
+                      {/* =================================================
+                          CLASSE + NOTION
+                      ================================================= */}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+
+                        {/* NIVEAU PROPRE À LA QUESTION */}
+
+                        <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
+
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+
+                            🎓 Classe
+
+                          </p>
+
+                          <p className="font-semibold text-blue-700 dark:text-blue-300">
+
+                            {getClasseQuestion(
+                              question
+                            )}
+
+                          </p>
+
+                        </div>
+
+
+                        {/* NOTION */}
+
+                        <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
+
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+
+                            📚 Notion
+
+                          </p>
+
+                          <p className="font-semibold text-purple-700 dark:text-purple-300">
+
+                            {getNotionQuestion(
+                              question
+                            )}
+
+                          </p>
+
+                        </div>
+
+                      </div>
+
+
+                      {/* =================================================
+                          CHOIX
+                      ================================================= */}
+
+                      {Array.isArray(
+                        question.choix
+                      ) &&
+                        question.choix.length >
+                          0 && (
+
+                          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+
+                            <p className="text-sm text-gray-500 dark:text-gray-400 font-semibold mb-2">
+
+                              Choix proposés
+
+                            </p>
+
+
+                            <div className="space-y-2">
+
+                              {question.choix.map(
+                                (
+                                  choix,
+                                  choixIndex
+                                ) => {
+
+                                  const lettre =
+                                    String.fromCharCode(
+                                      65 +
+                                      choixIndex
+                                    );
+
+
+                                  return (
+
+                                    <div
+                                      key={
+                                        choixIndex
+                                      }
+                                      className="p-2 rounded bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                                    >
+
+                                      <strong>
+                                        {lettre}.
+                                      </strong>{" "}
+
+                                      {choix}
+
+                                    </div>
+
+                                  );
+
+                                }
+                              )}
+
+                            </div>
+
+                          </div>
+
+                        )}
+
+
+                      {/* =================================================
+                          BONNE RÉPONSE
+                      ================================================= */}
+
+                      <div className="bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-lg p-4">
+
+                        <p className="text-sm text-green-700 dark:text-green-300 font-semibold mb-1">
+
+                          ✅ Bonne réponse
+
+                        </p>
+
+                        <p className="font-bold text-green-800 dark:text-green-200">
+
+                          {bonneReponse}
+
+                        </p>
+
+                      </div>
+
+
+                      {/* =================================================
+                          RÉPONSE APPRENANT
+                      ================================================= */}
+
+                      <div
+                        className={`rounded-lg p-4 border ${
+                          correcte
+                            ? "bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700"
+                            : "bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-700"
+                        }`}
+                      >
+
+                        <p
+                          className={`text-sm font-semibold mb-1 ${
+                            correcte
+                              ? "text-green-700 dark:text-green-300"
+                              : "text-red-700 dark:text-red-300"
+                          }`}
+                        >
+
+                          {correcte
+                            ? "✅ Votre choix"
+                            : "❌ Votre choix"}
+
+                        </p>
+
+                        <p
+                          className={`font-bold ${
+                            correcte
+                              ? "text-green-800 dark:text-green-200"
+                              : "text-red-800 dark:text-red-200"
+                          }`}
+                        >
+
+                          {reponseUser}
+
+                        </p>
+
+                      </div>
+
+
+                    </div>
+
+                  </article>
+
+                );
+
+              }
             )}
 
-          </section>
+          </div>
 
         )}
 
+      </section>
 
-        {/* ==================================================
-            BOUTON CONTINUER
-        ================================================== */}
 
-        <div className="flex justify-center">
+      {/* ==================================================
+          RÉSUMÉ
+      ================================================== */}
 
-          <button
-            onClick={
-              handleStartRemediation
-            }
-            disabled={!niveau}
-            className={`text-white font-bold py-3 px-8 rounded-xl shadow-lg transition ${
-              niveau
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-gray-400 cursor-not-allowed"
-            }`}
-          >
+      {toutesLesQuestions.length > 0 && (
 
-            🚀 Continuez
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
-          </button>
 
-        </div>
+          <div className="bg-blue-50 dark:bg-blue-900/30 p-5 rounded-xl shadow-md text-center">
+
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+
+              Total
+
+            </p>
+
+            <p className="text-3xl font-bold text-blue-700 dark:text-blue-200">
+
+              {toutesLesQuestions.length}
+
+            </p>
+
+          </div>
+
+
+          <div className="bg-green-50 dark:bg-green-900/30 p-5 rounded-xl shadow-md text-center">
+
+            <p className="text-sm text-green-700 dark:text-green-300">
+
+              Correctes
+
+            </p>
+
+            <p className="text-3xl font-bold text-green-700 dark:text-green-200">
+
+              {questionsCorrectes.length}
+
+            </p>
+
+          </div>
+
+
+          <div className="bg-red-50 dark:bg-red-900/30 p-5 rounded-xl shadow-md text-center">
+
+            <p className="text-sm text-red-700 dark:text-red-200">
+
+              Incorrectes
+
+            </p>
+
+            <p className="text-3xl font-bold text-red-700 dark:text-red-200">
+
+              {questionsIncorrectes.length}
+
+            </p>
+
+          </div>
+
+        </section>
+
+      )}
+
+
+      {/* ==================================================
+          NOTIONS NON ACQUISES
+      ================================================== */}
+
+      {notionsBrutes.length > 0 && (
+
+        <section className="bg-purple-50 dark:bg-purple-900/30 p-6 rounded-xl shadow-md">
+
+          <h2 className="text-xl font-semibold text-purple-700 dark:text-purple-200 mb-4">
+
+            📚 Notions à revoir
+
+          </h2>
+
+          <div className="flex flex-wrap gap-2">
+
+            {notionsBrutes.map(
+              (
+                notion,
+                index
+              ) => (
+
+                <span
+                  key={`${notion}-${index}`}
+                  className="px-4 py-2 rounded-full bg-purple-600 text-white font-semibold text-sm"
+                >
+
+                  {notion}
+
+                </span>
+
+              )
+            )}
+
+          </div>
+
+        </section>
+
+      )}
+
+
+      {/* ==================================================
+          MESSAGE
+      ================================================== */}
+
+      {toutesLesQuestions.length > 0 && (
+
+        <section
+          className={`p-6 rounded-xl shadow-md ${
+            questionsIncorrectes.length > 0
+              ? "bg-blue-50 dark:bg-blue-900/30"
+              : "bg-green-50 dark:bg-green-900/30"
+          }`}
+        >
+
+          {questionsIncorrectes.length > 0 ? (
+
+            <>
+
+              <h2 className="text-xl font-semibold text-blue-700 dark:text-blue-200 mb-3">
+
+                📚 Poursuivre la remédiation
+
+              </h2>
+
+              <p className="text-gray-700 dark:text-gray-200">
+
+                Les réponses incorrectes
+                permettent d'identifier les
+                notions qui nécessitent une
+                remédiation.
+
+              </p>
+
+            </>
+
+          ) : (
+
+            <>
+
+              <h2 className="text-xl font-semibold text-green-700 dark:text-green-300 mb-3">
+
+                🎉 Évaluation réussie
+
+              </h2>
+
+              <p className="text-gray-700 dark:text-gray-200">
+
+                Toutes les questions sont
+                correctes.
+
+              </p>
+
+            </>
+
+          )}
+
+        </section>
+
+      )}
+
+
+      {/* ==================================================
+          BOUTON CONTINUER
+      ================================================== */}
+
+      <div className="flex justify-center">
+
+        <button
+          onClick={
+            handleStartRemediation
+          }
+          disabled={!niveau}
+          className={`text-white font-bold py-3 px-8 rounded-xl shadow-lg transition ${
+            niveau
+              ? "bg-green-600 hover:bg-green-700"
+              : "bg-gray-400 cursor-not-allowed"
+          }`}
+        >
+
+          🚀 Continuez
+
+        </button>
 
       </div>
 
-   
+
+    </div>
 
   );
 

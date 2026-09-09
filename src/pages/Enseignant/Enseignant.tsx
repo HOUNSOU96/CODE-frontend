@@ -409,6 +409,29 @@ const Enseignant: React.FC = () => {
 
                   </div>
 
+
+
+
+                  {/* =================================================
+    BOUTON CONTINUER
+================================================== */}
+
+<div className="mt-7 flex justify-center sm:justify-start">
+  <button
+    type="button"
+    onClick={() => navigate("/page2")}
+    className="group inline-flex items-center justify-center gap-3 rounded-2xl bg-white px-7 py-3.5 text-sm font-black uppercase tracking-wide text-blue-900 shadow-xl shadow-black/10 transition-all duration-300 hover:-translate-y-1 hover:bg-blue-50 hover:shadow-2xl focus:outline-none focus:ring-2 focus:ring-white/70 focus:ring-offset-2 focus:ring-offset-blue-950"
+  >
+    <span>CONTINUER</span>
+
+    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 text-white transition-all duration-300 group-hover:translate-x-1 group-hover:bg-blue-700">
+      <ArrowRight className="h-4 w-4" />
+    </span>
+  </button>
+</div>
+
+
+
                 </div>
               </div>
 

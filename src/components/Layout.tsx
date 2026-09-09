@@ -370,6 +370,7 @@ const Layout: React.FC<LayoutProps> = ({
   const hideFilleulsButton = [
     "/",
     "/login",
+    "/activation",
     "/inscription",
   ].includes(
     location.pathname.toLowerCase()
