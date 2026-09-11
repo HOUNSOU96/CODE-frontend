@@ -1,3 +1,4 @@
+
 import React, {
   FormEvent,
   useCallback,
@@ -20,6 +21,11 @@ import {
   Loader2,
   AlertCircle,
   ShieldCheck,
+  Clock3,
+  MessageSquare,
+  CalendarDays,
+  CircleCheck,
+  CircleAlert,
 } from "lucide-react";
 
 import api from "../../utils/axios";
@@ -79,10 +85,17 @@ const statutLabel: Record<string, string> = {
 };
 
 const statutClass: Record<string, string> = {
-  waiting: "bg-yellow-100 text-yellow-800",
-  in_progress: "bg-blue-100 text-blue-800",
-  answered: "bg-green-100 text-green-800",
-  expired: "bg-gray-200 text-gray-700",
+  waiting:
+    "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300",
+
+  in_progress:
+    "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300",
+
+  answered:
+    "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-300",
+
+  expired:
+    "border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400",
 };
 
 // ============================================================
@@ -140,18 +153,6 @@ export default function ConversationAdmin() {
   // TYPE DE CONVERSATION
   // ==========================================================
 
-  /*
-   * Si l'URL commence par :
-   *
-   * /admin/conversations-enseignants/
-   *
-   * alors il s'agit d'une conversation destinée
-   * aux enseignants.
-   *
-   * Sinon, il s'agit d'une question destinée
-   * à l'administration.
-   */
-
   const isTeacherConversation =
     location.pathname.startsWith(
       "/admin/conversations-enseignants/"
@@ -162,8 +163,8 @@ export default function ConversationAdmin() {
   // ==========================================================
 
   const retour = () => {
-  navigate("/admin/liste-inscrits");
-};
+    navigate("/admin/liste-inscrits");
+  };
 
   // ==========================================================
   // CHARGER LA CONVERSATION
@@ -303,10 +304,24 @@ export default function ConversationAdmin() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <Loader2
-          className="h-10 w-10 animate-spin text-blue-600"
-        />
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+        <div className="flex min-h-screen items-center justify-center px-4">
+          <div className="flex flex-col items-center">
+
+            <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-blue-200 bg-blue-100 shadow-lg shadow-blue-500/10 dark:border-blue-400/20 dark:bg-blue-500/10">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400" />
+            </div>
+
+            <p className="mt-5 text-sm font-bold text-slate-700 dark:text-slate-200">
+              Chargement de la conversation...
+            </p>
+
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+              Veuillez patienter
+            </p>
+
+          </div>
+        </div>
       </div>
     );
   }
@@ -317,54 +332,50 @@ export default function ConversationAdmin() {
 
   if (error && !question) {
     return (
-      <div className="min-h-screen bg-gray-50 px-4 py-8">
-        <div className="mx-auto max-w-3xl rounded-2xl bg-white p-8 shadow-sm">
+      <div className="min-h-screen bg-slate-50 px-4 py-8 dark:bg-slate-950 md:py-12">
 
-          {/* ----------------------------------------------
-              ERREUR
-          ---------------------------------------------- */}
+        <div className="mx-auto max-w-2xl">
 
-          <div className="flex items-start gap-3 text-red-700">
+          <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20">
 
-            <AlertCircle className="h-6 w-6 shrink-0" />
+            <div className="h-2 bg-gradient-to-r from-red-500 via-orange-500 to-red-600" />
 
-            <div>
+            <div className="p-7 sm:p-9 md:p-10">
 
-              <h1 className="font-bold">
-                Impossible d'ouvrir la conversation
-              </h1>
+              <div className="flex flex-col items-center text-center">
 
-              <p className="mt-1">
-                {error}
-              </p>
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-red-200 bg-red-50 dark:border-red-400/20 dark:bg-red-500/10">
+                  <AlertCircle className="h-8 w-8 text-red-500 dark:text-red-400" />
+                </div>
+
+                <h1 className="mt-6 text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+                  Impossible d'ouvrir la conversation
+                </h1>
+
+                <p className="mt-3 max-w-lg text-sm leading-7 text-red-600 dark:text-red-300">
+                  {error}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={retour}
+                  className="mt-7 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3.5 text-sm font-black text-white shadow-lg transition-all duration-300 hover:-translate-y-0.5 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+
+                  {isTeacherConversation
+                    ? "Retour aux conversations enseignants"
+                    : "Retour aux questions"}
+                </button>
+
+              </div>
 
             </div>
 
           </div>
 
-          {/* ----------------------------------------------
-              BOUTON RETOUR
-          ---------------------------------------------- */}
-
-          <button
-            onClick={retour}
-            className="mt-6 inline-flex items-center gap-2
-                       rounded-xl bg-gray-900 px-4 py-3
-                       font-medium text-white
-                       shadow-sm transition
-                       hover:bg-gray-800
-                       focus:outline-none
-                       focus:ring-2
-                       focus:ring-gray-500"
-          >
-            <ArrowLeft className="h-5 w-5" />
-
-            {isTeacherConversation
-              ? "Retour aux conversations enseignants"
-              : "Retour aux questions"}
-          </button>
-
         </div>
+
       </div>
     );
   }
@@ -382,623 +393,716 @@ export default function ConversationAdmin() {
   // ==========================================================
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-6 md:px-8">
+    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
 
-      <div className="mx-auto max-w-5xl">
+      {/* ====================================================
+          ARRIÈRE-PLAN
+      ==================================================== */}
 
-        {/* ====================================================
-            NAVIGATION
-        ==================================================== */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
 
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="absolute -right-40 -top-40 h-96 w-96 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-500/10" />
 
-          {/* ----------------------------------------------
-              RETOUR
-          ---------------------------------------------- */}
+        <div className="absolute -bottom-40 -left-40 h-96 w-96 rounded-full bg-indigo-500/5 blur-3xl dark:bg-indigo-500/10" />
+
+      </div>
+
+      {/* ====================================================
+          CONTENU PRINCIPAL
+      ==================================================== */}
+
+      <div className="relative mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-9">
+
+        {/* ==================================================
+            BARRE DE NAVIGATION
+        ================================================== */}
+
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
           <button
+            type="button"
             onClick={retour}
-            className="inline-flex items-center gap-2
-                       rounded-xl bg-white px-4 py-3
-                       font-medium text-gray-700
-                       shadow-sm ring-1 ring-gray-200
-                       transition
-                       hover:bg-gray-50
-                       hover:text-gray-900
-                       focus:outline-none
-                       focus:ring-2
-                       focus:ring-blue-500"
+            className="group inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-500/40 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-0.5" />
 
             <span>
               {isTeacherConversation
-                ? "Retour aux conversations enseignants"
-                : "Retour aux questions"}
+                ? "Conversations enseignants"
+                : "Questions"}
             </span>
           </button>
 
-          {/* ----------------------------------------------
-              ACTUALISER
-          ---------------------------------------------- */}
-
           <button
+            type="button"
             onClick={actualiser}
             disabled={refreshing}
-            className="inline-flex items-center gap-2
-                       rounded-xl bg-white px-4 py-3
-                       font-medium text-gray-700
-                       shadow-sm ring-1 ring-gray-200
-                       transition
-                       hover:bg-gray-50
-                       disabled:cursor-not-allowed
-                       disabled:opacity-60"
+            className="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-500/40 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
           >
-
             {refreshing ? (
-              <Loader2
-                className="h-5 w-5 animate-spin"
-              />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <RefreshCw className="h-5 w-5" />
+              <RefreshCw className="h-4 w-4" />
             )}
 
             Actualiser
-
           </button>
 
         </div>
 
-        {/* ====================================================
-            BADGE ADMINISTRATEUR
-        ==================================================== */}
+        {/* ==================================================
+            EN-TÊTE ADMINISTRATEUR
+        ================================================== */}
 
-        <div
-          className="mb-5 flex items-center gap-2
-                     rounded-xl border border-blue-200
-                     bg-blue-50 p-4 text-blue-800"
-        >
+        <div className="mb-6 overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 via-white to-indigo-50 shadow-sm dark:border-blue-900/50 dark:from-blue-950/40 dark:via-slate-900 dark:to-indigo-950/30">
 
-          <ShieldCheck className="h-5 w-5" />
+          <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
 
-          <span className="text-sm font-medium">
-            Vue administrateur — conversation complète
-          </span>
+            <div className="flex items-center gap-4">
+
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-blue-100 dark:border-blue-400/20 dark:bg-blue-500/10">
+                <ShieldCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+
+              <div>
+                <p className="text-sm font-black text-blue-900 dark:text-blue-200">
+                  Vue administrateur
+                </p>
+
+                <p className="mt-0.5 text-xs text-blue-700/70 dark:text-blue-300/60">
+                  Conversation complète et intervention de l'administration
+                </p>
+              </div>
+
+            </div>
+
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
+
+              <MessageSquare className="h-4 w-4" />
+
+              {question.messages.length}{" "}
+              {question.messages.length > 1
+                ? "messages"
+                : "message"}
+
+            </div>
+
+          </div>
 
         </div>
 
-        {/* ====================================================
+        {/* ==================================================
             INFORMATIONS DE LA CONVERSATION
-        ==================================================== */}
+        ================================================== */}
 
-        <div
-          className="mb-5 rounded-2xl bg-white p-6
-                     shadow-sm ring-1 ring-gray-200"
-        >
+        <section className="mb-6 overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20">
 
           {/* ----------------------------------------------
-              BADGES
+              BANDEAU
           ---------------------------------------------- */}
 
-          <div className="mb-4 flex flex-wrap items-center gap-2">
+          <div className="border-b border-slate-100 bg-slate-50/80 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/40 sm:px-6">
 
-            {/* STATUT */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
 
-            <span
-              className={`rounded-full px-3 py-1
-                          text-xs font-semibold
-                          ${
-                            statutClass[
-                              question.status
-                            ]
-                          }`}
-            >
-              {
-                statutLabel[
-                  question.status
-                ]
-              }
-            </span>
+              <div className="flex items-center gap-3">
 
-            {/* DESTINATAIRE */}
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-500/10">
+                  <MessageSquare className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
 
-            {question.recipient_type ===
-            "subject" ? (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">
+                    Conversation
+                  </p>
+
+                  <p className="text-sm font-black text-slate-900 dark:text-white">
+                    #{question.id}
+                  </p>
+                </div>
+
+              </div>
+
               <span
-                className="inline-flex items-center gap-1
-                           rounded-full bg-purple-100
-                           px-3 py-1 text-xs
-                           font-semibold
-                           text-purple-800"
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-black ${
+                  statutClass[question.status]
+                }`}
               >
+                {question.status === "answered" ? (
+                  <CircleCheck className="h-3.5 w-3.5" />
+                ) : question.status === "expired" ? (
+                  <CircleAlert className="h-3.5 w-3.5" />
+                ) : (
+                  <Clock3 className="h-3.5 w-3.5" />
+                )}
 
-                <GraduationCap
-                  className="h-4 w-4"
-                />
-
-                Enseignant —{" "}
-                {question.subject}
-
+                {statutLabel[question.status]}
               </span>
-            ) : (
-              <span
-                className="rounded-full
-                           bg-blue-100 px-3 py-1
-                           text-xs font-semibold
-                           text-blue-800"
-              >
-                Administration CODE
-              </span>
-            )}
 
-            {/* CLASSE */}
-
-            {question.learner_class && (
-              <span
-                className="rounded-full
-                           bg-gray-100 px-3 py-1
-                           text-xs text-gray-700"
-              >
-                {question.learner_class}
-              </span>
-            )}
+            </div>
 
           </div>
 
           {/* ----------------------------------------------
-              TITRE
+              CONTENU
           ---------------------------------------------- */}
 
-          <h1
-            className="text-2xl font-bold
-                       text-gray-900"
-          >
-            {question.title}
-          </h1>
+          <div className="p-5 sm:p-6 lg:p-8">
 
-          {/* ----------------------------------------------
-              INFORMATIONS ÉLÈVE
-          ---------------------------------------------- */}
+            {/* BADGES */}
 
-          <div
-            className="mt-5 grid gap-4 md:grid-cols-2"
-          >
+            <div className="mb-5 flex flex-wrap items-center gap-2">
 
-            <div
-              className="rounded-xl
-                         bg-gray-50 p-4"
-            >
+              {question.recipient_type ===
+              "subject" ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-black text-violet-700 dark:border-violet-400/20 dark:bg-violet-500/10 dark:text-violet-300">
 
-              <div
-                className="mb-2 flex items-center
-                           gap-2 text-sm
-                           font-semibold
-                           text-gray-700"
-              >
+                  <GraduationCap className="h-4 w-4" />
 
-                <User className="h-4 w-4" />
+                  Enseignant
 
-                Élève
+                  {question.subject
+                    ? ` — ${question.subject}`
+                    : ""}
+
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-300">
+
+                  <ShieldCheck className="h-4 w-4" />
+
+                  Administration CODE
+
+                </span>
+              )}
+
+              {question.learner_class && (
+                <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                  {question.learner_class}
+                </span>
+              )}
+
+            </div>
+
+            {/* TITRE */}
+
+            <h1 className="max-w-4xl text-2xl font-black leading-tight tracking-tight text-slate-900 dark:text-white sm:text-3xl lg:text-4xl">
+              {question.title}
+            </h1>
+
+            {/* INFORMATIONS */}
+
+            <div className="mt-7 grid gap-4 lg:grid-cols-2">
+
+              {/* ÉLÈVE */}
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-950/50">
+
+                <div className="flex items-start gap-4">
+
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm dark:bg-slate-900">
+                    <User className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+
+                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">
+                      Élève
+                    </p>
+
+                    <p className="mt-1 font-black text-slate-900 dark:text-white">
+                      {question.user_prenom}{" "}
+                      {question.user_nom}
+                    </p>
+
+                    <div className="mt-2 flex items-start gap-2 text-sm text-slate-500 dark:text-slate-400">
+
+                      <Mail className="mt-0.5 h-4 w-4 shrink-0" />
+
+                      <span className="break-all">
+                        {question.user_email}
+                      </span>
+
+                    </div>
+
+                  </div>
+
+                </div>
 
               </div>
 
-              <p
-                className="font-bold
-                           text-gray-900"
-              >
-                {question.user_prenom}{" "}
-                {question.user_nom}
-              </p>
+              {/* ENSEIGNANTS */}
 
-              <div
-                className="mt-1 flex items-center
-                           gap-2 text-sm
-                           text-gray-500"
-              >
+              {isTeacherConversation ? (
+                <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-5 dark:border-violet-900/40 dark:bg-violet-950/20">
 
-                <Mail className="h-4 w-4" />
+                  <div className="flex items-start gap-4">
 
-                {question.user_email}
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm dark:bg-slate-900">
+                      <GraduationCap className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+
+                      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-violet-500 dark:text-violet-400">
+                        Enseignant(s)
+                      </p>
+
+                      {question.teacher_names &&
+                      question.teacher_names.length >
+                        0 ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+
+                          {question.teacher_names.map(
+                            (teacher) => (
+                              <span
+                                key={teacher}
+                                className="rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-bold text-violet-800 shadow-sm dark:border-violet-800 dark:bg-violet-950/50 dark:text-violet-300"
+                              >
+                                {teacher}
+                              </span>
+                            )
+                          )}
+
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-sm italic text-violet-600 dark:text-violet-400">
+                          Aucun enseignant n'a encore répondu.
+                        </p>
+                      )}
+
+                    </div>
+
+                  </div>
+
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-950/50">
+
+                  <div className="flex items-start gap-4">
+
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm dark:bg-slate-900">
+                      <ShieldCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">
+                        Destinataire
+                      </p>
+
+                      <p className="mt-1 font-black text-slate-900 dark:text-white">
+                        Administration CODE
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        Suivi administratif de la demande
+                      </p>
+                    </div>
+
+                  </div>
+
+                </div>
+              )}
+
+            </div>
+
+            {/* DATES */}
+
+            <div className="mt-6 grid gap-3 border-t border-slate-100 pt-5 dark:border-slate-800 sm:grid-cols-3">
+
+              <div className="flex items-center gap-3">
+
+                <CalendarDays className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
+
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    Créée le
+                  </p>
+
+                  <p className="mt-0.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    {formatDate(
+                      question.created_at
+                    )}
+                  </p>
+                </div>
+
+              </div>
+
+              <div className="flex items-center gap-3">
+
+                <RefreshCw className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
+
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    Modification
+                  </p>
+
+                  <p className="mt-0.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    {formatDate(
+                      question.updated_at
+                    )}
+                  </p>
+                </div>
+
+              </div>
+
+              <div className="flex items-center gap-3">
+
+                <Clock3 className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
+
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    Expiration
+                  </p>
+
+                  <p className="mt-0.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    {formatDate(
+                      question.expires_at
+                    )}
+                  </p>
+                </div>
 
               </div>
 
             </div>
 
-            {/* ------------------------------------------
-                ENSEIGNANTS
-            ------------------------------------------ */}
+          </div>
 
-            {isTeacherConversation && (
-              <div
-                className="rounded-xl
-                           bg-purple-50 p-4"
-              >
+        </section>
 
-                <div
-                  className="mb-2 flex items-center
-                             gap-2 text-sm
-                             font-semibold
-                             text-purple-800"
-                >
+        {/* ==================================================
+            QUESTION INITIALE
+        ================================================== */}
 
-                  <GraduationCap
-                    className="h-4 w-4"
-                  />
+        <section className="mb-5 overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-lg shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20">
 
-                  Enseignant(s)
+          <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/80 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/40 sm:px-6">
+
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200 dark:bg-slate-800">
+              <User className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            </div>
+
+            <div>
+              <p className="text-sm font-black text-slate-900 dark:text-white">
+                Question initiale
+              </p>
+
+              <p className="text-xs text-slate-400 dark:text-slate-500">
+                Message envoyé par l'élève
+              </p>
+            </div>
+
+          </div>
+
+          <div className="p-5 sm:p-6">
+
+            <div className="whitespace-pre-wrap text-sm leading-7 text-slate-700 dark:text-slate-300 sm:text-[15px]">
+              {question.content}
+            </div>
+
+          </div>
+
+        </section>
+
+        {/* ==================================================
+            MESSAGES
+        ================================================== */}
+
+        {question.messages.length > 0 && (
+          <section className="mb-5">
+
+            <div className="mb-4 flex items-center justify-between gap-3 px-1">
+
+              <div>
+
+                <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+                  Historique
+                </p>
+
+                <h2 className="mt-1 text-xl font-black text-slate-900 dark:text-white">
+                  Échanges de la conversation
+                </h2>
+
+              </div>
+
+              <span className="hidden rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 sm:inline-flex">
+                {question.messages.length}{" "}
+                message
+                {question.messages.length > 1
+                  ? "s"
+                  : ""}
+              </span>
+
+            </div>
+
+            <div className="space-y-4">
+
+              {question.messages.map((msg) => {
+
+                const isAdmin =
+                  msg.sender_role === "admin";
+
+                const isTeacher =
+                  msg.sender_role === "teacher";
+
+                return (
+                  <article
+                    key={msg.id}
+                    className={`rounded-[1.5rem] border p-5 shadow-sm transition-all duration-300 sm:p-6 ${
+                      isAdmin
+                        ? "ml-0 border-blue-200 bg-blue-50/80 shadow-blue-900/5 dark:border-blue-900/50 dark:bg-blue-950/25 sm:ml-12 lg:ml-24"
+                        : isTeacher
+                        ? "mr-0 border-violet-200 bg-violet-50/70 shadow-violet-900/5 dark:border-violet-900/50 dark:bg-violet-950/20 sm:mr-12 lg:mr-24"
+                        : "mr-0 border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 sm:mr-12 lg:mr-24"
+                    }`}
+                  >
+
+                    {/* EN-TÊTE */}
+
+                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+                      <div className="flex items-center gap-3">
+
+                        <div
+                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                            isAdmin
+                              ? "bg-blue-100 dark:bg-blue-500/10"
+                              : isTeacher
+                              ? "bg-violet-100 dark:bg-violet-500/10"
+                              : "bg-slate-100 dark:bg-slate-800"
+                          }`}
+                        >
+                          {isAdmin ? (
+                            <ShieldCheck
+                              className="h-5 w-5 text-blue-600 dark:text-blue-400"
+                            />
+                          ) : isTeacher ? (
+                            <GraduationCap
+                              className="h-5 w-5 text-violet-600 dark:text-violet-400"
+                            />
+                          ) : (
+                            <User
+                              className="h-5 w-5 text-slate-500 dark:text-slate-400"
+                            />
+                          )}
+                        </div>
+
+                        <div>
+
+                          <p className="text-sm font-black text-slate-900 dark:text-white">
+                            {isAdmin
+                              ? "Administration CODE"
+                              : isTeacher
+                              ? "Enseignant"
+                              : "Élève"}
+                          </p>
+
+                          <p className="mt-0.5 text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                            {isAdmin
+                              ? "Intervention administrative"
+                              : isTeacher
+                              ? "Réponse pédagogique"
+                              : "Demande de l'élève"}
+                          </p>
+
+                        </div>
+
+                      </div>
+
+                      <span className="inline-flex w-fit items-center gap-1.5 text-xs font-medium text-slate-400 dark:text-slate-500">
+
+                        <Clock3 className="h-3.5 w-3.5" />
+
+                        {formatDate(
+                          msg.created_at
+                        )}
+
+                      </span>
+
+                    </div>
+
+                    {/* CONTENU */}
+
+                    <div className="whitespace-pre-wrap text-sm leading-7 text-slate-700 dark:text-slate-300">
+                      {msg.content}
+                    </div>
+
+                  </article>
+                );
+              })}
+
+            </div>
+
+          </section>
+        )}
+
+        {/* ==================================================
+            ERREUR DYNAMIQUE
+        ================================================== */}
+
+        {error && (
+          <div className="mb-5 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 shadow-sm dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
+
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+
+            <div>
+              <p className="text-sm font-bold">
+                Une erreur est survenue
+              </p>
+
+              <p className="mt-1 text-sm leading-6">
+                {error}
+              </p>
+            </div>
+
+          </div>
+        )}
+
+        {/* ==================================================
+            RÉPONSE ADMINISTRATEUR
+        ================================================== */}
+
+        {question.status !== "expired" && (
+          <section className="overflow-hidden rounded-[2rem] border border-blue-200 bg-white shadow-xl shadow-blue-900/5 dark:border-blue-900/50 dark:bg-slate-900 dark:shadow-black/20">
+
+            {/* ----------------------------------------------
+                EN-TÊTE
+            ---------------------------------------------- */}
+
+            <div className="border-b border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 px-5 py-5 dark:border-blue-900/40 dark:from-blue-950/30 dark:to-indigo-950/20 sm:px-6">
+
+              <div className="flex items-center gap-4">
+
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-500/10">
+                  <ShieldCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+
+                <div>
+
+                  <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-600 dark:text-blue-400">
+                    Administration
+                  </p>
+
+                  <h2 className="mt-0.5 text-lg font-black text-slate-900 dark:text-white">
+                    Intervention de l'administration
+                  </h2>
 
                 </div>
 
-                {question.teacher_names &&
-                question.teacher_names.length >
-                  0 ? (
-                  <div className="flex flex-wrap gap-2">
-
-                    {question.teacher_names.map(
-                      (teacher) => (
-                        <span
-                          key={teacher}
-                          className="rounded-lg
-                                     bg-white px-3 py-1
-                                     text-sm
-                                     font-medium
-                                     text-purple-800
-                                     shadow-sm"
-                        >
-                          {teacher}
-                        </span>
-                      )
-                    )}
-
-                  </div>
-                ) : (
-                  <p
-                    className="text-sm italic
-                               text-purple-600"
-                  >
-                    Aucun enseignant n'a encore
-                    répondu.
-                  </p>
-                )}
-
               </div>
-            )}
 
-          </div>
+            </div>
 
-          {/* ----------------------------------------------
-              DATES
-          ---------------------------------------------- */}
+            {/* ----------------------------------------------
+                FORMULAIRE
+            ---------------------------------------------- */}
 
-          <div
-            className="mt-5 flex flex-wrap
-                       gap-4 text-xs
-                       text-gray-400"
-          >
-
-            <span>
-              Créée le{" "}
-              {formatDate(
-                question.created_at
-              )}
-            </span>
-
-            <span>
-              Dernière modification :{" "}
-              {formatDate(
-                question.updated_at
-              )}
-            </span>
-
-            <span>
-              Expire le{" "}
-              {formatDate(
-                question.expires_at
-              )}
-            </span>
-
-          </div>
-
-        </div>
-
-        {/* ====================================================
-            QUESTION INITIALE
-        ==================================================== */}
-
-        <div
-          className="mb-4 rounded-2xl bg-white
-                     p-6 shadow-sm
-                     ring-1 ring-gray-200"
-        >
-
-          <div
-            className="mb-3 flex items-center
-                       gap-2"
-          >
-
-            <User
-              className="h-5 w-5
-                         text-gray-500"
-            />
-
-            <span
-              className="font-semibold
-                         text-gray-800"
+            <form
+              onSubmit={envoyerMessage}
+              className="p-5 sm:p-6"
             >
-              Question de l'élève
-            </span>
 
-          </div>
+              <textarea
+                value={message}
+                onChange={(e) =>
+                  setMessage(e.target.value)
+                }
+                maxLength={5000}
+                rows={6}
+                placeholder={
+                  isTeacherConversation
+                    ? "Écrire un message visible dans cette conversation..."
+                    : "Écrire votre réponse..."
+                }
+                className="w-full resize-y rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-900 outline-none transition-all duration-300 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-950"
+              />
 
-          <div
-            className="whitespace-pre-wrap
-                       text-gray-700"
-          >
-            {question.content}
-          </div>
+              <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
-        </div>
-
-        {/* ====================================================
-            MESSAGES
-        ==================================================== */}
-
-        <div className="space-y-4">
-
-          {question.messages.map((msg) => {
-
-            const isAdmin =
-              msg.sender_role === "admin";
-
-            const isTeacher =
-              msg.sender_role === "teacher";
-
-            return (
-              <div
-                key={msg.id}
-                className={`rounded-2xl p-5
-                            shadow-sm ring-1
-                            ${
-                              isAdmin
-                                ? "ml-4 bg-blue-50 ring-blue-100 md:ml-20"
-                                : isTeacher
-                                ? "mr-4 bg-purple-50 ring-purple-100 md:mr-20"
-                                : "mr-4 bg-white ring-gray-200 md:mr-20"
-                            }`}
-              >
-
-                {/* ------------------------------------------
-                    EN-TÊTE MESSAGE
-                ------------------------------------------ */}
-
-                <div
-                  className="mb-3 flex items-center
-                             justify-between gap-3"
-                >
-
-                  <div
-                    className="flex items-center
-                               gap-2"
-                  >
-
-                    {isAdmin ? (
-                      <ShieldCheck
-                        className="h-5 w-5
-                                   text-blue-600"
-                      />
-                    ) : isTeacher ? (
-                      <GraduationCap
-                        className="h-5 w-5
-                                   text-purple-600"
-                      />
-                    ) : (
-                      <User
-                        className="h-5 w-5
-                                   text-gray-500"
-                      />
-                    )}
-
-                    <span className="font-semibold">
-                      {isAdmin
-                        ? "Administration CODE"
-                        : isTeacher
-                        ? "Enseignant"
-                        : "Élève"}
-                    </span>
-
-                  </div>
+                <div className="flex items-center justify-between gap-4 sm:justify-start">
 
                   <span
-                    className="text-xs
-                               text-gray-400"
+                    className={`text-xs font-semibold ${
+                      message.length > 4500
+                        ? "text-amber-600 dark:text-amber-400"
+                        : "text-slate-400 dark:text-slate-500"
+                    }`}
                   >
-                    {formatDate(
-                      msg.created_at
-                    )}
+                    {message.length}/5000 caractères
                   </span>
 
                 </div>
 
-                {/* ------------------------------------------
-                    CONTENU MESSAGE
-                ------------------------------------------ */}
-
-                <div
-                  className="whitespace-pre-wrap
-                             text-gray-700"
+                <button
+                  type="submit"
+                  disabled={
+                    !message.trim() ||
+                    sending
+                  }
+                  className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition-all duration-300 hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-xl disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50 sm:w-auto"
                 >
-                  {msg.content}
-                </div>
+
+                  {sending ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Send className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-0.5" />
+                  )}
+
+                  {sending
+                    ? "Envoi..."
+                    : "Envoyer le message"}
+
+                </button>
 
               </div>
-            );
-          })}
 
-        </div>
+            </form>
 
-        {/* ====================================================
-            ERREUR DYNAMIQUE
-        ==================================================== */}
+          </section>
+        )}
 
-        {error && (
-          <div
-            className="mt-5 flex items-start
-                       gap-3 rounded-xl
-                       border border-red-200
-                       bg-red-50 p-4
-                       text-red-800"
-          >
+        {/* ==================================================
+            CONVERSATION EXPIRÉE
+        ================================================== */}
 
-            <AlertCircle
-              className="h-5 w-5 shrink-0"
-            />
+        {question.status === "expired" && (
+          <div className="rounded-2xl border border-slate-200 bg-slate-100 p-5 dark:border-slate-800 dark:bg-slate-900">
 
-            <span>
-              {error}
-            </span>
+            <div className="flex items-start gap-3">
+
+              <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-slate-500 dark:text-slate-400" />
+
+              <div>
+
+                <p className="font-bold text-slate-800 dark:text-slate-200">
+                  Cette conversation est expirée.
+                </p>
+
+                <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                  Aucun nouveau message ne peut être envoyé
+                  dans cette conversation.
+                </p>
+
+              </div>
+
+            </div>
 
           </div>
         )}
 
-        {/* ====================================================
-            RÉPONSE ADMINISTRATEUR
-        ==================================================== */}
+        {/* ==================================================
+            RETOUR EN BAS
+        ================================================== */}
 
-        {question.status !== "expired" && (
-          <form
-            onSubmit={envoyerMessage}
-            className="mt-6 rounded-2xl
-                       bg-white p-6
-                       shadow-sm
-                       ring-1 ring-gray-200"
-          >
-
-            <div
-              className="mb-4 flex items-center
-                         gap-2"
-            >
-
-              <ShieldCheck
-                className="h-5 w-5
-                           text-blue-600"
-              />
-
-              <h2
-                className="font-bold
-                           text-gray-900"
-              >
-                Intervention de
-                l'administration
-              </h2>
-
-            </div>
-
-            {/* ----------------------------------------------
-                CHAMP MESSAGE
-            ---------------------------------------------- */}
-
-            <textarea
-              value={message}
-              onChange={(e) =>
-                setMessage(e.target.value)
-              }
-              maxLength={5000}
-              rows={5}
-              placeholder={
-                isTeacherConversation
-                  ? "Écrire un message visible dans cette conversation..."
-                  : "Écrire votre réponse..."
-              }
-              className="w-full resize-none
-                         rounded-xl border
-                         border-gray-200 p-4
-                         outline-none
-                         transition
-                         focus:border-blue-500
-                         focus:ring-2
-                         focus:ring-blue-100"
-            />
-
-            {/* ----------------------------------------------
-                BAS DU FORMULAIRE
-            ---------------------------------------------- */}
-
-            <div
-              className="mt-3 flex flex-col
-                         gap-3 sm:flex-row
-                         sm:items-center
-                         sm:justify-between"
-            >
-
-              <span
-                className="text-xs
-                           text-gray-400"
-              >
-                {message.length}/5000
-              </span>
-
-              <button
-                type="submit"
-                disabled={
-                  !message.trim() ||
-                  sending
-                }
-                className="inline-flex
-                           items-center
-                           justify-center
-                           gap-2 rounded-xl
-                           bg-blue-600
-                           px-5 py-3
-                           font-semibold
-                           text-white
-                           transition
-                           hover:bg-blue-700
-                           disabled:cursor-not-allowed
-                           disabled:opacity-50
-                           focus:outline-none
-                           focus:ring-2
-                           focus:ring-blue-500"
-              >
-
-                {sending ? (
-                  <Loader2
-                    className="h-5 w-5
-                               animate-spin"
-                  />
-                ) : (
-                  <Send className="h-5 w-5" />
-                )}
-
-                Envoyer
-
-              </button>
-
-            </div>
-
-          </form>
-        )}
-
-        {/* ====================================================
-            RETOUR EN BAS DE PAGE
-        ==================================================== */}
-
-        <div className="mt-8 flex justify-center pb-8">
+        <div className="flex justify-center pb-6 pt-8 sm:pb-10">
 
           <button
+            type="button"
             onClick={retour}
-            className="inline-flex items-center
-                       gap-2 rounded-xl
-                       bg-gray-900 px-5 py-3
-                       font-semibold text-white
-                       shadow-md transition
-                       hover:bg-gray-800
-                       hover:scale-[1.02]
-                       focus:outline-none
-                       focus:ring-2
-                       focus:ring-gray-500"
+            className="group inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-500/40 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
           >
 
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-0.5" />
 
             {isTeacherConversation
               ? "Retour aux conversations enseignants"
@@ -1013,3 +1117,4 @@ export default function ConversationAdmin() {
     </div>
   );
 }
+

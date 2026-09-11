@@ -1,36 +1,60 @@
 // Questions.tsx
 
 import React, { useEffect, useState, useRef } from "react";
+
 import { useParams, useNavigate } from "react-router-dom";
+
 import api from "@/utils/axios";
+
 import { motion } from "framer-motion";
+
 import { Loader2, CheckCircle } from "lucide-react";
+
 import DarkModeToggle from "@/components/DarkModeToggle";
+
 import AudioManager from "@/components/AudioManager";
+
 import CountdownCircle from "@/components/CountdownCircle";
+
 import { useAuth } from "../../../../hooks/useAuth";
+
+// ============================================================
+
+// TYPES
+
+// ============================================================
 
 type Question = {
   id: string;
+
   question: string;
+
   choix: string[];
+
   bonneReponse?: string;
+
   bonne_reponse?: string;
+
   notion: string;
+
   duree?: number;
 
   // Enseignant ayant proposé la question
+
   enseignant?: string;
 
   situation?: {
     texte?: string;
+
     image?: string;
   };
 };
 
 type Reponse = {
   questionId: string;
+
   reponse: number | null;
+
   notion: string;
 };
 
@@ -39,23 +63,37 @@ type TimerStatus = {
 };
 
 // ============================================================
+
 // PROFIL PUBLIC DE L'ENSEIGNANT
+
 // ============================================================
 
 type TeacherProfile = {
   nom: string;
+
   prenom: string;
+
   email: string;
 
   // Numéro de téléphone / WhatsApp
   telephone?: string | null;
 
+  // Pays de résidence
+  pays_residence?: string | null;
+
   teacher_photo?: string | null;
 };
+
+// ============================================================
+
+// COMPOSANT
+
+// ============================================================
 
 const Questions = () => {
   const { niveau, serie } = useParams<{
     niveau: string;
+
     serie: string;
   }>();
 
@@ -67,13 +105,17 @@ const Questions = () => {
   // ÉTATS DES QUESTIONS
   // ==========================================================
 
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] =
+    useState<Question[]>([]);
 
-  const [reponses, setReponses] = useState<Reponse[]>([]);
+  const [reponses, setReponses] =
+    useState<Reponse[]>([]);
 
-  const [currentIndex, setCurrentIndex] = useState<number>(0);
+  const [currentIndex, setCurrentIndex] =
+    useState<number>(0);
 
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] =
+    useState<boolean>(true);
 
   const [timersEnded, setTimersEnded] =
     useState<TimerStatus>({});
@@ -89,7 +131,9 @@ const Questions = () => {
   // ==========================================================
 
   const [teacherProfiles, setTeacherProfiles] =
-    useState<Record<string, TeacherProfile | null>>({});
+    useState<
+      Record<string, TeacherProfile | null>
+    >({});
 
   const questionSoundRef =
     useRef<HTMLAudioElement | null>(null);
@@ -101,7 +145,9 @@ const Questions = () => {
   useEffect(() => {
     window.scrollTo({
       top: 0,
+
       left: 0,
+
       behavior: "instant",
     });
   }, [currentIndex]);
@@ -112,14 +158,19 @@ const Questions = () => {
 
   const generalLevels = [
     "6e",
+
     "5e",
+
     "4e",
+
     "3e",
   ] as const;
 
   const lyceeLevels = [
     "2nde",
+
     "1ere",
+
     "tle",
   ] as const;
 
@@ -177,6 +228,7 @@ const Questions = () => {
     ];
 
     // Aucun enseignant trouvé
+
     if (emails.length === 0) {
       return;
     }
@@ -189,14 +241,15 @@ const Questions = () => {
     await Promise.all(
       emails.map(async (email) => {
         try {
-          const res = await api.get(
-            "/api/teacher/public-profile",
-            {
-              params: {
-                email,
-              },
-            }
-          );
+          const res =
+            await api.get(
+              "/api/teacher/public-profile",
+              {
+                params: {
+                  email,
+                },
+              }
+            );
 
           profiles[email] =
             res.data;
@@ -253,14 +306,21 @@ const Questions = () => {
             );
 
           // Ajouter également les niveaux du collège
+
           niveauxAInclure = [
             ...generalLevels,
+
             ...lyceeLevels.slice(
               0,
               index + 1
             ),
           ];
         }
+
+        // Évite une alerte TypeScript si la variable
+        // n'est pas utilisée par le backend.
+
+        void niveauxAInclure;
 
         // ------------------------------------------------------
         // Construire l'URL
@@ -274,7 +334,11 @@ const Questions = () => {
           serie &&
           serie.toLowerCase() !== "none"
         ) {
-          url += `&serie=${serie}`;
+          if (url.includes("?")) {
+            url += `&serie=${serie}`;
+          } else {
+            url += `?serie=${serie}`;
+          }
         }
 
         // ------------------------------------------------------
@@ -311,7 +375,9 @@ const Questions = () => {
           questionsRecues.map(
             (q: Question) => ({
               questionId: q.id,
+
               reponse: null,
+
               notion: q.notion,
             })
           )
@@ -330,7 +396,6 @@ const Questions = () => {
         // ------------------------------------------------------
 
         setLoading(false);
-
       } catch (error) {
         console.error(
           "Erreur lors du chargement des questions :",
@@ -374,6 +439,7 @@ const Questions = () => {
         r.questionId === questionId
           ? {
               ...r,
+
               reponse: selected,
             }
           : r
@@ -390,7 +456,7 @@ const Questions = () => {
       reponses.find(
         (r) =>
           r.questionId ===
-          currentQuestion.id
+          currentQuestion?.id
       );
 
     if (
@@ -486,6 +552,7 @@ const Questions = () => {
           id: String(
             r.questionId
           ),
+
           reponse: lettre,
         };
       });
@@ -797,7 +864,6 @@ const Questions = () => {
           },
         }
       );
-
     } catch (error) {
       console.error(
         "❌ Erreur soumission :",
@@ -846,6 +912,7 @@ const Questions = () => {
     setTimersEnded(
       (prev) => ({
         ...prev,
+
         [currentId]: true,
       })
     );
@@ -870,6 +937,22 @@ const Questions = () => {
           currentQuestion.enseignant
         ]
       : null;
+
+  // ==========================================================
+  // OUVRIR LE PROFIL DE L'ENSEIGNANT
+  // ==========================================================
+
+  const handleTeacherProfile = () => {
+    if (!currentTeacher?.email) {
+      return;
+    }
+
+    navigate(
+      `/enseignant/profil/${encodeURIComponent(
+        currentTeacher.email
+      )}`
+    );
+  };
 
   // ==========================================================
   // URL DE LA PHOTO DE L'ENSEIGNANT
@@ -928,54 +1011,56 @@ const Questions = () => {
 
   return (
     <div className="max-w-3xl mx-auto p-4 relative">
-
       {/* ======================================================
           CONTRÔLES
-      ====================================================== */}
+      ======================================================= */}
 
       <div className="absolute top-4 right-4 flex items-center gap-4">
         <DarkModeToggle />
+
         <AudioManager />
       </div>
 
       {/* ======================================================
           CONTENEUR PRINCIPAL
-      ====================================================== */}
+      ======================================================= */}
 
       <div className="rounded-2xl p-6 shadow-xl bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 space-y-6">
-
         {/* ====================================================
             TITRE
-        ==================================================== */}
+        ===================================================== */}
 
         <h1 className="text-3xl font-bold text-center text-blue-700 dark:text-blue-300">
-          ÉVALUATION DIAGNOSTIQUE :{" "}
+          ÉVALUATION DIAGNOSTIQUE:{" "}
           {niveau} {serie}
         </h1>
 
         {/* ====================================================
             PROGRESSION
-        ==================================================== */}
+        ===================================================== */}
 
         <div>
           <div className="w-full bg-gray-200 dark:bg-gray-700 h-3 rounded-full overflow-hidden">
-
             <div
               className="bg-blue-600 h-full transition-all duration-500"
               style={{
                 width: `${
-                  ((currentIndex + 1) /
-                    totalQuestions) *
-                  100
+                  totalQuestions > 0
+                    ? ((currentIndex + 1) /
+                        totalQuestions) *
+                      100
+                    : 0
                 }%`,
               }}
             />
-
           </div>
 
           <p className="text-sm text-center mt-1 text-gray-600 dark:text-gray-400">
             Question{" "}
-            {currentIndex + 1} /{" "}
+            {totalQuestions > 0
+              ? currentIndex + 1
+              : 0}{" "}
+            /{" "}
             {totalQuestions}
           </p>
         </div>
@@ -983,133 +1068,111 @@ const Questions = () => {
         {/* ====================================================
             ENSEIGNANT DE LA QUESTION
             Placé immédiatement après la barre de progression
-        ==================================================== */}
+
+            Seuls la photo et le nom/prénom sont affichés.
+            La photo et le nom/prénom sont cliquables.
+        ===================================================== */}
 
         {currentQuestion?.enseignant && (
-
           <div className="mt-2 mb-2 flex items-center gap-4 rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm dark:border-blue-800 dark:bg-blue-950/30">
-
             {/* ================================================
-                PHOTO
+                PHOTO CLIQUABLE
             ================================================= */}
 
-            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border-2 border-blue-500 bg-gray-200 dark:bg-gray-700">
-
+            <button
+              type="button"
+              onClick={
+                handleTeacherProfile
+              }
+              disabled={!currentTeacher}
+              className="h-14 w-14 shrink-0 overflow-hidden rounded-full border-2 border-blue-500 bg-gray-200 dark:bg-gray-700 hover:ring-4 hover:ring-blue-300 dark:hover:ring-blue-800 transition-all cursor-pointer disabled:cursor-default focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800"
+              title={
+                currentTeacher
+                  ? "Voir le profil de l'enseignant"
+                  : "Chargement de l'enseignant..."
+              }
+            >
               {currentTeacherPhoto ? (
-
                 <img
-                  src={currentTeacherPhoto}
+                  src={
+                    currentTeacherPhoto
+                  }
                   alt={
                     currentTeacher
                       ? `Photo de ${currentTeacher.prenom} ${currentTeacher.nom}`
                       : "Photo de l'enseignant"
                   }
                   className="h-full w-full object-cover"
-
-                  onError={(event) => {
+                  onError={(
+                    event
+                  ) => {
                     event.currentTarget.style.display =
                       "none";
                   }}
                 />
-
               ) : (
-
                 <div className="flex h-full w-full items-center justify-center text-sm font-bold text-blue-700 dark:text-blue-300">
-
                   {currentTeacher
                     ? `${currentTeacher.prenom?.[0] ?? ""}${currentTeacher.nom?.[0] ?? ""}`
                     : "?"}
-
                 </div>
-
               )}
-
-            </div>
+            </button>
 
             {/* ================================================
-                INFORMATIONS
+                NOM ET PRÉNOM
             ================================================= */}
 
             <div className="min-w-0 flex-1">
-
               <p className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
                 Enseignant
               </p>
 
               {currentTeacher ? (
-
-                <>
-
-                  {/* NOM ET PRÉNOM */}
-
-                  <p className="text-lg font-bold text-gray-800 dark:text-gray-100">
-                    {currentTeacher.prenom}{" "}
-                    {currentTeacher.nom}
-                  </p>
-
-                  {/* EMAIL */}
-
-                  <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                    {currentTeacher.email}
-                  </p>
-
-                  {/* =================================================
-                      TÉLÉPHONE / WHATSAPP
-                  ================================================= */}
-
-                  {currentTeacher.telephone && (
-
-                    <p className="text-sm font-semibold text-green-600 dark:text-green-400 mt-1">
-                      📞{" "}
-                      {currentTeacher.telephone}
-                    </p>
-
-                  )}
-
-                </>
-
+                <button
+                  type="button"
+                  onClick={
+                    handleTeacherProfile
+                  }
+                  className="text-lg font-bold text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 hover:underline transition text-left focus:outline-none"
+                  title="Voir le profil de l'enseignant"
+                >
+                  {currentTeacher.prenom}{" "}
+                  {currentTeacher.nom}
+                </button>
               ) : (
-
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Chargement de l'enseignant...
                 </p>
-
               )}
-
             </div>
-
           </div>
-
         )}
 
         {/* ====================================================
             QUESTION ACTUELLE
-        ==================================================== */}
+        ===================================================== */}
 
         {currentQuestion && (
-
           <motion.div
             key={
               currentQuestion.id
             }
-
             initial={{
               opacity: 0,
+
               y: 20,
             }}
-
             animate={{
               opacity: 1,
+
               y: 0,
             }}
-
             transition={{
               duration: 0.5,
             }}
-
             className="p-4 border rounded-xl shadow-md bg-white dark:bg-gray-800"
           >
-
             {/* ================================================
                 SITUATION
             ================================================= */}
@@ -1117,7 +1180,6 @@ const Questions = () => {
             {currentQuestion
               .situation
               ?.texte && (
-
               <p className="mb-3 italic text-gray-700 dark:text-gray-300">
                 {
                   currentQuestion
@@ -1125,7 +1187,6 @@ const Questions = () => {
                     .texte
                 }
               </p>
-
             )}
 
             {/* ================================================
@@ -1135,9 +1196,7 @@ const Questions = () => {
             {currentQuestion
               .situation
               ?.image && (
-
               <div className="mb-4 flex justify-center">
-
                 <img
                   src={
                     currentQuestion
@@ -1147,9 +1206,7 @@ const Questions = () => {
                   alt="Illustration"
                   className="rounded-lg shadow max-w-full h-auto"
                 />
-
               </div>
-
             )}
 
             {/* ================================================
@@ -1157,10 +1214,8 @@ const Questions = () => {
             ================================================= */}
 
             <div className="flex justify-between items-start mb-4">
-
               <div
                 className="font-medium text-lg text-gray-800 dark:text-gray-200 w-full pr-4"
-
                 dangerouslySetInnerHTML={{
                   __html:
                     currentQuestion.question,
@@ -1171,35 +1226,31 @@ const Questions = () => {
                 key={
                   currentQuestion.id
                 }
-
                 duration={
                   currentQuestion.duree ??
                   60
                 }
-
                 initialRemainingTime={
                   remainingTime[
                     currentQuestion.id
                   ]
                 }
-
                 onTick={(
                   timeLeft
                 ) =>
                   setRemainingTime(
                     (prev) => ({
                       ...prev,
+
                       [currentQuestion.id]:
                         timeLeft,
                     })
                   )
                 }
-
                 onComplete={
                   handleTimeUp
                 }
               />
-
             </div>
 
             {/* ==================================================
@@ -1207,21 +1258,16 @@ const Questions = () => {
             ================================================== */}
 
             {!currentQuestion.choix ? (
-
               <div>
                 Chargement des options...
               </div>
-
             ) : (
-
               <div className="grid gap-4 mt-4">
-
                 {currentQuestion.choix.map(
                   (
                     opt,
                     idx
                   ) => {
-
                     const selected =
                       reponses.find(
                         (r) =>
@@ -1231,61 +1277,47 @@ const Questions = () => {
                       idx;
 
                     return (
-
                       <label
                         key={idx}
-
-                        className={`flex items-center gap-3 p-4 border rounded-lg shadow-sm cursor-pointer transition text-base
-                          ${
-                            selected
-                              ? "bg-blue-100 dark:bg-blue-800/40 border-blue-500"
-                              : "hover:bg-gray-100 dark:hover:bg-gray-700"
-                          }`}
+                        className={`flex items-center gap-3 p-4 border rounded-lg shadow-sm cursor-pointer transition text-base ${
+                          selected
+                            ? "bg-blue-100 dark:bg-blue-800/40 border-blue-500"
+                            : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                        }`}
                       >
-
                         <input
                           type="radio"
                           name={`q-${currentQuestion.id}`}
                           value={idx}
-
                           checked={
                             selected
                           }
-
                           onChange={() =>
                             handleOptionSelect(
                               currentQuestion.id,
                               idx
                             )
                           }
-
                           className="accent-blue-600 scale-125"
                         />
 
                         <span className="text-gray-800 dark:text-gray-200">
                           {opt}
                         </span>
-
                       </label>
-
                     );
                   }
                 )}
-
               </div>
-
             )}
-
           </motion.div>
-
         )}
 
         {/* ======================================================
             NAVIGATION
-        ====================================================== */}
+        ======================================================= */}
 
         <div className="flex justify-between items-center mt-6">
-
           {/* ====================================================
               PRÉCÉDENT
           ==================================================== */}
@@ -1294,13 +1326,10 @@ const Questions = () => {
             onClick={
               handlePrevious
             }
-
             disabled={
               currentIndex === 0
             }
-
-            className="px-4 py-2 rounded-full border text-sm transition disabled:opacity-40
-              bg-blue-600 text-white hover:bg-blue-700 border-blue-600"
+            className="px-4 py-2 rounded-full border text-sm transition disabled:opacity-40 bg-blue-600 text-white hover:bg-blue-700 border-blue-600"
           >
             ← Précédent
           </button>
@@ -1311,49 +1340,36 @@ const Questions = () => {
 
           {currentIndex <
           totalQuestions - 1 ? (
-
             <button
               onClick={
                 handleNext
               }
-
               className="bg-blue-600 text-white px-6 py-2 rounded-full shadow hover:bg-blue-700 transition"
             >
               Suivant →
             </button>
-
           ) : (
-
             <button
               onClick={
                 handleSubmit
               }
-
               disabled={
                 !allAnswered
               }
-
-              className={`px-6 py-2 rounded-full shadow flex items-center gap-2 transition
-                ${
-                  allAnswered
-                    ? "bg-green-600 text-white hover:bg-green-700 cursor-pointer"
-                    : "bg-gray-400 text-gray-700 cursor-not-allowed"
-                }`}
+              className={`px-6 py-2 rounded-full shadow flex items-center gap-2 transition ${
+                allAnswered
+                  ? "bg-green-600 text-white hover:bg-green-700 cursor-pointer"
+                  : "bg-gray-400 text-gray-700 cursor-not-allowed"
+              }`}
             >
-
               <CheckCircle className="w-5 h-5" />
 
               Terminer
               l'évaluation
-
             </button>
-
           )}
-
         </div>
-
       </div>
-
     </div>
   );
 };

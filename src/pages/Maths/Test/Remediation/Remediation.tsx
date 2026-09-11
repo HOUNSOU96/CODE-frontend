@@ -25,37 +25,32 @@ type QuestionRemediation = {
   choix?: string[];
 
   bonne_reponse?: string | null;
+
   bonneReponse?: string | null;
 
   reponse_apprenant?: string | null;
+
   reponseUser?: string | null;
+
   reponse_user?: string | null;
 
   notion?: string | null;
+
   notions?: string | null;
+
   theme?: string | null;
+
   chapitre?: string | null;
 
-  /*
-   * IMPORTANT :
-   * Le niveau appartient à chaque question.
-   */
   niveau?: string | null;
 
   classe?: string | null;
-
-  /*
-   * ========================================================
-   * ENSEIGNANT
-   * ========================================================
-   *
-   * Email de l'enseignant ayant proposé la question.
-   */
 
   enseignant?: string | null;
 
   situation?: {
     texte?: string;
+
     image?: string;
   };
 
@@ -63,7 +58,6 @@ type QuestionRemediation = {
 
   [key: string]: any;
 };
-
 
 /*
  * ==========================================================
@@ -88,7 +82,6 @@ type TeacherProfile = {
 
   subjects?: string[];
 };
-
 
 /*
  * ==========================================================
@@ -122,7 +115,6 @@ type ResultatType = {
   [key: string]: any;
 };
 
-
 /*
  * ==========================================================
  * LOCATION STATE
@@ -151,7 +143,6 @@ type LocationState = {
   [key: string]: any;
 };
 
-
 /*
  * ==========================================================
  * NIVEAUX SANS SÉRIE
@@ -165,7 +156,6 @@ const niveauxSansSerie = [
   "3e",
 ];
 
-
 /*
  * ==========================================================
  * COMPOSANT
@@ -173,7 +163,6 @@ const niveauxSansSerie = [
  */
 
 const Remediation: React.FC = () => {
-
   /*
    * ========================================================
    * REMONTER EN HAUT À L'ARRIVÉE
@@ -188,11 +177,9 @@ const Remediation: React.FC = () => {
     });
   }, []);
 
-
   const location = useLocation();
 
   const navigate = useNavigate();
-
 
   /*
    * ========================================================
@@ -203,7 +190,6 @@ const Remediation: React.FC = () => {
   const state =
     (location.state || {}) as LocationState;
 
-
   /*
    * ========================================================
    * RÉSULTATS
@@ -212,7 +198,6 @@ const Remediation: React.FC = () => {
 
   const resultatsTransmis =
     state.resultats ?? null;
-
 
   /*
    * ========================================================
@@ -225,7 +210,6 @@ const Remediation: React.FC = () => {
     state.questions_remediation ??
     [];
 
-
   /*
    * ========================================================
    * QUESTIONS DU TEST
@@ -236,7 +220,6 @@ const Remediation: React.FC = () => {
     state.questionsDuTest ??
     [];
 
-
   /*
    * ========================================================
    * RÉPONSES DU TEST
@@ -246,7 +229,6 @@ const Remediation: React.FC = () => {
   const reponsesDuTest =
     state.reponsesDuTest ??
     [];
-
 
   /*
    * ========================================================
@@ -259,31 +241,16 @@ const Remediation: React.FC = () => {
       resultatsTransmis
     );
 
-
   const [loadingResultats, setLoadingResultats] =
     useState(false);
 
-
   const [errorResultats, setErrorResultats] =
     useState<string | null>(null);
-
 
   /*
    * ========================================================
    * PROFILS DES ENSEIGNANTS
    * ========================================================
-   *
-   * La clé est l'adresse email de l'enseignant.
-   *
-   * Exemple :
-   *
-   * {
-   *   "enseignant@email.com": {
-   *      nom: "...",
-   *      prenom: "...",
-   *      ...
-   *   }
-   * }
    */
 
   const [teacherProfiles, setTeacherProfiles] =
@@ -294,6 +261,20 @@ const Remediation: React.FC = () => {
       >
     >({});
 
+  /*
+   * ========================================================
+   * ÉTAPE ACTUELLE
+   *
+   * 0 = résultats généraux
+   * 1...N = questions
+   * N+1 = résumé
+   * N+2 = notions
+   * N+3 = message final
+   * ========================================================
+   */
+
+  const [currentStep, setCurrentStep] =
+    useState(0);
 
   /*
    * ========================================================
@@ -306,12 +287,10 @@ const Remediation: React.FC = () => {
     resultats?.niveau ??
     "";
 
-
   const serie =
     state.serieActuelle ??
     resultats?.serie ??
     "";
-
 
   /*
    * ========================================================
@@ -320,7 +299,6 @@ const Remediation: React.FC = () => {
    */
 
   useEffect(() => {
-
     console.log(
       "================================================"
     );
@@ -357,13 +335,12 @@ const Remediation: React.FC = () => {
     console.log(
       "📚 notionsNonAcquises =",
       state.notionsNonAcquises ??
-      state.notions_non_acquises
+        state.notions_non_acquises
     );
 
     console.log(
       "================================================"
     );
-
   }, [
     location.state,
     resultatsTransmis,
@@ -374,7 +351,6 @@ const Remediation: React.FC = () => {
     state.notions_non_acquises,
   ]);
 
-
   /*
    * ========================================================
    * RÉSULTATS TRANSMIS OU FALLBACK BACKEND
@@ -382,9 +358,7 @@ const Remediation: React.FC = () => {
    */
 
   useEffect(() => {
-
     if (resultatsTransmis) {
-
       console.log(
         "✅ Résultats reçus depuis Resultats.tsx"
       );
@@ -398,15 +372,7 @@ const Remediation: React.FC = () => {
       return;
     }
 
-
-    /*
-     * ------------------------------------------------------
-     * FALLBACK
-     * ------------------------------------------------------
-     */
-
     if (!niveau) {
-
       setErrorResultats(
         "Aucun résultat d'évaluation n'a été transmis."
       );
@@ -416,16 +382,12 @@ const Remediation: React.FC = () => {
       return;
     }
 
-
     const recupererResultats =
       async () => {
-
         try {
-
           setLoadingResultats(true);
 
           setErrorResultats(null);
-
 
           console.log(
             "📡 Aucun résultat dans location.state."
@@ -434,7 +396,6 @@ const Remediation: React.FC = () => {
           console.log(
             "📡 Récupération du dernier résultat depuis le backend..."
           );
-
 
           const res =
             await api.get(
@@ -450,72 +411,45 @@ const Remediation: React.FC = () => {
               }
             );
 
-
           console.log(
             "📥 Résultat récupéré :",
             res.data
           );
 
-
           setResultats(
             res.data
           );
-
-
         } catch (error) {
-
           console.error(
             "❌ Erreur récupération résultats :",
             error
           );
 
-
           setErrorResultats(
             "Impossible de récupérer les résultats de l'évaluation."
           );
-
-
         } finally {
-
           setLoadingResultats(false);
-
         }
-
       };
 
-
     recupererResultats();
-
   }, [
     resultatsTransmis,
     niveau,
     serie,
   ]);
 
-
   /*
    * ========================================================
    * QUESTIONS À AFFICHER
    * ========================================================
-   *
-   * PRIORITÉ :
-   *
-   * 1. questionsRemediation transmises par Resultats.tsx
-   * 2. questionsRemediation présentes dans resultats
-   * 3. questions_remediation
-   * 4. questions
    */
 
   const toutesLesQuestions =
     useMemo<QuestionRemediation[]>(() => {
-
       let questions:
         QuestionRemediation[] = [];
-
-
-      /*
-       * PRIORITÉ 1
-       */
 
       if (
         Array.isArray(
@@ -523,108 +457,69 @@ const Remediation: React.FC = () => {
         ) &&
         questionsRemediationTransmises.length > 0
       ) {
-
         questions =
           questionsRemediationTransmises;
-
-      }
-
-
-      /*
-       * PRIORITÉ 2
-       */
-
-      else if (
+      } else if (
         Array.isArray(
           resultats?.questionsRemediation
         )
       ) {
-
         questions =
           resultats.questionsRemediation;
-
-      }
-
-
-      /*
-       * PRIORITÉ 3
-       */
-
-      else if (
+      } else if (
         Array.isArray(
           resultats?.questions_remediation
         )
       ) {
-
         questions =
           resultats.questions_remediation;
-
-      }
-
-
-      /*
-       * PRIORITÉ 4
-       */
-
-      else if (
+      } else if (
         Array.isArray(
           resultats?.questions
         )
       ) {
-
         questions =
           resultats.questions;
-
       }
-
-
-      /*
-       * NORMALISATION
-       */
 
       return questions.map(
         (
           question,
           index
         ) => ({
-
           ...question,
 
           id:
             question.id ??
             `question-remediation-${index}`,
-
         })
       );
-
     }, [
       questionsRemediationTransmises,
       resultats,
     ]);
 
+  /*
+   * ========================================================
+   * RÉINITIALISER L'ÉTAPE SI LES QUESTIONS CHANGENT
+   * ========================================================
+   */
+
+  useEffect(() => {
+    setCurrentStep(0);
+  }, [
+    toutesLesQuestions.length,
+  ]);
 
   /*
    * ========================================================
    * RÉCUPÉRATION DES PROFILS ENSEIGNANTS
    * ========================================================
-   *
-   * On récupère tous les emails présents dans les questions.
-   *
-   * Le Set évite de faire plusieurs requêtes pour le même
-   * enseignant.
    */
 
   useEffect(() => {
-
     const recupererProfilsEnseignants =
       async () => {
-
-        /*
-         * --------------------------------------------------
-         * EXTRAIRE LES EMAILS UNIQUES
-         * --------------------------------------------------
-         */
-
         const emails = [
           ...new Set(
             toutesLesQuestions
@@ -643,27 +538,12 @@ const Remediation: React.FC = () => {
           ),
         ];
 
-
-        /*
-         * Aucun enseignant
-         */
-
         if (
           emails.length === 0
         ) {
-
           setTeacherProfiles({});
-
           return;
-
         }
-
-
-        /*
-         * --------------------------------------------------
-         * PROFILS
-         * --------------------------------------------------
-         */
 
         const profiles:
           Record<
@@ -671,36 +551,19 @@ const Remediation: React.FC = () => {
             TeacherProfile | null
           > = {};
 
-
-        /*
-         * --------------------------------------------------
-         * UNE REQUÊTE PAR ENSEIGNANT
-         * --------------------------------------------------
-         */
-
         await Promise.all(
           emails.map(
             async (email) => {
-
-              /*
-               * Si le profil est déjà en mémoire,
-               * inutile de refaire la requête.
-               */
-
               if (
                 teacherProfiles[email]
               ) {
-
                 profiles[email] =
                   teacherProfiles[email];
 
                 return;
-
               }
 
-
               try {
-
                 const res =
                   await api.get(
                     "/api/teacher/public-profile",
@@ -711,18 +574,14 @@ const Remediation: React.FC = () => {
                     }
                   );
 
-
                 profiles[email] =
                   res.data;
-
 
                 console.log(
                   "👨‍🏫 Profil enseignant récupéré :",
                   res.data
                 );
-
               } catch (error) {
-
                 console.error(
                   `❌ Impossible de récupérer le profil de ${email}`,
                   error
@@ -730,19 +589,10 @@ const Remediation: React.FC = () => {
 
                 profiles[email] =
                   null;
-
               }
-
             }
           )
         );
-
-
-        /*
-         * --------------------------------------------------
-         * ENREGISTRER LES PROFILS
-         * --------------------------------------------------
-         */
 
         setTeacherProfiles(
           (previous) => ({
@@ -750,22 +600,16 @@ const Remediation: React.FC = () => {
             ...profiles,
           })
         );
-
       };
-
 
     if (
       toutesLesQuestions.length > 0
     ) {
-
       recupererProfilsEnseignants();
-
     }
-
   }, [
     toutesLesQuestions,
   ]);
-
 
   /*
    * ========================================================
@@ -774,7 +618,6 @@ const Remediation: React.FC = () => {
    */
 
   useEffect(() => {
-
     console.log(
       "================================================"
     );
@@ -793,13 +636,11 @@ const Remediation: React.FC = () => {
       toutesLesQuestions
     );
 
-
     toutesLesQuestions.forEach(
       (
         question,
         index
       ) => {
-
         console.log(
           `📌 Question ${index + 1}`,
           {
@@ -822,19 +663,15 @@ const Remediation: React.FC = () => {
               question.enseignant,
           }
         );
-
       }
     );
-
 
     console.log(
       "================================================"
     );
-
   }, [
     toutesLesQuestions,
   ]);
-
 
   /*
    * ========================================================
@@ -846,16 +683,12 @@ const Remediation: React.FC = () => {
     (
       valeur: unknown
     ): string => {
-
       if (
         valeur === undefined ||
         valeur === null
       ) {
-
         return "";
-
       }
-
 
       return String(valeur)
         .trim()
@@ -865,9 +698,7 @@ const Remediation: React.FC = () => {
           /[\u0300-\u036f]/g,
           ""
         );
-
     };
-
 
   /*
    * ========================================================
@@ -880,56 +711,42 @@ const Remediation: React.FC = () => {
       reponse: string,
       question: QuestionRemediation
     ): string | null => {
-
       if (
         !Array.isArray(
           question.choix
         )
       ) {
-
         return null;
-
       }
-
 
       const reponseNormalisee =
         normaliser(
           reponse
         );
 
-
       if (
         !/^[a-e]$/.test(
           reponseNormalisee
         )
       ) {
-
         return null;
-
       }
-
 
       const index =
         reponseNormalisee.charCodeAt(0) -
         97;
 
-
       if (
         index < 0 ||
         index >= question.choix.length
       ) {
-
         return null;
-
       }
-
 
       return String(
         question.choix[index]
       );
-
     };
-
 
   /*
    * ========================================================
@@ -941,11 +758,9 @@ const Remediation: React.FC = () => {
     (
       question: QuestionRemediation
     ): string => {
-
       const bonneReponse =
         question.bonne_reponse ??
         question.bonneReponse;
-
 
       if (
         bonneReponse === undefined ||
@@ -954,17 +769,13 @@ const Remediation: React.FC = () => {
           bonneReponse
         ).trim() === ""
       ) {
-
         return "Non précisée";
-
       }
-
 
       const bonneReponseTexte =
         String(
           bonneReponse
         ).trim();
-
 
       const contenuChoix =
         getChoixDepuisLettre(
@@ -972,20 +783,14 @@ const Remediation: React.FC = () => {
           question
         );
 
-
       if (
         contenuChoix !== null
       ) {
-
         return contenuChoix;
-
       }
 
-
       return bonneReponseTexte;
-
     };
-
 
   /*
    * ========================================================
@@ -997,12 +802,10 @@ const Remediation: React.FC = () => {
     (
       question: QuestionRemediation
     ): string => {
-
       const reponseUser =
         question.reponse_apprenant ??
         question.reponseUser ??
         question.reponse_user;
-
 
       if (
         reponseUser === undefined ||
@@ -1011,17 +814,13 @@ const Remediation: React.FC = () => {
           reponseUser
         ).trim() === ""
       ) {
-
         return "Aucune réponse";
-
       }
-
 
       const reponseTexte =
         String(
           reponseUser
         ).trim();
-
 
       const contenuChoix =
         getChoixDepuisLettre(
@@ -1029,20 +828,14 @@ const Remediation: React.FC = () => {
           question
         );
 
-
       if (
         contenuChoix !== null
       ) {
-
         return contenuChoix;
-
       }
 
-
       return reponseTexte;
-
     };
-
 
   /*
    * ========================================================
@@ -1054,17 +847,14 @@ const Remediation: React.FC = () => {
     (
       question: QuestionRemediation
     ): boolean => {
-
       const reponseUser =
         question.reponse_apprenant ??
         question.reponseUser ??
         question.reponse_user;
 
-
       const bonneReponse =
         question.bonne_reponse ??
         question.bonneReponse;
-
 
       if (
         reponseUser === undefined ||
@@ -1072,33 +862,25 @@ const Remediation: React.FC = () => {
         bonneReponse === undefined ||
         bonneReponse === null
       ) {
-
         return false;
-
       }
-
 
       const userNormalise =
         normaliser(
           reponseUser
         );
 
-
       const bonneNormalisee =
         normaliser(
           bonneReponse
         );
 
-
       if (
         userNormalise === "" ||
         bonneNormalisee === ""
       ) {
-
         return false;
-
       }
-
 
       /*
        * CAS 1 :
@@ -1113,14 +895,11 @@ const Remediation: React.FC = () => {
           bonneNormalisee
         )
       ) {
-
         return (
           userNormalise ===
           bonneNormalisee
         );
-
       }
-
 
       /*
        * CAS 2 :
@@ -1136,29 +915,23 @@ const Remediation: React.FC = () => {
           question.choix
         )
       ) {
-
         const contenuChoixUser =
           getChoixDepuisLettre(
             userNormalise,
             question
           );
 
-
         if (
           contenuChoixUser !== null
         ) {
-
           return (
             normaliser(
               contenuChoixUser
             ) ===
             bonneNormalisee
           );
-
         }
-
       }
-
 
       /*
        * CAS 3 :
@@ -1174,29 +947,23 @@ const Remediation: React.FC = () => {
           question.choix
         )
       ) {
-
         const contenuChoixBonne =
           getChoixDepuisLettre(
             bonneNormalisee,
             question
           );
 
-
         if (
           contenuChoixBonne !== null
         ) {
-
           return (
             normaliser(
               contenuChoixBonne
             ) ===
             userNormalise
           );
-
         }
-
       }
-
 
       /*
        * CAS 4 :
@@ -1207,9 +974,7 @@ const Remediation: React.FC = () => {
         userNormalise ===
         bonneNormalisee
       );
-
     };
-
 
   /*
    * ========================================================
@@ -1221,7 +986,6 @@ const Remediation: React.FC = () => {
     (
       question: QuestionRemediation
     ): string => {
-
       return (
         question.notion ??
         question.notions ??
@@ -1229,9 +993,7 @@ const Remediation: React.FC = () => {
         question.chapitre ??
         "Non précisée"
       );
-
     };
-
 
   /*
    * ========================================================
@@ -1243,14 +1005,11 @@ const Remediation: React.FC = () => {
     (
       question: QuestionRemediation
     ): string => {
-
       return (
         question.niveau ??
         "Non précisée"
       );
-
     };
-
 
   /*
    * ========================================================
@@ -1262,7 +1021,6 @@ const Remediation: React.FC = () => {
     toutesLesQuestions.filter(
       estQuestionCorrecte
     );
-
 
   /*
    * ========================================================
@@ -1280,7 +1038,6 @@ const Remediation: React.FC = () => {
         )
     );
 
-
   /*
    * ========================================================
    * NIVEAU SANS SÉRIE
@@ -1292,7 +1049,6 @@ const Remediation: React.FC = () => {
       niveau.toLowerCase()
     );
 
-
   /*
    * ========================================================
    * TITRE NIVEAU
@@ -1303,7 +1059,6 @@ const Remediation: React.FC = () => {
     isNiveauSansSerie
       ? niveau.toUpperCase()
       : `${niveau} ${serie}`.toUpperCase();
-
 
   /*
    * ========================================================
@@ -1318,6 +1073,86 @@ const Remediation: React.FC = () => {
     state.notions_non_acquises ??
     [];
 
+  /*
+   * ========================================================
+   * NOMBRE TOTAL D'ÉTAPES
+   *
+   * 0                    = résultats
+   * 1..N                 = questions
+   * N + 1                = résumé
+   * N + 2                = notions
+   * N + 3                = message final
+   * ========================================================
+   */
+
+  const totalSteps =
+    toutesLesQuestions.length + 4;
+
+  /*
+   * ========================================================
+   * INFORMATIONS SUR L'ÉTAPE
+   * ========================================================
+   */
+
+  const isQuestionStep =
+    currentStep >= 1 &&
+    currentStep <=
+      toutesLesQuestions.length;
+
+  const currentQuestionIndex =
+    currentStep - 1;
+
+  const isResumeStep =
+    currentStep ===
+    toutesLesQuestions.length + 1;
+
+  const isNotionsStep =
+    currentStep ===
+    toutesLesQuestions.length + 2;
+
+  const isMessageStep =
+    currentStep ===
+    toutesLesQuestions.length + 3;
+
+  /*
+   * ========================================================
+   * NAVIGATION ENTRE LES ÉTAPES
+   * ========================================================
+   */
+
+  const handleNextStep =
+    () => {
+      setCurrentStep(
+        (previous) =>
+          Math.min(
+            previous + 1,
+            totalSteps - 1
+          )
+      );
+
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: "smooth",
+      });
+    };
+
+  const handlePreviousStep =
+    () => {
+      setCurrentStep(
+        (previous) =>
+          Math.max(
+            previous - 1,
+            0
+          )
+      );
+
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: "smooth",
+      });
+    };
 
   /*
    * ========================================================
@@ -1327,17 +1162,13 @@ const Remediation: React.FC = () => {
 
   const handleStartRemediation =
     () => {
-
       if (!niveau) {
-
         console.warn(
           "⚠️ Niveau manquant."
         );
 
         return;
-
       }
-
 
       const notions: string[] =
         notionsBrutes
@@ -1361,7 +1192,6 @@ const Remediation: React.FC = () => {
                 .toLowerCase()
                 .trim()
           );
-
 
       console.log(
         "================================================"
@@ -1390,18 +1220,15 @@ const Remediation: React.FC = () => {
         "================================================"
       );
 
-
       navigate(
         `/maths/test/remediationvideo/${niveau.toLowerCase()}/${(
           serie ||
           "none"
         ).toLowerCase()}`,
         {
-
           replace: true,
 
           state: {
-
             currentNotion:
               notions[0] ??
               null,
@@ -1436,14 +1263,10 @@ const Remediation: React.FC = () => {
 
             questions:
               toutesLesQuestions,
-
           },
-
         }
       );
-
     };
-
 
   /*
    * ========================================================
@@ -1452,31 +1275,142 @@ const Remediation: React.FC = () => {
    */
 
   if (loadingResultats) {
-
     return (
-
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 text-center">
-
           <div className="text-4xl mb-4">
             ⏳
           </div>
 
           <p className="text-gray-700 dark:text-gray-200 font-semibold">
-
             Chargement des résultats...
-
           </p>
-
         </div>
-
       </div>
-
     );
-
   }
 
+  /*
+   * ========================================================
+   * QUESTION ACTUELLE
+   * ========================================================
+   */
+
+  const questionActuelle =
+    isQuestionStep
+      ? toutesLesQuestions[
+          currentQuestionIndex
+        ]
+      : null;
+
+  /*
+   * ========================================================
+   * INFORMATIONS QUESTION ACTUELLE
+   * ========================================================
+   */
+
+  let correcteActuelle =
+    false;
+
+  let reponseUserActuelle =
+    "";
+
+  let bonneReponseActuelle =
+    "";
+
+  let teacherEmailActuel =
+    "";
+
+  let teacherActuel:
+    | TeacherProfile
+    | null = null;
+
+  let teacherPhotoActuelle:
+    | string
+    | null = null;
+
+  let teacherInitialsActuelles =
+    "?";
+
+  let teacherProfileUrlActuel =
+    "";
+
+  let teacherFullNameActuel =
+    "Enseignant";
+
+  if (questionActuelle) {
+    correcteActuelle =
+      estQuestionCorrecte(
+        questionActuelle
+      );
+
+    reponseUserActuelle =
+      getReponseUserAffichage(
+        questionActuelle
+      );
+
+    bonneReponseActuelle =
+      getBonneReponseAffichage(
+        questionActuelle
+      );
+
+    teacherEmailActuel =
+      questionActuelle.enseignant ??
+      "";
+
+    teacherActuel =
+      teacherEmailActuel
+        ? teacherProfiles[
+            teacherEmailActuel
+          ]
+        : null;
+
+    teacherPhotoActuelle =
+      teacherActuel?.teacher_photo
+        ? /^https?:\/\//i.test(
+            teacherActuel.teacher_photo
+          )
+          ? teacherActuel.teacher_photo
+          : (() => {
+              const baseUrl =
+                api.defaults.baseURL?.replace(
+                  /\/$/,
+                  ""
+                ) || "";
+
+              const normalizedBase =
+                baseUrl.endsWith("/api")
+                  ? baseUrl.slice(
+                      0,
+                      -4
+                    )
+                  : baseUrl;
+
+              return `${normalizedBase}/${teacherActuel.teacher_photo.replace(
+                /^\//,
+                ""
+              )}`;
+            })()
+        : null;
+
+    teacherInitialsActuelles =
+      teacherActuel
+        ? `${teacherActuel.prenom?.[0] ?? ""}${teacherActuel.nom?.[0] ?? ""}`
+            .toUpperCase()
+        : "?";
+
+    teacherProfileUrlActuel =
+      teacherEmailActuel
+        ? `/enseignant/profil/${encodeURIComponent(
+            teacherEmailActuel
+          )}`
+        : "";
+
+    teacherFullNameActuel =
+      teacherActuel
+        ? `${teacherActuel.prenom} ${teacherActuel.nom}`
+        : "Enseignant";
+  }
 
   /*
    * ========================================================
@@ -1485,821 +1419,580 @@ const Remediation: React.FC = () => {
    */
 
   return (
-
     <div className="w-full max-w-5xl mx-auto bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-6 sm:p-10 space-y-8">
 
-
       {/* ==================================================
-          EN-TÊTE
+          EN-TÊTE GLOBAL
       ================================================== */}
 
       <div className="text-center">
-
         <h1 className="text-4xl font-extrabold text-center text-blue-700">
-
           REMÉDIATION:{" "}
-
           {titreNiveau}
-
         </h1>
 
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
           Consultez les résultats détaillés
           de votre évaluation avant de
-          poursuivre le programme. Ce contenu
-          disparait lorsque vous cliquez sur
-          CONTINUEZ en bas de la page
-
+          poursuivre le programme.
         </p>
-
       </div>
 
+      {/* ==================================================
+          BARRE DE PROGRESSION
+      ================================================== */}
+
+      <div className="bg-gray-100 dark:bg-gray-700 rounded-xl p-4">
+        <div className="flex items-center justify-between gap-3 mb-2">
+
+          <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+            Étape {currentStep + 1} sur{" "}
+            {totalSteps}
+          </span>
+
+          {isQuestionStep && (
+            <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+              Question{" "}
+              {currentQuestionIndex + 1} /{" "}
+              {toutesLesQuestions.length}
+            </span>
+          )}
+
+        </div>
+
+        <div className="w-full h-3 bg-gray-300 dark:bg-gray-600 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-blue-600 rounded-full transition-all duration-500"
+            style={{
+              width: `${((currentStep + 1) / totalSteps) * 100}%`,
+            }}
+          />
+        </div>
+      </div>
 
       {/* ==================================================
           ERREUR
       ================================================== */}
 
       {errorResultats && (
-
         <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 p-5 rounded-lg">
-
           <p className="text-red-700 dark:text-red-300 font-semibold">
-
             ❌ {errorResultats}
-
           </p>
-
         </div>
-
       )}
 
-
       {/* ==================================================
-          INFORMATIONS GÉNÉRALES
+          ÉTAPE 0 : RÉSULTATS GÉNÉRAUX
       ================================================== */}
 
-      {resultats && (
-
+      {currentStep === 0 && (
         <section className="bg-gray-100 dark:bg-gray-700 p-6 rounded-xl shadow-md">
 
           <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">
-
             📊 Résultats de l'évaluation
-
           </h2>
 
+          {resultats ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* NOTE */}
 
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Note
+                </p>
 
-            {/* NOTE */}
+                <p className="text-2xl font-bold text-green-600">
+                  {resultats.note}/20
+                </p>
+              </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+              {/* MENTION */}
 
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Mention
+                </p>
 
-                Note
+                <p className="font-bold text-blue-700 dark:text-blue-300">
+                  {resultats.mention}
+                </p>
+              </div>
 
-              </p>
+              {/* QUESTIONS */}
 
-              <p className="text-2xl font-bold text-green-600">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Nombre de questions
+                </p>
 
-                {resultats.note}/20
+                <p className="text-2xl font-bold text-blue-600">
+                  {toutesLesQuestions.length}
+                </p>
+              </div>
 
-              </p>
+              {/* NOTIONS */}
 
-            </div>
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Nombre de notions non acquises
+                </p>
 
-
-            {/* MENTION */}
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-
-                Mention
-
-              </p>
-
-              <p className="font-bold text-blue-700 dark:text-blue-300">
-
-                {resultats.mention}
-
-              </p>
-
-            </div>
-
-
-            {/* QUESTIONS */}
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-
-                Nombre de questions
-
-              </p>
-
-              <p className="text-2xl font-bold text-blue-600">
-
-                {toutesLesQuestions.length}
-
-              </p>
+                <p className="text-2xl font-bold text-purple-600">
+                  {notionsBrutes.length}
+                </p>
+              </div>
 
             </div>
-
-
-            {/* NOTIONS */}
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-
-                Nombre de notions non acquises
-
-              </p>
-
-              <p className="text-2xl font-bold text-purple-600">
-
-                {notionsBrutes.length}
-
-              </p>
-
-            </div>
-
-          </div>
+          ) : (
+            <p className="text-gray-600 dark:text-gray-300">
+              Aucun résultat disponible.
+            </p>
+          )}
 
         </section>
-
       )}
 
-
       {/* ==================================================
-          RÉSULTATS DÉTAILLÉS
+          ÉTAPES DES QUESTIONS
       ================================================== */}
 
-      <section className="bg-gray-50 dark:bg-gray-700 p-6 rounded-xl shadow-inner">
-
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6 border-b border-gray-300 dark:border-gray-600 pb-3">
-
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-
-            Analyse des réponses
-
-          </h2>
-
-          <span className="inline-flex items-center justify-center bg-blue-600 text-white px-4 py-2 rounded-full font-semibold">
-
-            {toutesLesQuestions.length} question
-            {toutesLesQuestions.length > 1
-              ? "s"
-              : ""}
-
-          </span>
-
-        </div>
-
-
-        {/* ==================================================
-            AUCUNE QUESTION
-        ================================================== */}
-
-        {toutesLesQuestions.length === 0 && (
-
-          <div className="bg-yellow-50 dark:bg-yellow-900/30 border-l-4 border-yellow-500 p-6 rounded-lg">
-
-            <p className="text-yellow-800 dark:text-yellow-200 font-semibold text-center">
-
-              ⚠️ Aucune question n'a été reçue.
-
-            </p>
-
-            <p className="text-sm text-yellow-700 dark:text-yellow-300 text-center mt-2">
-
-              Vérifie dans la console :
-
-            </p>
-
-            <pre className="mt-3 bg-gray-900 text-green-300 p-4 rounded-lg text-xs overflow-auto">
-
-              location.state.questionsRemediation
-
-            </pre>
-
-          </div>
-
-        )}
-
-
-        {/* ==================================================
-            QUESTIONS
-        ================================================== */}
-
-        {toutesLesQuestions.length > 0 && (
-
-          <div className="space-y-6">
-
-            {toutesLesQuestions.map(
-              (
-                question,
-                index
-              ) => {
-
-                const correcte =
-                  estQuestionCorrecte(
-                    question
-                  );
-
-
-                const reponseUser =
-                  getReponseUserAffichage(
-                    question
-                  );
-
-
-                const bonneReponse =
-                  getBonneReponseAffichage(
-                    question
-                  );
-
-
-                /*
-                 * =================================================
-                 * PROFIL ENSEIGNANT DE CETTE QUESTION
-                 * =================================================
-                 */
-
-                const teacherEmail =
-                  question.enseignant ??
-                  "";
-
-
-                const teacher =
-                  teacherEmail
-                    ? teacherProfiles[
-                        teacherEmail
-                      ]
-                    : null;
-
-
-                /*
-                 * =================================================
-                 * URL COMPLÈTE DE LA PHOTO DE L'ENSEIGNANT
-                 * =================================================
-                 *
-                 * Le backend peut renvoyer :
-                 *
-                 * /images/enseignants/photo.jpg
-                 *
-                 * ou directement :
-                 *
-                 * https://...
-                 *
-                 * On construit donc automatiquement l'URL
-                 * complète lorsque le chemin est relatif.
-                 */
-
-                const teacherPhoto =
-                  teacher?.teacher_photo
-                    ? teacher.teacher_photo.startsWith(
-                        "http"
-                      )
-                      ? teacher.teacher_photo
-                      : `${
-                          api.defaults.baseURL?.replace(
-                            /\/$/,
-                            ""
-                          ) || ""
-                        }/${teacher.teacher_photo.replace(
-                          /^\//,
-                          ""
-                        )}`
-                    : null;
-
-
-                /*
-                 * Initiales si aucune photo
-                 */
-
-                const teacherInitials =
-                  teacher
-                    ? `${teacher.prenom?.[0] ?? ""}${teacher.nom?.[0] ?? ""}`
-                        .toUpperCase()
-                    : "?";
-
-
-                return (
-
-                  <article
-                    key={String(
-                      question.id
-                    )}
-                    className={`rounded-xl shadow-md overflow-hidden border-l-4 ${
-                      correcte
-                        ? "border-green-500 bg-green-50 dark:bg-green-900/20"
-                        : "border-red-500 bg-red-50 dark:bg-red-900/20"
-                    }`}
-                  >
-
-
-                    {/* ==================================================
-                        EN-TÊTE
-                    ================================================== */}
-
-                    <div
-                      className={`px-5 py-4 ${
-                        correcte
-                          ? "bg-green-100 dark:bg-green-900/40"
-                          : "bg-red-100 dark:bg-red-900/40"
-                      }`}
-                    >
-
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-
-                        <h3 className="font-bold text-lg text-gray-800 dark:text-white">
-
-                          Question{" "}
-                          {index + 1}
-
-                        </h3>
-
-
-                        <span
-                          className={`inline-flex items-center justify-center px-4 py-1 rounded-full font-bold ${
-                            correcte
-                              ? "bg-green-600 text-white"
-                              : "bg-red-600 text-white"
-                          }`}
-                        >
-
-                          {correcte
-                            ? "✅ Correcte"
-                            : "❌ Incorrecte"}
-
-                        </span>
-
-                      </div>
-
-                    </div>
-
-
-                    {/* ==================================================
-                        CONTENU
-                    ================================================== */}
-
-                    <div className="p-5 space-y-4">
-
-
-                      {/* =================================================
-                          QUESTION
-                      ================================================= */}
-
-                      <div>
-
-                        <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-
-                          Énoncé
-
-                        </p>
-
-                        <div
-                          className="font-semibold text-gray-800 dark:text-white leading-relaxed"
-                          dangerouslySetInnerHTML={{
-                            __html:
-                              question.question ??
-                              "Question non disponible",
-                          }}
-                        />
-
-                      </div>
-
-
-                      {/* =================================================
-                          ENSEIGNANT
-                      ================================================= */}
-
-                      {teacherEmail && (
-
-                        <div className="flex items-center gap-3 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-3">
-
-                          {/* =============================================
-                              PHOTO
-                          ============================================= */}
-
-                          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-blue-500 bg-gray-200 dark:bg-gray-700">
-
-                            {teacherPhoto ? (
-
-                              <img
-                                src={
-                                  teacherPhoto
-                                }
-                                alt={
-                                  teacher
-                                    ? `Photo de ${teacher.prenom} ${teacher.nom}`
-                                    : "Photo de l'enseignant"
-                                }
-                                className="h-full w-full object-cover"
-                                onError={(
-                                  event
-                                ) => {
-                                  event.currentTarget.style.display =
-                                    "none";
-                                }}
-                              />
-
-                            ) : (
-
-                              <div className="flex h-full w-full items-center justify-center text-sm font-bold text-gray-500 dark:text-gray-300">
-
-                                {teacherInitials}
-
-                              </div>
-
-                            )}
-
-                          </div>
-
-
-                          {/* =============================================
-                              NOM
-                          ============================================= */}
-
-                          <div className="min-w-0 flex-1">
-
-                            <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-
-                              Question proposée par
-
-                            </p>
-
-
-                            {teacher ? (
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  navigate(
-                                    `/enseignant/profil/${encodeURIComponent(
-                                      teacher.email
-                                    )}`
-                                  )
-                                }
-                                className="font-semibold text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 hover:underline transition text-left"
-                              >
-
-                                {teacher.prenom}{" "}
-                                {teacher.nom}
-
-                              </button>
-
-                            ) : (
-
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
-
-                                Chargement de l'enseignant...
-
-                              </p>
-
-                            )}
-
-                          </div>
-
-
-                          {/* =============================================
-                              PETIT INDICATEUR
-                          ============================================= */}
-
-                          {teacher && (
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                navigate(
-                                  `/enseignant/profil/${encodeURIComponent(
-                                    teacher.email
-                                  )}`
-                                )
-                              }
-                              className="hidden sm:flex items-center justify-center h-9 w-9 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition"
-                              title="Voir le profil de l'enseignant"
-                            >
-
-                              →
-
-                            </button>
-
-                          )}
-
-                        </div>
-
-                      )}
-
-
-                      {/* =================================================
-                          CLASSE + NOTION
-                      ================================================= */}
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-
-                        {/* NIVEAU PROPRE À LA QUESTION */}
-
-                        <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
-
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-
-                            🎓 Classe
-
-                          </p>
-
-                          <p className="font-semibold text-blue-700 dark:text-blue-300">
-
-                            {getClasseQuestion(
-                              question
-                            )}
-
-                          </p>
-
-                        </div>
-
-
-                        {/* NOTION */}
-
-                        <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
-
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-
-                            📚 Notion
-
-                          </p>
-
-                          <p className="font-semibold text-purple-700 dark:text-purple-300">
-
-                            {getNotionQuestion(
-                              question
-                            )}
-
-                          </p>
-
-                        </div>
-
-                      </div>
-
-
-                      {/* =================================================
-                          CHOIX
-                      ================================================= */}
-
-                      {Array.isArray(
-                        question.choix
-                      ) &&
-                        question.choix.length >
-                          0 && (
-
-                          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-
-                            <p className="text-sm text-gray-500 dark:text-gray-400 font-semibold mb-2">
-
-                              Choix proposés
-
-                            </p>
-
-
-                            <div className="space-y-2">
-
-                              {question.choix.map(
-                                (
-                                  choix,
-                                  choixIndex
-                                ) => {
-
-                                  const lettre =
-                                    String.fromCharCode(
-                                      65 +
-                                      choixIndex
-                                    );
-
-
-                                  return (
-
-                                    <div
-                                      key={
-                                        choixIndex
-                                      }
-                                      className="p-2 rounded bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
-                                    >
-
-                                      <strong>
-                                        {lettre}.
-                                      </strong>{" "}
-
-                                      {choix}
-
-                                    </div>
-
-                                  );
-
-                                }
-                              )}
-
-                            </div>
-
-                          </div>
-
-                        )}
-
-
-                      {/* =================================================
-                          BONNE RÉPONSE
-                      ================================================= */}
-
-                      <div className="bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-lg p-4">
-
-                        <p className="text-sm text-green-700 dark:text-green-300 font-semibold mb-1">
-
-                          ✅ Bonne réponse
-
-                        </p>
-
-                        <p className="font-bold text-green-800 dark:text-green-200">
-
-                          {bonneReponse}
-
-                        </p>
-
-                      </div>
-
-
-                      {/* =================================================
-                          RÉPONSE APPRENANT
-                      ================================================= */}
-
-                      <div
-                        className={`rounded-lg p-4 border ${
-                          correcte
-                            ? "bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700"
-                            : "bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-700"
-                        }`}
-                      >
-
-                        <p
-                          className={`text-sm font-semibold mb-1 ${
-                            correcte
-                              ? "text-green-700 dark:text-green-300"
-                              : "text-red-700 dark:text-red-300"
-                          }`}
-                        >
-
-                          {correcte
-                            ? "✅ Votre choix"
-                            : "❌ Votre choix"}
-
-                        </p>
-
-                        <p
-                          className={`font-bold ${
-                            correcte
-                              ? "text-green-800 dark:text-green-200"
-                              : "text-red-800 dark:text-red-200"
-                          }`}
-                        >
-
-                          {reponseUser}
-
-                        </p>
-
-                      </div>
-
-
-                    </div>
-
-                  </article>
-
-                );
-
-              }
-            )}
-
-          </div>
-
-        )}
-
-      </section>
-
-
-      {/* ==================================================
-          RÉSUMÉ
-      ================================================== */}
-
-      {toutesLesQuestions.length > 0 && (
-
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
-
-          <div className="bg-blue-50 dark:bg-blue-900/30 p-5 rounded-xl shadow-md text-center">
-
-            <p className="text-sm text-blue-700 dark:text-blue-300">
-
-              Total
-
-            </p>
-
-            <p className="text-3xl font-bold text-blue-700 dark:text-blue-200">
-
-              {toutesLesQuestions.length}
-
-            </p>
-
-          </div>
-
-
-          <div className="bg-green-50 dark:bg-green-900/30 p-5 rounded-xl shadow-md text-center">
-
-            <p className="text-sm text-green-700 dark:text-green-300">
-
-              Correctes
-
-            </p>
-
-            <p className="text-3xl font-bold text-green-700 dark:text-green-200">
-
-              {questionsCorrectes.length}
-
-            </p>
-
-          </div>
-
-
-          <div className="bg-red-50 dark:bg-red-900/30 p-5 rounded-xl shadow-md text-center">
-
-            <p className="text-sm text-red-700 dark:text-red-200">
-
-              Incorrectes
-
-            </p>
-
-            <p className="text-3xl font-bold text-red-700 dark:text-red-200">
-
-              {questionsIncorrectes.length}
-
-            </p>
-
-          </div>
-
-        </section>
-
-      )}
-
-
-      {/* ==================================================
-          NOTIONS NON ACQUISES
-      ================================================== */}
-
-      {notionsBrutes.length > 0 && (
-
-        <section className="bg-purple-50 dark:bg-purple-900/30 p-6 rounded-xl shadow-md">
-
-          <h2 className="text-xl font-semibold text-purple-700 dark:text-purple-200 mb-4">
-
-            📚 Notions à revoir
-
-          </h2>
-
-          <div className="flex flex-wrap gap-2">
-
-            {notionsBrutes.map(
-              (
-                notion,
-                index
-              ) => (
+      {isQuestionStep &&
+        questionActuelle && (
+          <section
+            className={`rounded-xl shadow-md overflow-hidden border-l-4 ${
+              correcteActuelle
+                ? "border-green-500 bg-green-50 dark:bg-green-900/20"
+                : "border-red-500 bg-red-50 dark:bg-red-900/20"
+            }`}
+          >
+
+            {/* ==================================================
+                EN-TÊTE QUESTION
+            ================================================== */}
+
+            <div
+              className={`px-5 py-4 ${
+                correcteActuelle
+                  ? "bg-green-100 dark:bg-green-900/40"
+                  : "bg-red-100 dark:bg-red-900/40"
+              }`}
+            >
+
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+
+                <h2 className="font-bold text-xl text-gray-800 dark:text-white">
+                  Question{" "}
+                  {currentQuestionIndex + 1}
+                </h2>
 
                 <span
-                  key={`${notion}-${index}`}
-                  className="px-4 py-2 rounded-full bg-purple-600 text-white font-semibold text-sm"
+                  className={`inline-flex items-center justify-center px-4 py-1 rounded-full font-bold ${
+                    correcteActuelle
+                      ? "bg-green-600 text-white"
+                      : "bg-red-600 text-white"
+                  }`}
                 >
-
-                  {notion}
-
+                  {correcteActuelle
+                    ? "✅ Correcte"
+                    : "❌ Incorrecte"}
                 </span>
 
-              )
-            )}
+              </div>
+
+            </div>
+
+            <div className="p-5 space-y-5">
+
+              {/* =================================================
+                  ENSEIGNANT
+              ================================================= */}
+
+              {teacherEmailActuel && (
+                <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4">
+
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+
+                    {/* PHOTO */}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (
+                          teacherProfileUrlActuel
+                        ) {
+                          navigate(
+                            teacherProfileUrlActuel
+                          );
+                        }
+                      }}
+                      disabled={
+                        !teacherActuel
+                      }
+                      className="group shrink-0 disabled:cursor-default"
+                      title="Voir le profil de l'enseignant"
+                    >
+                      <div className="h-14 w-14 overflow-hidden rounded-full border-2 border-blue-500 bg-gray-200 dark:bg-gray-700 shadow-sm group-hover:shadow-md group-hover:border-blue-700 transition">
+
+                        {teacherPhotoActuelle ? (
+                          <img
+                            src={
+                              teacherPhotoActuelle
+                            }
+                            alt={
+                              teacherActuel
+                                ? `Photo de ${teacherActuel.prenom} ${teacherActuel.nom}`
+                                : "Photo de l'enseignant"
+                            }
+                            className="h-full w-full object-cover group-hover:scale-105 transition-transform"
+                            onError={(
+                              event
+                            ) => {
+                              event.currentTarget.style.display =
+                                "none";
+                            }}
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-sm font-bold text-gray-500 dark:text-gray-300">
+                            {
+                              teacherInitialsActuelles
+                            }
+                          </div>
+                        )}
+
+                      </div>
+                    </button>
+
+                    {/* NOM + PRÉNOM */}
+
+                    <div className="min-w-0 flex-1">
+
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        Question proposée par
+                      </p>
+
+                      {teacherActuel ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigate(
+                              teacherProfileUrlActuel
+                            );
+                          }}
+                          className="font-semibold text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 hover:underline transition text-left"
+                        >
+                          {
+                            teacherFullNameActuel
+                          }
+                        </button>
+                      ) : (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Chargement de l'enseignant...
+                        </p>
+                      )}
+
+                    </div>
+
+                    {/* BOUTON PROFIL */}
+
+                    {teacherActuel && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navigate(
+                            teacherProfileUrlActuel
+                          )
+                        }
+                        className="hidden sm:flex shrink-0 items-center justify-center h-9 w-9 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition"
+                        title="Voir le profil de l'enseignant"
+                      >
+                        →
+                      </button>
+                    )}
+
+                  </div>
+
+                </div>
+              )}
+
+              {/* =================================================
+                  ÉNONCÉ
+              ================================================= */}
+
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm">
+
+                <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">
+                  Énoncé
+                </p>
+
+                <div
+                  className="font-semibold text-gray-800 dark:text-white leading-relaxed"
+                  dangerouslySetInnerHTML={{
+                    __html:
+                      questionActuelle.question ??
+                      "Question non disponible",
+                  }}
+                />
+
+              </div>
+
+              {/* =================================================
+                  CLASSE + NOTION
+              ================================================= */}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
+
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    🎓 Classe
+                  </p>
+
+                  <p className="font-semibold text-blue-700 dark:text-blue-300">
+                    {getClasseQuestion(
+                      questionActuelle
+                    )}
+                  </p>
+
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
+
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    📚 Notion
+                  </p>
+
+                  <p className="font-semibold text-purple-700 dark:text-purple-300">
+                    {getNotionQuestion(
+                      questionActuelle
+                    )}
+                  </p>
+
+                </div>
+
+              </div>
+
+              {/* =================================================
+                  CHOIX
+              ================================================= */}
+
+              {Array.isArray(
+                questionActuelle.choix
+              ) &&
+                questionActuelle.choix.length >
+                  0 && (
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-semibold mb-2">
+                      Choix proposés
+                    </p>
+
+                    <div className="space-y-2">
+
+                      {questionActuelle.choix.map(
+                        (
+                          choix,
+                          choixIndex
+                        ) => {
+                          const lettre =
+                            String.fromCharCode(
+                              65 +
+                              choixIndex
+                            );
+
+                          return (
+                            <div
+                              key={
+                                choixIndex
+                              }
+                              className="p-2 rounded bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                            >
+                              <strong>
+                                {lettre}.
+                              </strong>{" "}
+                              {choix}
+                            </div>
+                          );
+                        }
+                      )}
+
+                    </div>
+
+                  </div>
+                )}
+
+              {/* =================================================
+                  BONNE RÉPONSE
+              ================================================= */}
+
+              <div className="bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-lg p-4">
+
+                <p className="text-sm text-green-700 dark:text-green-300 font-semibold mb-1">
+                  ✅ Bonne réponse
+                </p>
+
+                <p className="font-bold text-green-800 dark:text-green-200">
+                  {bonneReponseActuelle}
+                </p>
+
+              </div>
+
+              {/* =================================================
+                  RÉPONSE APPRENANT
+              ================================================= */}
+
+              <div
+                className={`rounded-lg p-4 border ${
+                  correcteActuelle
+                    ? "bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700"
+                    : "bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-700"
+                }`}
+              >
+
+                <p
+                  className={`text-sm font-semibold mb-1 ${
+                    correcteActuelle
+                      ? "text-green-700 dark:text-green-300"
+                      : "text-red-700 dark:text-red-300"
+                  }`}
+                >
+                  {correcteActuelle
+                    ? "✅ Votre choix"
+                    : "❌ Votre choix"}
+                </p>
+
+                <p
+                  className={`font-bold ${
+                    correcteActuelle
+                      ? "text-green-800 dark:text-green-200"
+                      : "text-red-800 dark:text-red-200"
+                  }`}
+                >
+                  {reponseUserActuelle}
+                </p>
+
+              </div>
+
+            </div>
+
+          </section>
+        )}
+
+      {/* ==================================================
+          ÉTAPE RÉSUMÉ
+      ================================================== */}
+
+      {isResumeStep && (
+        <section className="space-y-6">
+
+          <div className="bg-blue-50 dark:bg-blue-900/30 p-6 rounded-xl shadow-md">
+
+            <h2 className="text-2xl font-bold text-blue-700 dark:text-blue-200 mb-2">
+              📊 Résumé de votre évaluation
+            </h2>
+
+            <p className="text-gray-700 dark:text-gray-200">
+              Voici maintenant le bilan de
+              l'ensemble de vos réponses.
+            </p>
+
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+            <div className="bg-blue-50 dark:bg-blue-900/30 p-5 rounded-xl shadow-md text-center">
+
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                Total
+              </p>
+
+              <p className="text-3xl font-bold text-blue-700 dark:text-blue-200">
+                {toutesLesQuestions.length}
+              </p>
+
+            </div>
+
+            <div className="bg-green-50 dark:bg-green-900/30 p-5 rounded-xl shadow-md text-center">
+
+              <p className="text-sm text-green-700 dark:text-green-300">
+                Correctes
+              </p>
+
+              <p className="text-3xl font-bold text-green-700 dark:text-green-200">
+                {questionsCorrectes.length}
+              </p>
+
+            </div>
+
+            <div className="bg-red-50 dark:bg-red-900/30 p-5 rounded-xl shadow-md text-center">
+
+              <p className="text-sm text-red-700 dark:text-red-200">
+                Incorrectes
+              </p>
+
+              <p className="text-3xl font-bold text-red-700 dark:text-red-200">
+                {questionsIncorrectes.length}
+              </p>
+
+            </div>
 
           </div>
 
         </section>
-
       )}
 
-
       {/* ==================================================
-          MESSAGE
+          ÉTAPE NOTIONS NON ACQUISES
       ================================================== */}
 
-      {toutesLesQuestions.length > 0 && (
+      {isNotionsStep && (
+        <section className="bg-purple-50 dark:bg-purple-900/30 p-6 rounded-xl shadow-md">
 
+          <h2 className="text-2xl font-semibold text-purple-700 dark:text-purple-200 mb-4">
+            📚 Notions à revoir
+          </h2>
+
+          {notionsBrutes.length > 0 ? (
+            <>
+              <p className="text-gray-700 dark:text-gray-200 mb-4">
+                Les notions suivantes nécessitent
+                une attention particulière :
+              </p>
+
+              <div className="flex flex-wrap gap-2">
+
+                {notionsBrutes.map(
+                  (
+                    notion,
+                    index
+                  ) => (
+                    <span
+                      key={`${notion}-${index}`}
+                      className="px-4 py-2 rounded-full bg-purple-600 text-white font-semibold text-sm"
+                    >
+                      {notion}
+                    </span>
+                  )
+                )}
+
+              </div>
+            </>
+          ) : (
+            <p className="text-green-700 dark:text-green-300 font-semibold">
+              🎉 Aucune notion non acquise n'a
+              été détectée.
+            </p>
+          )}
+
+        </section>
+      )}
+
+      {/* ==================================================
+          ÉTAPE MESSAGE FINAL
+      ================================================== */}
+
+      {isMessageStep && (
         <section
           className={`p-6 rounded-xl shadow-md ${
             questionsIncorrectes.length > 0
@@ -2309,82 +2002,129 @@ const Remediation: React.FC = () => {
         >
 
           {questionsIncorrectes.length > 0 ? (
-
             <>
-
-              <h2 className="text-xl font-semibold text-blue-700 dark:text-blue-200 mb-3">
-
-                📚 Poursuivre la remédiation
-
+              <h2 className="text-2xl font-semibold text-blue-700 dark:text-blue-200 mb-3">
+                📚 Poursuivre le programme
               </h2>
 
               <p className="text-gray-700 dark:text-gray-200">
-
                 Les réponses incorrectes
                 permettent d'identifier les
-                notions qui nécessitent une
-                remédiation.
-
+                notions qui nécessitent une attention particulière.
               </p>
 
+              <p className="text-gray-700 dark:text-gray-200 mt-3">
+                Vous pouvez poursuivre le programme.
+              </p>
             </>
-
           ) : (
-
             <>
-
-              <h2 className="text-xl font-semibold text-green-700 dark:text-green-300 mb-3">
-
+              <h2 className="text-2xl font-semibold text-green-700 dark:text-green-300 mb-3">
                 🎉 Évaluation réussie
-
               </h2>
 
               <p className="text-gray-700 dark:text-gray-200">
-
                 Toutes les questions sont
                 correctes.
-
               </p>
 
+              <p className="text-gray-700 dark:text-gray-200 mt-3">
+                Vous pouvez poursuivre le programme.
+              </p>
             </>
-
           )}
 
         </section>
-
       )}
 
-
       {/* ==================================================
-          BOUTON CONTINUER
+          NAVIGATION
       ================================================== */}
 
-      <div className="flex justify-center">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+
+        {/* BOUTON PRÉCÉDENT */}
 
         <button
+          type="button"
           onClick={
-            handleStartRemediation
+            handlePreviousStep
           }
-          disabled={!niveau}
-          className={`text-white font-bold py-3 px-8 rounded-xl shadow-lg transition ${
-            niveau
-              ? "bg-green-600 hover:bg-green-700"
-              : "bg-gray-400 cursor-not-allowed"
+          disabled={
+            currentStep === 0
+          }
+          className={`w-full sm:w-auto font-bold py-3 px-6 rounded-xl shadow-md transition ${
+            currentStep === 0
+              ? "bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
+              : "bg-gray-600 text-white hover:bg-gray-700"
           }`}
         >
-
-          🚀 Continuez
-
+          ← Précédent
         </button>
+
+        {/* INDICATION CENTRALE */}
+
+        <div className="text-center text-sm text-gray-500 dark:text-gray-400">
+
+          {isQuestionStep ? (
+            <span>
+              Question{" "}
+              {currentQuestionIndex + 1} sur{" "}
+              {toutesLesQuestions.length}
+            </span>
+          ) : currentStep === 0 ? (
+            <span>
+              Résultats de l'évaluation
+            </span>
+          ) : isResumeStep ? (
+            <span>
+              Résumé de l'évaluation
+            </span>
+          ) : isNotionsStep ? (
+            <span>
+              Notions à revoir
+            </span>
+          ) : (
+            <span>
+              Fin de l'analyse
+            </span>
+          )}
+
+        </div>
+
+        {/* BOUTON SUIVANT OU CONTINUER */}
+
+        {!isMessageStep ? (
+          <button
+            type="button"
+            onClick={
+              handleNextStep
+            }
+            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition"
+          >
+            Suivant →
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={
+              handleStartRemediation
+            }
+            disabled={!niveau}
+            className={`w-full sm:w-auto text-white font-bold py-3 px-8 rounded-xl shadow-lg transition ${
+              niveau
+                ? "bg-green-600 hover:bg-green-700"
+                : "bg-gray-400 cursor-not-allowed"
+            }`}
+          >
+            🚀 Continuez
+          </button>
+        )}
 
       </div>
 
-
     </div>
-
   );
-
 };
-
 
 export default Remediation;

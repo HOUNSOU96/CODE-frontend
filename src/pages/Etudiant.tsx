@@ -570,3 +570,4 @@ const Etudiant: React.FC = () => {
 };
 
 export default Etudiant;
+

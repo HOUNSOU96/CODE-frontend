@@ -1,9 +1,33 @@
+
 import React, {
   useEffect,
   useRef,
   useState,
 } from "react";
 import { Link } from "react-router-dom";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
+  Download,
+  FileText,
+  GraduationCap,
+  Info,
+  Loader2,
+  Mail,
+  MapPin,
+  ShieldCheck,
+  Sparkles,
+  User,
+  Users,
+  Video,
+  Volume2,
+  VolumeX,
+  XCircle,
+} from "lucide-react";
 
 const API_URL =
   import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -35,6 +59,25 @@ interface UserInfo {
 // ============================================================
 
 const Activation: React.FC = () => {
+  // ==========================================================
+  // INTRODUCTION VIDÉO
+  // ==========================================================
+
+  const [videoIntroFinished, setVideoIntroFinished] =
+    useState(false);
+
+  const [videoContinueReady, setVideoContinueReady] =
+    useState(false);
+
+  const [videoCountdown, setVideoCountdown] =
+    useState(5);
+
+  const [videoSoundEnabled, setVideoSoundEnabled] =
+    useState(false);
+
+  const videoIntroRef =
+    useRef<HTMLVideoElement | null>(null);
+
   // ==========================================================
   // ÉTAPE
   // ==========================================================
@@ -119,19 +162,6 @@ const Activation: React.FC = () => {
 
   const [error, setError] =
     useState("");
-
-  // ==========================================================
-  // VIDÉO
-  // ==========================================================
-
-  const [videoEnded, setVideoEnded] =
-    useState(false);
-
-  const videoRef =
-    useRef<HTMLVideoElement | null>(null);
-
-  const [videoSoundEnabled, setVideoSoundEnabled] =
-    useState(false);
 
   // ==========================================================
   // NOM DU DOCUMENT
@@ -270,46 +300,156 @@ const Activation: React.FC = () => {
   };
 
   // ==========================================================
-  // VIDÉO — ACTIVATION DU SON
-  // ==========================================================
-
-  const enableVideoSound = async () => {
-    const video =
-      videoRef.current;
-
-    if (!video) {
-      return;
-    }
-
-    try {
-      video.muted = false;
-      video.volume = 1;
-
-      setVideoSoundEnabled(true);
-
-      await video.play();
-    } catch {
-      setVideoSoundEnabled(
-        !video.muted
-      );
-    }
-  };
-
-  // ==========================================================
-  // VIDÉO — INITIALISATION
+  // INTRODUCTION VIDÉO — LECTURE
   // ==========================================================
 
   useEffect(() => {
+    if (videoIntroFinished) {
+      return;
+    }
+
     const video =
-      videoRef.current;
+      videoIntroRef.current;
 
     if (!video) {
       return;
     }
 
     video.volume = 1;
-    video.muted = false;
-  }, []);
+
+    /*
+     * On démarre la vidéo avec le son désactivé afin de respecter
+     * les politiques d'autoplay des navigateurs.
+     */
+    video.muted = true;
+
+    video.play().catch(() => {
+      // L'utilisateur pourra lancer la vidéo manuellement.
+    });
+  }, [videoIntroFinished]);
+
+  // ==========================================================
+  // INTRODUCTION VIDÉO — COMPTEUR 5 SECONDES
+  // ==========================================================
+
+  useEffect(() => {
+    if (videoIntroFinished) {
+      return;
+    }
+
+    if (videoContinueReady) {
+      return;
+    }
+
+    const interval =
+      window.setInterval(() => {
+        setVideoCountdown((previous) => {
+          if (previous <= 1) {
+            window.clearInterval(
+              interval
+            );
+
+            setVideoContinueReady(
+              true
+            );
+
+            return 0;
+          }
+
+          return previous - 1;
+        });
+      }, 1000);
+
+    return () =>
+      window.clearInterval(
+        interval
+      );
+  }, [
+    videoIntroFinished,
+    videoContinueReady,
+  ]);
+
+  // ==========================================================
+  // INTRODUCTION VIDÉO — SON
+  // ==========================================================
+
+  const enableVideoSound =
+    async () => {
+      const video =
+        videoIntroRef.current;
+
+      if (!video) {
+        return;
+      }
+
+      try {
+        video.muted = false;
+        video.volume = 1;
+
+        setVideoSoundEnabled(
+          true
+        );
+
+        await video.play();
+      } catch {
+        setVideoSoundEnabled(
+          false
+        );
+      }
+    };
+
+  // ==========================================================
+  // INTRODUCTION VIDÉO — VOLUME
+  // ==========================================================
+
+  const handleVideoVolumeChange = (
+    event: React.SyntheticEvent<HTMLVideoElement>
+  ) => {
+    const video =
+      event.currentTarget;
+
+    setVideoSoundEnabled(
+      !video.muted
+    );
+  };
+
+  // ==========================================================
+  // INTRODUCTION VIDÉO — FIN
+  // ==========================================================
+
+  const handleVideoEnded = () => {
+    setVideoContinueReady(
+      true
+    );
+
+    setVideoCountdown(0);
+  };
+
+  // ==========================================================
+  // INTRODUCTION VIDÉO — CONTINUER
+  // ==========================================================
+
+  const continueAfterVideo = () => {
+    if (!videoContinueReady) {
+      return;
+    }
+
+    const video =
+      videoIntroRef.current;
+
+    if (video) {
+      video.pause();
+    }
+
+    setVideoIntroFinished(
+      true
+    );
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
 
   // ==========================================================
   // ÉTAPE 1 — VÉRIFICATION DU CODE
@@ -978,11 +1118,442 @@ const Activation: React.FC = () => {
   `;
 
   // ==========================================================
-  // RENDU
+  // INTRODUCTION VIDÉO — AFFICHAGE PRIORITAIRE
+  // ==========================================================
+
+  if (!videoIntroFinished) {
+    return (
+      <div
+        className="
+          fixed
+          inset-0
+          z-[9999]
+          bg-black
+          overflow-hidden
+        "
+      >
+        {/* ====================================================
+            VIDÉO
+        ==================================================== */}
+
+        <video
+          ref={videoIntroRef}
+          className="
+            absolute
+            inset-0
+            w-full
+            h-full
+            object-cover
+          "
+          playsInline
+          controls
+          preload="auto"
+          onEnded={
+            handleVideoEnded
+          }
+          onVolumeChange={
+            handleVideoVolumeChange
+          }
+        >
+          <source
+            src="/videos/pre.mp4"
+            type="video/mp4"
+          />
+
+          Votre navigateur ne prend pas en charge
+          la lecture vidéo.
+        </video>
+
+        {/* ====================================================
+            VOILE LÉGER
+        ==================================================== */}
+
+        <div
+          className="
+            absolute
+            inset-0
+            bg-gradient-to-t
+            from-black/70
+            via-transparent
+            to-black/20
+            pointer-events-none
+          "
+        />
+
+        {/* ====================================================
+            IDENTITÉ CODE
+        ==================================================== */}
+
+        <div
+          className="
+            absolute
+            top-5
+            left-5
+            sm:top-8
+            sm:left-8
+            flex
+            items-center
+            gap-3
+            z-10
+          "
+        >
+          <div
+            className="
+              w-11
+              h-11
+              sm:w-12
+              sm:h-12
+              rounded-2xl
+              bg-gradient-to-br
+              from-blue-500
+              via-indigo-600
+              to-violet-700
+              text-white
+              flex
+              items-center
+              justify-center
+              font-black
+              text-xl
+              shadow-2xl
+              shadow-blue-900/40
+              border
+              border-white/20
+            "
+          >
+            C
+          </div>
+
+          <div
+            className="
+              hidden
+              sm:block
+            "
+          >
+            <p
+              className="
+                text-white
+                font-black
+                text-lg
+                tracking-tight
+              "
+            >
+              CODE
+            </p>
+
+            <p
+              className="
+                text-white/60
+                text-xs
+              "
+            >
+              L'écosystème éducatif
+            </p>
+          </div>
+        </div>
+
+        {/* ====================================================
+            SON
+        ==================================================== */}
+
+        {!videoSoundEnabled && (
+          <button
+            type="button"
+            onClick={
+              enableVideoSound
+            }
+            className="
+              absolute
+              top-5
+              right-5
+              sm:top-8
+              sm:right-8
+              z-20
+              inline-flex
+              items-center
+              gap-2
+              px-4
+              py-3
+              rounded-2xl
+              bg-white/10
+              hover:bg-white/20
+              backdrop-blur-xl
+              border
+              border-white/20
+              text-white
+              font-bold
+              text-sm
+              shadow-xl
+              transition-all
+            "
+          >
+            <Volume2
+              className="w-4 h-4"
+            />
+            Activer le son
+          </button>
+        )}
+
+        {videoSoundEnabled && (
+          <div
+            className="
+              absolute
+              top-5
+              right-5
+              sm:top-8
+              sm:right-8
+              z-20
+              inline-flex
+              items-center
+              gap-2
+              px-4
+              py-3
+              rounded-2xl
+              bg-black/30
+              backdrop-blur-xl
+              border
+              border-white/10
+              text-white/80
+              text-sm
+            "
+          >
+            <Volume2
+              className="w-4 h-4"
+            />
+            Son activé
+          </div>
+        )}
+
+        {/* ====================================================
+            ZONE BASSE
+        ==================================================== */}
+
+        <div
+          className="
+            absolute
+            left-0
+            right-0
+            bottom-0
+            z-20
+            p-5
+            sm:p-8
+            flex
+            flex-col
+            items-center
+            justify-end
+          "
+        >
+          {/* --------------------------------------------------
+              MESSAGE PENDANT LES 5 SECONDES
+          -------------------------------------------------- */}
+
+          {!videoContinueReady && (
+            <div
+              className="
+                flex
+                flex-col
+                items-center
+                gap-3
+                text-center
+              "
+            >
+              <div
+                className="
+                  inline-flex
+                  items-center
+                  gap-2
+                  px-5
+                  py-3
+                  rounded-2xl
+                  bg-black/45
+                  backdrop-blur-xl
+                  border
+                  border-white/10
+                  text-white
+                  shadow-2xl
+                "
+              >
+                <Clock3
+                  className="
+                    w-5
+                    h-5
+                    text-blue-300
+                  "
+                />
+
+                <span
+                  className="
+                    text-sm
+                    sm:text-base
+                    font-semibold
+                  "
+                >
+                  Vous pourrez continuer dans
+                  {" "}
+                  <span
+                    className="
+                      font-black
+                      text-blue-300
+                    "
+                  >
+                    {videoCountdown}
+                  </span>
+                  {" "}
+                  seconde
+                  {videoCountdown > 1
+                    ? "s"
+                    : ""}
+                </span>
+              </div>
+
+              <p
+                className="
+                  text-white/60
+                  text-xs
+                  sm:text-sm
+                "
+              >
+                Regardez cette courte présentation
+                avant de poursuivre.
+              </p>
+            </div>
+          )}
+
+          {/* --------------------------------------------------
+              BOUTON CONTINUER APRÈS 5 SECONDES
+          -------------------------------------------------- */}
+
+          {videoContinueReady && (
+            <div
+              className="
+                flex
+                flex-col
+                items-center
+                gap-3
+              "
+            >
+              
+
+              <button
+                type="button"
+                onClick={
+                  continueAfterVideo
+                }
+                className="
+                  group
+                  inline-flex
+                  items-center
+                  justify-center
+                  gap-3
+                  px-7
+                  sm:px-9
+                  py-4
+                  rounded-2xl
+                  bg-gradient-to-r
+                  from-blue-600
+                  via-indigo-600
+                  to-violet-700
+                  hover:from-blue-500
+                  hover:via-indigo-500
+                  hover:to-violet-600
+                  text-white
+                  font-black
+                  text-base
+                  sm:text-lg
+                  shadow-2xl
+                  shadow-blue-900/40
+                  border
+                  border-white/20
+                  transition-all
+                  duration-200
+                  hover:-translate-y-1
+                  active:scale-[0.98]
+                "
+              >
+                Continuer vers l'activation
+
+                <ArrowRight
+                  className="
+                    w-5
+                    h-5
+                    transition-transform
+                    group-hover:translate-x-1
+                  "
+                />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================================
+  // RENDU PRINCIPAL
   // ==========================================================
 
   return (
-  <div className="relative z-20 min-h-screen w-full bg-transparent">
+    <div
+      className="
+        relative
+        min-h-screen
+        w-full
+        overflow-hidden
+        bg-gradient-to-br
+        from-slate-50
+        via-blue-50/60
+        to-indigo-50
+        dark:from-gray-950
+        dark:via-gray-950
+        dark:to-blue-950/30
+      "
+    >
+      {/* ======================================================
+          DÉCORATIONS
+      ====================================================== */}
+
+      <div
+        className="
+          pointer-events-none
+          absolute
+          -top-32
+          -left-32
+          w-80
+          h-80
+          rounded-full
+          bg-blue-500/20
+          blur-3xl
+          dark:bg-blue-600/10
+        "
+      />
+
+      <div
+        className="
+          pointer-events-none
+          absolute
+          top-1/3
+          -right-40
+          w-96
+          h-96
+          rounded-full
+          bg-violet-500/15
+          blur-3xl
+          dark:bg-violet-600/10
+        "
+      />
+
+      <div
+        className="
+          pointer-events-none
+          absolute
+          bottom-0
+          left-1/3
+          w-80
+          h-80
+          rounded-full
+          bg-cyan-400/10
+          blur-3xl
+        "
+      />
 
       {/* ======================================================
           CONTENU
@@ -990,15 +1561,19 @@ const Activation: React.FC = () => {
 
       <div
         className="
+          relative
+          z-10
           max-w-5xl
           mx-auto
+          px-4
+          sm:px-6
+          lg:px-8
           py-8
           sm:py-10
         "
       >
-
         {/* ====================================================
-            EN-TÊTE DE PAGE
+            EN-TÊTE
         ==================================================== */}
 
         <div
@@ -1012,7 +1587,6 @@ const Activation: React.FC = () => {
             gap-4
           "
         >
-
           <div
             className="
               flex
@@ -1020,7 +1594,6 @@ const Activation: React.FC = () => {
               gap-4
             "
           >
-
             <div
               className="
                 w-14
@@ -1047,7 +1620,6 @@ const Activation: React.FC = () => {
             </div>
 
             <div>
-
               <p
                 className="
                   text-sm
@@ -1094,9 +1666,7 @@ const Activation: React.FC = () => {
                   </span>
                 </p>
               )}
-
             </div>
-
           </div>
 
           <Link
@@ -1104,6 +1674,9 @@ const Activation: React.FC = () => {
             className="
               self-start
               sm:self-auto
+              inline-flex
+              items-center
+              gap-2
               px-4
               py-2.5
               rounded-xl
@@ -1123,9 +1696,12 @@ const Activation: React.FC = () => {
               dark:hover:bg-gray-800
             "
           >
-            ← Accueil
-          </Link>
+            <ArrowLeft
+              className="w-4 h-4"
+            />
 
+            Accueil
+          </Link>
         </div>
 
         {/* ====================================================
@@ -1147,7 +1723,6 @@ const Activation: React.FC = () => {
             dark:bg-gray-900/80
           "
         >
-
           <div
             className="
               flex
@@ -1156,7 +1731,6 @@ const Activation: React.FC = () => {
               gap-2
             "
           >
-
             {[
               {
                 number: 1,
@@ -1175,15 +1749,12 @@ const Activation: React.FC = () => {
                 label: "Personnalisation",
               },
             ].map(
-              (
-                item
-              ) => (
+              (item) => (
                 <React.Fragment
                   key={
                     item.number
                   }
                 >
-
                   <div
                     className="
                       flex
@@ -1192,7 +1763,6 @@ const Activation: React.FC = () => {
                       min-w-0
                     "
                   >
-
                     <div
                       className={`
                         w-10
@@ -1213,9 +1783,16 @@ const Activation: React.FC = () => {
                       `}
                     >
                       {step >
-                      item.number
-                        ? "✓"
-                        : item.number}
+                      item.number ? (
+                        <Check
+                          className="
+                            w-5
+                            h-5
+                          "
+                        />
+                      ) : (
+                        item.number
+                      )}
                     </div>
 
                     <span
@@ -1231,7 +1808,6 @@ const Activation: React.FC = () => {
                     >
                       {item.label}
                     </span>
-
                   </div>
 
                   {item.number <
@@ -1254,13 +1830,10 @@ const Activation: React.FC = () => {
                       `}
                     />
                   )}
-
                 </React.Fragment>
               )
             )}
-
           </div>
-
         </div>
 
         {/* ====================================================
@@ -1284,7 +1857,6 @@ const Activation: React.FC = () => {
               dark:text-red-300
             "
           >
-
             <div
               className="
                 flex
@@ -1292,23 +1864,26 @@ const Activation: React.FC = () => {
                 gap-3
               "
             >
-
-              <span
+              <div
                 className="
-                  w-8
-                  h-8
+                  w-9
+                  h-9
                   shrink-0
-                  rounded-full
+                  rounded-xl
                   bg-red-100
                   flex
                   items-center
                   justify-center
-                  font-black
                   dark:bg-red-900/60
                 "
               >
-                !
-              </span>
+                <XCircle
+                  className="
+                    w-5
+                    h-5
+                  "
+                />
+              </div>
 
               <p
                 className="
@@ -1320,14 +1895,12 @@ const Activation: React.FC = () => {
               >
                 {error}
               </p>
-
             </div>
-
           </div>
         )}
 
         {/* ====================================================
-            ÉTAPE 1
+            ÉTAPE 1 — CODE
         ==================================================== */}
 
         {step === 1 && (
@@ -1337,7 +1910,6 @@ const Activation: React.FC = () => {
               overflow-hidden
             `}
           >
-
             <div
               className="
                 bg-gradient-to-r
@@ -1349,7 +1921,6 @@ const Activation: React.FC = () => {
                 text-white
               "
             >
-
               <div
                 className="
                   flex
@@ -1357,7 +1928,6 @@ const Activation: React.FC = () => {
                   gap-4
                 "
               >
-
                 <div
                   className="
                     w-12
@@ -1369,15 +1939,18 @@ const Activation: React.FC = () => {
                     flex
                     items-center
                     justify-center
-                    text-2xl
                     shrink-0
                   "
                 >
-                  🔐
+                  <ShieldCheck
+                    className="
+                      w-6
+                      h-6
+                    "
+                  />
                 </div>
 
                 <div>
-
                   <h2
                     className="
                       text-xl
@@ -1398,11 +1971,8 @@ const Activation: React.FC = () => {
                   >
                     Activez votre document en toute simplicité.
                   </p>
-
                 </div>
-
               </div>
-
             </div>
 
             <div
@@ -1411,7 +1981,6 @@ const Activation: React.FC = () => {
                 sm:p-8
               "
             >
-
               <p
                 className="
                   text-gray-700
@@ -1423,127 +1992,6 @@ const Activation: React.FC = () => {
                 l'achat ainsi que votre code d'activation.
               </p>
 
-              {/* =================================================
-                  VIDÉO
-              ================================================= */}
-
-              {!videoEnded && (
-                <div
-                  className="
-                    mb-8
-                    rounded-2xl
-                    overflow-hidden
-                    border
-                    border-gray-800/60
-                    bg-gray-950
-                    shadow-2xl
-                  "
-                >
-
-                  <video
-                    ref={videoRef}
-                    className="
-                      w-full
-                      aspect-video
-                      object-cover
-                      bg-black
-                    "
-                    controls
-                    playsInline
-                    preload="metadata"
-                    onVolumeChange={(event) =>
-                      setVideoSoundEnabled(
-                        !event.currentTarget
-                          .muted
-                      )
-                    }
-                    onLoadedMetadata={(
-                      event
-                    ) => {
-                      event.currentTarget.volume =
-                        1;
-
-                      event.currentTarget.muted =
-                        false;
-
-                      setVideoSoundEnabled(
-                        true
-                      );
-                    }}
-                    onEnded={() =>
-                      setVideoEnded(
-                        true
-                      )
-                    }
-                  >
-
-                    <source
-                      src="/videos/pre.mp4"
-                      type="video/mp4"
-                    />
-
-                    Votre navigateur ne prend pas en charge
-                    la lecture vidéo.
-
-                  </video>
-
-                  <div
-                    className="
-                      flex
-                      flex-col
-                      sm:flex-row
-                      sm:items-center
-                      sm:justify-between
-                      gap-3
-                      p-3
-                      sm:p-4
-                      bg-gray-900
-                      text-white
-                    "
-                  >
-
-                    <p
-                      className="
-                        text-xs
-                        sm:text-sm
-                        text-gray-300
-                      "
-                    >
-                      {videoSoundEnabled
-                        ? "🔊 Le son de la vidéo est activé."
-                        : "🔇 Le son de la vidéo est désactivé."}
-                    </p>
-
-                    {!videoSoundEnabled && (
-                      <button
-                        type="button"
-                        onClick={
-                          enableVideoSound
-                        }
-                        className="
-                          inline-flex
-                          items-center
-                          justify-center
-                          gap-2
-                          px-4
-                          py-2
-                          rounded-xl
-                          bg-blue-600
-                          hover:bg-blue-500
-                          text-white
-                          text-sm
-                          font-bold
-                          transition
-                        "
-                      >
-                        🔊 Activer le son
-                      </button>
-                    )}
-
-                  </div>
-
-                </div>
-              )}
 
               {/* =================================================
                   FORMULAIRE
@@ -1554,9 +2002,7 @@ const Activation: React.FC = () => {
                   space-y-5
                 "
               >
-
                 <div>
-
                   <label
                     className="
                       block
@@ -1570,23 +2016,42 @@ const Activation: React.FC = () => {
                     Adresse e-mail
                   </label>
 
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) =>
-                      setEmail(
-                        e.target.value
-                      )
-                    }
-                    placeholder="exemple@email.com"
-                    autoComplete="email"
-                    className={inputClass}
-                  />
+                  <div
+                    className="
+                      relative
+                    "
+                  >
+                    <Mail
+                      className="
+                        absolute
+                        left-4
+                        top-1/2
+                        -translate-y-1/2
+                        w-5
+                        h-5
+                        text-gray-400
+                      "
+                    />
 
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) =>
+                        setEmail(
+                          e.target.value
+                        )
+                      }
+                      placeholder="exemple@email.com"
+                      autoComplete="email"
+                      className={`
+                        ${inputClass}
+                        pl-12
+                      `}
+                    />
+                  </div>
                 </div>
 
                 <div>
-
                   <label
                     className="
                       block
@@ -1600,23 +2065,41 @@ const Activation: React.FC = () => {
                     Code d'activation
                   </label>
 
-                  <input
-                    type="text"
-                    value={code}
-                    onChange={(e) =>
-                      setCode(
-                        e.target.value
-                      )
-                    }
-                    placeholder="CODE-XXXX-XXXX-XXXX-XXXX"
-                    autoComplete="off"
-                    className={`
-                      ${inputClass}
-                      uppercase
-                      tracking-wide
-                    `}
-                  />
+                  <div
+                    className="
+                      relative
+                    "
+                  >
+                    <ShieldCheck
+                      className="
+                        absolute
+                        left-4
+                        top-1/2
+                        -translate-y-1/2
+                        w-5
+                        h-5
+                        text-gray-400
+                      "
+                    />
 
+                    <input
+                      type="text"
+                      value={code}
+                      onChange={(e) =>
+                        setCode(
+                          e.target.value
+                        )
+                      }
+                      placeholder="CODE-XXXX-XXXX-XXXX-XXXX"
+                      autoComplete="off"
+                      className={`
+                        ${inputClass}
+                        pl-12
+                        uppercase
+                        tracking-wide
+                      `}
+                    />
+                  </div>
                 </div>
 
                 <button
@@ -1627,6 +2110,10 @@ const Activation: React.FC = () => {
                   disabled={loading}
                   className="
                     w-full
+                    inline-flex
+                    items-center
+                    justify-center
+                    gap-3
                     bg-gradient-to-r
                     from-blue-600
                     to-indigo-700
@@ -1646,20 +2133,76 @@ const Activation: React.FC = () => {
                     active:scale-[0.99]
                   "
                 >
-                  {loading
-                    ? "Vérification..."
-                    : "Vérifier le code →"}
-                </button>
+                  {loading ? (
+                    <>
+                      <Loader2
+                        className="
+                          w-5
+                          h-5
+                          animate-spin
+                        "
+                      />
 
+                      Vérification...
+                    </>
+                  ) : (
+                    <>
+                      Vérifier le code
+
+                      <ChevronRight
+                        className="
+                          w-5
+                          h-5
+                        "
+                      />
+                    </>
+                  )}
+                </button>
               </div>
 
-            </div>
+              <div
+                className="
+                  mt-6
+                  flex
+                  items-start
+                  gap-3
+                  p-4
+                  rounded-2xl
+                  bg-blue-50/80
+                  border
+                  border-blue-100
+                  dark:bg-blue-950/30
+                  dark:border-blue-900/60
+                "
+              >
+                <Info
+                  className="
+                    w-5
+                    h-5
+                    text-blue-600
+                    dark:text-blue-400
+                    shrink-0
+                  "
+                />
 
+                <p
+                  className="
+                    text-xs
+                    sm:text-sm
+                    text-blue-800
+                    dark:text-blue-300
+                  "
+                >
+                  Utilisez l'adresse e-mail associée à
+                  l'achat de votre code d'activation.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
         {/* ====================================================
-            ÉTAPE 2
+            ÉTAPE 2 — BÉNÉFICIAIRE
         ==================================================== */}
 
         {step === 2 && (
@@ -1670,7 +2213,6 @@ const Activation: React.FC = () => {
               sm:p-8
             `}
           >
-
             <div
               className="
                 text-center
@@ -1679,7 +2221,6 @@ const Activation: React.FC = () => {
                 mb-8
               "
             >
-
               <div
                 className="
                   mx-auto
@@ -1691,13 +2232,17 @@ const Activation: React.FC = () => {
                   flex
                   items-center
                   justify-center
-                  text-3xl
                   mb-4
                   dark:bg-blue-950
                   dark:text-blue-300
                 "
               >
-                👥
+                <Users
+                  className="
+                    w-8
+                    h-8
+                  "
+                />
               </div>
 
               <h2
@@ -1722,7 +2267,6 @@ const Activation: React.FC = () => {
                 Indiquez si le document est destiné à vous-même
                 ou à une autre personne.
               </p>
-
             </div>
 
             <div
@@ -1732,7 +2276,6 @@ const Activation: React.FC = () => {
                 gap-5
               "
             >
-
               <button
                 type="button"
                 onClick={() =>
@@ -1762,7 +2305,6 @@ const Activation: React.FC = () => {
                   dark:hover:bg-blue-950/40
                 "
               >
-
                 <div
                   className="
                     w-14
@@ -1772,12 +2314,18 @@ const Activation: React.FC = () => {
                     flex
                     items-center
                     justify-center
-                    text-3xl
                     mb-5
                     dark:bg-blue-950
                   "
                 >
-                  👤
+                  <User
+                    className="
+                      w-7
+                      h-7
+                      text-blue-700
+                      dark:text-blue-300
+                    "
+                  />
                 </div>
 
                 <h3
@@ -1804,6 +2352,29 @@ const Activation: React.FC = () => {
                   personnalisé avec vos informations.
                 </p>
 
+                <div
+                  className="
+                    mt-5
+                    flex
+                    items-center
+                    gap-2
+                    text-sm
+                    font-bold
+                    text-blue-600
+                    dark:text-blue-400
+                  "
+                >
+                  Continuer
+
+                  <ArrowRight
+                    className="
+                      w-4
+                      h-4
+                      transition-transform
+                      group-hover:translate-x-1
+                    "
+                  />
+                </div>
               </button>
 
               <button
@@ -1835,7 +2406,6 @@ const Activation: React.FC = () => {
                   dark:hover:bg-indigo-950/40
                 "
               >
-
                 <div
                   className="
                     w-14
@@ -1845,12 +2415,18 @@ const Activation: React.FC = () => {
                     flex
                     items-center
                     justify-center
-                    text-3xl
                     mb-5
                     dark:bg-indigo-950
                   "
                 >
-                  👥
+                  <Users
+                    className="
+                      w-7
+                      h-7
+                      text-indigo-700
+                      dark:text-indigo-300
+                    "
+                  />
                 </div>
 
                 <h3
@@ -1877,8 +2453,30 @@ const Activation: React.FC = () => {
                   bénéficiaire.
                 </p>
 
-              </button>
+                <div
+                  className="
+                    mt-5
+                    flex
+                    items-center
+                    gap-2
+                    text-sm
+                    font-bold
+                    text-indigo-600
+                    dark:text-indigo-400
+                  "
+                >
+                  Continuer
 
+                  <ArrowRight
+                    className="
+                      w-4
+                      h-4
+                      transition-transform
+                      group-hover:translate-x-1
+                    "
+                  />
+                </div>
+              </button>
             </div>
 
             <button
@@ -1888,6 +2486,9 @@ const Activation: React.FC = () => {
               }
               className="
                 mt-8
+                inline-flex
+                items-center
+                gap-2
                 text-gray-700
                 hover:text-gray-950
                 dark:text-gray-400
@@ -1896,14 +2497,20 @@ const Activation: React.FC = () => {
                 transition
               "
             >
-              ← Retour
-            </button>
+              <ArrowLeft
+                className="
+                  w-4
+                  h-4
+                "
+              />
 
+              Retour
+            </button>
           </div>
         )}
 
         {/* ====================================================
-            ÉTAPE 3
+            ÉTAPE 3 — E-MAIL BÉNÉFICIAIRE
         ==================================================== */}
 
         {step === 3 && (
@@ -1914,7 +2521,6 @@ const Activation: React.FC = () => {
               sm:p-8
             `}
           >
-
             <div
               className="
                 text-center
@@ -1923,7 +2529,6 @@ const Activation: React.FC = () => {
                 mb-8
               "
             >
-
               <div
                 className="
                   mx-auto
@@ -1935,13 +2540,17 @@ const Activation: React.FC = () => {
                   flex
                   items-center
                   justify-center
-                  text-3xl
                   mb-4
                   dark:bg-indigo-950
                   dark:text-indigo-300
                 "
               >
-                ✉️
+                <Mail
+                  className="
+                    w-8
+                    h-8
+                  "
+                />
               </div>
 
               <h2
@@ -1966,11 +2575,9 @@ const Activation: React.FC = () => {
                 Saisissez l'adresse e-mail de la personne qui
                 recevra et utilisera le document.
               </p>
-
             </div>
 
             <div>
-
               <label
                 className="
                   block
@@ -1984,21 +2591,41 @@ const Activation: React.FC = () => {
                 E-mail du bénéficiaire
               </label>
 
-              <input
-                type="email"
-                value={
-                  beneficiaryEmail
-                }
-                onChange={(e) =>
-                  setBeneficiaryEmail(
-                    e.target.value
-                  )
-                }
-                placeholder="beneficiaire@email.com"
-                autoComplete="email"
-                className={inputClass}
-              />
+              <div
+                className="
+                  relative
+                "
+              >
+                <Mail
+                  className="
+                    absolute
+                    left-4
+                    top-1/2
+                    -translate-y-1/2
+                    w-5
+                    h-5
+                    text-gray-400
+                  "
+                />
 
+                <input
+                  type="email"
+                  value={
+                    beneficiaryEmail
+                  }
+                  onChange={(e) =>
+                    setBeneficiaryEmail(
+                      e.target.value
+                    )
+                  }
+                  placeholder="beneficiaire@email.com"
+                  autoComplete="email"
+                  className={`
+                    ${inputClass}
+                    pl-12
+                  `}
+                />
+              </div>
             </div>
 
             <div
@@ -2010,13 +2637,15 @@ const Activation: React.FC = () => {
                 gap-4
               "
             >
-
               <button
                 type="button"
                 onClick={
                   goBack
                 }
                 className="
+                  inline-flex
+                  items-center
+                  gap-2
                   text-gray-700
                   hover:text-gray-950
                   dark:text-gray-400
@@ -2024,7 +2653,14 @@ const Activation: React.FC = () => {
                   font-semibold
                 "
               >
-                ← Retour
+                <ArrowLeft
+                  className="
+                    w-4
+                    h-4
+                  "
+                />
+
+                Retour
               </button>
 
               <button
@@ -2034,6 +2670,10 @@ const Activation: React.FC = () => {
                 }
                 disabled={loading}
                 className="
+                  inline-flex
+                  items-center
+                  justify-center
+                  gap-2
                   bg-gradient-to-r
                   from-blue-600
                   to-indigo-700
@@ -2051,13 +2691,32 @@ const Activation: React.FC = () => {
                   transition
                 "
               >
-                {loading
-                  ? "Vérification..."
-                  : "Continuer →"}
+                {loading ? (
+                  <>
+                    <Loader2
+                      className="
+                        w-5
+                        h-5
+                        animate-spin
+                      "
+                    />
+
+                    Vérification...
+                  </>
+                ) : (
+                  <>
+                    Continuer
+
+                    <ArrowRight
+                      className="
+                        w-5
+                        h-5
+                      "
+                    />
+                  </>
+                )}
               </button>
-
             </div>
-
           </div>
         )}
 
@@ -2071,7 +2730,6 @@ const Activation: React.FC = () => {
               space-y-6
             "
           >
-
             {/* ==================================================
                 IDENTITÉ
             ================================================== */}
@@ -2083,7 +2741,6 @@ const Activation: React.FC = () => {
                 sm:p-8
               `}
             >
-
               <div
                 className="
                   flex
@@ -2092,7 +2749,6 @@ const Activation: React.FC = () => {
                   mb-7
                 "
               >
-
                 <div
                   className="
                     w-12
@@ -2104,16 +2760,19 @@ const Activation: React.FC = () => {
                     flex
                     items-center
                     justify-center
-                    text-2xl
                     dark:bg-green-950
                     dark:text-green-300
                   "
                 >
-                  👤
+                  <User
+                    className="
+                      w-6
+                      h-6
+                    "
+                  />
                 </div>
 
                 <div>
-
                   <h2
                     className="
                       text-xl
@@ -2136,19 +2795,15 @@ const Activation: React.FC = () => {
                     Les informations du bénéficiaire serviront
                     à personnaliser {documentName}.
                   </p>
-
                 </div>
-
               </div>
 
               {userExists ? (
-
                 <div
                   className="
                     space-y-5
                   "
                 >
-
                   <div
                     className="
                       p-4
@@ -2160,7 +2815,6 @@ const Activation: React.FC = () => {
                       dark:border-green-900
                     "
                   >
-
                     <div
                       className="
                         flex
@@ -2168,7 +2822,6 @@ const Activation: React.FC = () => {
                         gap-3
                       "
                     >
-
                       <div
                         className="
                           w-10
@@ -2181,11 +2834,17 @@ const Activation: React.FC = () => {
                           dark:bg-green-900/50
                         "
                       >
-                        ✓
+                        <Check
+                          className="
+                            w-5
+                            h-5
+                            text-green-700
+                            dark:text-green-300
+                          "
+                        />
                       </div>
 
                       <div>
-
                         <p
                           className="
                             font-bold
@@ -2206,11 +2865,8 @@ const Activation: React.FC = () => {
                           Les informations de votre compte ont
                           été récupérées automatiquement.
                         </p>
-
                       </div>
-
                     </div>
-
                   </div>
 
                   <div
@@ -2220,9 +2876,7 @@ const Activation: React.FC = () => {
                       gap-4
                     "
                   >
-
                     <div>
-
                       <label
                         className="
                           block
@@ -2256,11 +2910,9 @@ const Activation: React.FC = () => {
                           dark:text-gray-300
                         "
                       />
-
                     </div>
 
                     <div>
-
                       <label
                         className="
                           block
@@ -2294,13 +2946,10 @@ const Activation: React.FC = () => {
                           dark:text-gray-300
                         "
                       />
-
                     </div>
-
                   </div>
 
                   <div>
-
                     <label
                       className="
                         block
@@ -2340,7 +2989,6 @@ const Activation: React.FC = () => {
                         dark:text-gray-300
                       "
                     />
-
                   </div>
 
                   <div
@@ -2350,9 +2998,7 @@ const Activation: React.FC = () => {
                       gap-4
                     "
                   >
-
                     <div>
-
                       <label
                         className="
                           block
@@ -2386,11 +3032,9 @@ const Activation: React.FC = () => {
                           dark:text-gray-300
                         "
                       />
-
                     </div>
 
                     <div>
-
                       <label
                         className="
                           block
@@ -2424,21 +3068,15 @@ const Activation: React.FC = () => {
                           dark:text-gray-300
                         "
                       />
-
                     </div>
-
                   </div>
-
                 </div>
-
               ) : (
-
                 <div
                   className="
                     space-y-5
                   "
                 >
-
                   <div
                     className="
                       grid
@@ -2446,9 +3084,7 @@ const Activation: React.FC = () => {
                       gap-4
                     "
                   >
-
                     <div>
-
                       <label
                         className="
                           block
@@ -2474,13 +3110,13 @@ const Activation: React.FC = () => {
                         }
                         placeholder="Nom"
                         autoComplete="family-name"
-                        className={inputClass}
+                        className={
+                          inputClass
+                        }
                       />
-
                     </div>
 
                     <div>
-
                       <label
                         className="
                           block
@@ -2506,15 +3142,14 @@ const Activation: React.FC = () => {
                         }
                         placeholder="Prénom(s)"
                         autoComplete="given-name"
-                        className={inputClass}
+                        className={
+                          inputClass
+                        }
                       />
-
                     </div>
-
                   </div>
 
                   <div>
-
                     <label
                       className="
                         block
@@ -2551,7 +3186,6 @@ const Activation: React.FC = () => {
                         dark:text-gray-300
                       "
                     />
-
                   </div>
 
                   <div
@@ -2561,9 +3195,7 @@ const Activation: React.FC = () => {
                       gap-4
                     "
                   >
-
                     <div>
-
                       <label
                         className="
                           block
@@ -2598,13 +3230,13 @@ const Activation: React.FC = () => {
                         }
                         placeholder="+229 ..."
                         autoComplete="tel"
-                        className={inputClass}
+                        className={
+                          inputClass
+                        }
                       />
-
                     </div>
 
                     <div>
-
                       <label
                         className="
                           block
@@ -2630,15 +3262,14 @@ const Activation: React.FC = () => {
                         }
                         placeholder="Bénin"
                         autoComplete="country-name"
-                        className={inputClass}
+                        className={
+                          inputClass
+                        }
                       />
-
                     </div>
-
                   </div>
 
                   <div>
-
                     <label
                       className="
                         block
@@ -2664,7 +3295,9 @@ const Activation: React.FC = () => {
                       }
                       placeholder="Au moins 6 caractères"
                       autoComplete="new-password"
-                      className={inputClass}
+                      className={
+                        inputClass
+                      }
                     />
 
                     <p
@@ -2678,13 +3311,9 @@ const Activation: React.FC = () => {
                       Ce mot de passe permettra au bénéficiaire
                       de se connecter à son compte.
                     </p>
-
                   </div>
-
                 </div>
-
               )}
-
             </div>
 
             {/* ==================================================
@@ -2698,7 +3327,6 @@ const Activation: React.FC = () => {
                 sm:p-8
               `}
             >
-
               <div
                 className="
                   flex
@@ -2707,7 +3335,6 @@ const Activation: React.FC = () => {
                   mb-7
                 "
               >
-
                 <div
                   className="
                     w-12
@@ -2719,16 +3346,19 @@ const Activation: React.FC = () => {
                     flex
                     items-center
                     justify-center
-                    text-2xl
                     dark:bg-violet-950
                     dark:text-violet-300
                   "
                 >
-                  ✨
+                  <Sparkles
+                    className="
+                      w-6
+                      h-6
+                    "
+                  />
                 </div>
 
                 <div>
-
                   <h2
                     className="
                       text-xl
@@ -2752,9 +3382,7 @@ const Activation: React.FC = () => {
                     servent uniquement à personnaliser le PDF
                     qui sera généré pour vous.
                   </p>
-
                 </div>
-
               </div>
 
               <div
@@ -2762,13 +3390,7 @@ const Activation: React.FC = () => {
                   space-y-5
                 "
               >
-
-                {/* =================================================
-                    ÉTABLISSEMENT
-                ================================================= */}
-
                 <div>
-
                   <label
                     className="
                       block
@@ -2802,17 +3424,13 @@ const Activation: React.FC = () => {
                       )
                     }
                     placeholder="Nom de l'établissement"
-                    className={inputClass}
+                    className={
+                      inputClass
+                    }
                   />
-
                 </div>
 
-                {/* =================================================
-                    VILLE
-                ================================================= */}
-
                 <div>
-
                   <label
                     className="
                       block
@@ -2846,17 +3464,13 @@ const Activation: React.FC = () => {
                       )
                     }
                     placeholder="Ville ou commune"
-                    className={inputClass}
+                    className={
+                      inputClass
+                    }
                   />
-
                 </div>
 
-                {/* =================================================
-                    ANNÉE SCOLAIRE
-                ================================================= */}
-
                 <div>
-
                   <label
                     className="
                       block
@@ -2890,17 +3504,13 @@ const Activation: React.FC = () => {
                       )
                     }
                     placeholder="Exemple : 2026-2027"
-                    className={inputClass}
+                    className={
+                      inputClass
+                    }
                   />
-
                 </div>
 
-                {/* =================================================
-                    PHOTO
-                ================================================= */}
-
                 <div>
-
                   <label
                     className="
                       block
@@ -2969,7 +3579,6 @@ const Activation: React.FC = () => {
                         dark:border-blue-900
                       "
                     >
-
                       <p
                         className="
                           text-sm
@@ -2977,7 +3586,22 @@ const Activation: React.FC = () => {
                           dark:text-blue-300
                         "
                       >
-                        📷 Photo sélectionnée :
+                        <span
+                          className="
+                            inline-flex
+                            items-center
+                            gap-2
+                          "
+                        >
+                          <FileText
+                            className="
+                              w-4
+                              h-4
+                            "
+                          />
+
+                          Photo sélectionnée :
+                        </span>
                         {" "}
                         <span
                           className="
@@ -2987,14 +3611,10 @@ const Activation: React.FC = () => {
                           {photo.name}
                         </span>
                       </p>
-
                     </div>
                   )}
-
                 </div>
-
               </div>
-
             </div>
 
             {/* ==================================================
@@ -3015,7 +3635,6 @@ const Activation: React.FC = () => {
                 dark:border-gray-700/70
               "
             >
-
               <div
                 className="
                   flex
@@ -3024,7 +3643,6 @@ const Activation: React.FC = () => {
                   mb-5
                 "
               >
-
                 <div
                   className="
                     w-10
@@ -3037,7 +3655,14 @@ const Activation: React.FC = () => {
                     dark:bg-gray-800
                   "
                 >
-                  📋
+                  <FileText
+                    className="
+                      w-5
+                      h-5
+                      text-gray-700
+                      dark:text-gray-300
+                    "
+                  />
                 </div>
 
                 <h3
@@ -3050,7 +3675,6 @@ const Activation: React.FC = () => {
                 >
                   Récapitulatif
                 </h3>
-
               </div>
 
               <div
@@ -3061,20 +3685,19 @@ const Activation: React.FC = () => {
                   text-sm
                 "
               >
-
                 <p
                   className="
                     p-3
                     rounded-xl
                     bg-white/90
                     dark:bg-gray-950/90
+                    text-gray-700
+                    dark:text-gray-300
                   "
                 >
                   <span
                     className="
                       font-bold
-                      text-gray-700
-                      dark:text-gray-300
                     "
                   >
                     Document :
@@ -3089,13 +3712,13 @@ const Activation: React.FC = () => {
                     rounded-xl
                     bg-white/90
                     dark:bg-gray-950/90
+                    text-gray-700
+                    dark:text-gray-300
                   "
                 >
                   <span
                     className="
                       font-bold
-                      text-gray-700
-                      dark:text-gray-300
                     "
                   >
                     Bénéficiaire :
@@ -3110,13 +3733,13 @@ const Activation: React.FC = () => {
                     rounded-xl
                     bg-white/90
                     dark:bg-gray-950/90
+                    text-gray-700
+                    dark:text-gray-300
                   "
                 >
                   <span
                     className="
                       font-bold
-                      text-gray-700
-                      dark:text-gray-300
                     "
                   >
                     E-mail :
@@ -3135,13 +3758,13 @@ const Activation: React.FC = () => {
                       rounded-xl
                       bg-white/90
                       dark:bg-gray-950/90
+                      text-gray-700
+                      dark:text-gray-300
                     "
                   >
                     <span
                       className="
                         font-bold
-                        text-gray-700
-                        dark:text-gray-300
                       "
                     >
                       Établissement :
@@ -3158,13 +3781,13 @@ const Activation: React.FC = () => {
                       rounded-xl
                       bg-white/90
                       dark:bg-gray-950/90
+                      text-gray-700
+                      dark:text-gray-300
                     "
                   >
                     <span
                       className="
                         font-bold
-                        text-gray-700
-                        dark:text-gray-300
                       "
                     >
                       Ville / Commune :
@@ -3181,13 +3804,13 @@ const Activation: React.FC = () => {
                       rounded-xl
                       bg-white/90
                       dark:bg-gray-950/90
+                      text-gray-700
+                      dark:text-gray-300
                     "
                   >
                     <span
                       className="
                         font-bold
-                        text-gray-700
-                        dark:text-gray-300
                       "
                     >
                       Année scolaire :
@@ -3203,13 +3826,13 @@ const Activation: React.FC = () => {
                     rounded-xl
                     bg-white/90
                     dark:bg-gray-950/90
+                    text-gray-700
+                    dark:text-gray-300
                   "
                 >
                   <span
                     className="
                       font-bold
-                      text-gray-700
-                      dark:text-gray-300
                     "
                   >
                     Photo :
@@ -3219,9 +3842,7 @@ const Activation: React.FC = () => {
                     ? "Oui"
                     : "Non"}
                 </p>
-
               </div>
-
             </div>
 
             {/* ==================================================
@@ -3239,7 +3860,6 @@ const Activation: React.FC = () => {
                   gap-4
                 "
               >
-
                 <button
                   type="button"
                   onClick={
@@ -3247,6 +3867,9 @@ const Activation: React.FC = () => {
                   }
                   disabled={loading}
                   className="
+                    inline-flex
+                    items-center
+                    gap-2
                     text-gray-700
                     hover:text-gray-950
                     disabled:text-gray-400
@@ -3255,7 +3878,14 @@ const Activation: React.FC = () => {
                     font-semibold
                   "
                 >
-                  ← Retour
+                  <ArrowLeft
+                    className="
+                      w-4
+                      h-4
+                    "
+                  />
+
+                  Retour
                 </button>
 
                 <button
@@ -3267,6 +3897,10 @@ const Activation: React.FC = () => {
                   className="
                     w-full
                     sm:w-auto
+                    inline-flex
+                    items-center
+                    justify-center
+                    gap-3
                     bg-gradient-to-r
                     from-blue-600
                     via-indigo-600
@@ -3289,11 +3923,31 @@ const Activation: React.FC = () => {
                     active:scale-[0.99]
                   "
                 >
-                  {loading
-                    ? "Génération du PDF..."
-                    : `Activer et générer ${documentName}`}
-                </button>
+                  {loading ? (
+                    <>
+                      <Loader2
+                        className="
+                          w-5
+                          h-5
+                          animate-spin
+                        "
+                      />
 
+                      Génération du PDF...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles
+                        className="
+                          w-5
+                          h-5
+                        "
+                      />
+
+                      Activer et générer {documentName}
+                    </>
+                  )}
+                </button>
               </div>
             )}
 
@@ -3311,13 +3965,11 @@ const Activation: React.FC = () => {
                   dark:border-green-900
                 `}
               >
-
                 <div
                   className="
                     text-center
                   "
                 >
-
                   <div
                     className="
                       mx-auto
@@ -3329,14 +3981,18 @@ const Activation: React.FC = () => {
                       flex
                       items-center
                       justify-center
-                      text-4xl
                       mb-5
                       shadow-xl
                       dark:bg-green-950
                       dark:text-green-400
                     "
                   >
-                    ✓
+                    <CheckCircle2
+                      className="
+                        w-12
+                        h-12
+                      "
+                    />
                   </div>
 
                   <h2
@@ -3361,7 +4017,6 @@ const Activation: React.FC = () => {
                     Votre document personnalisé a été généré
                     avec succès.
                   </p>
-
                 </div>
 
                 {/* =================================================
@@ -3380,15 +4035,24 @@ const Activation: React.FC = () => {
                     dark:border-green-900
                   "
                 >
-
                   <p
                     className="
+                      flex
+                      items-center
+                      gap-2
                       font-bold
                       text-green-800
                       dark:text-green-300
                     "
                   >
-                    ✓ PDF téléchargé
+                    <Download
+                      className="
+                        w-5
+                        h-5
+                      "
+                    />
+
+                    PDF téléchargé
                   </p>
 
                   <p
@@ -3407,7 +4071,6 @@ const Activation: React.FC = () => {
                     </span>{" "}
                     personnalisé a été téléchargé sur votre appareil.
                   </p>
-
                 </div>
 
                 {/* =================================================
@@ -3428,15 +4091,24 @@ const Activation: React.FC = () => {
                       dark:border-blue-900
                     "
                   >
-
                     <p
                       className="
+                        flex
+                        items-center
+                        gap-2
                         font-bold
                         text-blue-800
                         dark:text-blue-300
                       "
                     >
-                      ✓ PDF envoyé par e-mail
+                      <Mail
+                        className="
+                          w-5
+                          h-5
+                        "
+                      />
+
+                      PDF envoyé par e-mail
                     </p>
 
                     <p
@@ -3460,7 +4132,6 @@ const Activation: React.FC = () => {
                           : beneficiaryEmail}
                       </span>
                     </p>
-
                   </div>
                 )}
 
@@ -3478,15 +4149,24 @@ const Activation: React.FC = () => {
                       dark:border-yellow-900
                     "
                   >
-
                     <p
                       className="
+                        flex
+                        items-center
+                        gap-2
                         font-bold
                         text-yellow-800
                         dark:text-yellow-300
                       "
                     >
-                      ⚠ PDF téléchargé, mais e-mail non envoyé
+                      <Info
+                        className="
+                          w-5
+                          h-5
+                        "
+                      />
+
+                      PDF téléchargé, mais e-mail non envoyé
                     </p>
 
                     <p
@@ -3501,7 +4181,6 @@ const Activation: React.FC = () => {
                       Un problème est survenu lors de son envoi
                       par e-mail.
                     </p>
-
                   </div>
                 )}
 
@@ -3515,13 +4194,13 @@ const Activation: React.FC = () => {
                     text-center
                   "
                 >
-
                   <Link
                     to="/login"
                     className="
                       inline-flex
                       items-center
                       justify-center
+                      gap-2
                       bg-gray-900
                       hover:bg-black
                       text-white
@@ -3537,20 +4216,80 @@ const Activation: React.FC = () => {
                     "
                   >
                     Se connecter à CODE
+
+                    <ArrowRight
+                      className="
+                        w-4
+                        h-4
+                      "
+                    />
                   </Link>
-
                 </div>
-
               </div>
             )}
-
           </div>
         )}
 
-      </div>
+        {/* ====================================================
+            PIED DE PAGE
+        ==================================================== */}
 
+        <div
+          className="
+            mt-8
+            flex
+            flex-col
+            sm:flex-row
+            items-center
+            justify-between
+            gap-3
+            text-xs
+            text-gray-500
+            dark:text-gray-500
+          "
+        >
+          <div
+            className="
+              flex
+              items-center
+              gap-2
+            "
+          >
+            <ShieldCheck
+              className="
+                w-4
+                h-4
+              "
+            />
+
+            <span>
+              Activation sécurisée par CODE
+            </span>
+          </div>
+
+          <div
+            className="
+              flex
+              items-center
+              gap-2
+            "
+          >
+            <GraduationCap
+              className="
+                w-4
+                h-4
+              "
+            />
+
+            <span>
+              L'écosystème éducatif mondial
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
 
 export default Activation;
+

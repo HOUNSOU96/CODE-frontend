@@ -58,6 +58,7 @@ import ListeInscrits from "./pages/ListeInscrits";
 import ConversationsEnseignantsAdmin from "./pages/admin/ConversationsEnseignantsAdmin";
 import ProfilEnseignant from "./pages/Enseignant/ProfilEnseignant";
 import Enseignant from "./pages/Enseignant/Enseignant";
+import MesVideos from "./pages/Enseignant/MesVideos";
 // ==========================================================
 // PAGES PROTÉGÉES — ANCIENNE STRUCTURE
 // ==========================================================
@@ -2262,10 +2263,20 @@ const AnimatedRoutes: React.FC = () => {
   path="/enseignant/profil/:email"
   element={
     <RequireAuth>
+      <Layout>
       <EnsProfil />
+      </Layout>
     </RequireAuth>
   }
 />
+
+
+
+<Route
+  path="/enseignant/mes-videos"
+  element={ <Layout> <MesVideos /> </Layout>}
+/>
+
 
 
 {/* ==================================================

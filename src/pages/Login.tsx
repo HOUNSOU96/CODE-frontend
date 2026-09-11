@@ -221,7 +221,7 @@ const Login: React.FC = () => {
 
       <footer className="py-6 bg-transparent border-t border-gray-200 dark:border-gray-700">
         <div className="max-w-md mx-auto text-center px-4">
-          <p className="text-gray-700 dark:text-gray-300 mb-3">
+          <p className="text-black-700 dark:text-black-300 mb-3">
             Pas encore de compte ?
           </p>
           <Link
