@@ -1,3 +1,4 @@
+
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -7,7 +8,6 @@ import {
   FaCheckCircle,
   FaChevronDown,
   FaChevronUp,
-  FaClock,
   FaCode,
   FaGraduationCap,
   FaLayerGroup,
@@ -269,10 +269,6 @@ const MesVideos: React.FC = () => {
         setLoading(true);
         setError("");
 
-        // ------------------------------------------------------
-        // On récupère les vidéos des niveaux scolaires
-        // ------------------------------------------------------
-
         const responses = await Promise.all(
           NIVEAUX.map(async (niveau) => {
             try {
@@ -296,14 +292,6 @@ const MesVideos: React.FC = () => {
           })
         );
 
-        // ------------------------------------------------------
-        // On essaie également de récupérer les vidéos
-        // sans niveau scolaire.
-        //
-        // Si le backend ne possède pas cette route, l'erreur
-        // est simplement ignorée.
-        // ------------------------------------------------------
-
         let otherVideos: VideoData[] = [];
 
         try {
@@ -325,10 +313,6 @@ const MesVideos: React.FC = () => {
           ...responses.flat(),
           ...otherVideos,
         ];
-
-        // ------------------------------------------------------
-        // FILTRAGE PAR EMAIL DE L'ENSEIGNANT CONNECTÉ
-        // ------------------------------------------------------
 
         const cleanedVideos = allVideos
           .filter((video) => {
@@ -379,10 +363,6 @@ const MesVideos: React.FC = () => {
             enseignant: video.enseignant || null,
           }));
 
-        // ------------------------------------------------------
-        // SUPPRESSION DES DOUBLONS
-        // ------------------------------------------------------
-
         const uniqueVideos = Array.from(
           new Map(
             cleanedVideos.map((video) => [
@@ -393,10 +373,6 @@ const MesVideos: React.FC = () => {
         );
 
         setVideos(uniqueVideos);
-
-        // ------------------------------------------------------
-        // OUVERTURE PAR DÉFAUT DES SECTIONS
-        // ------------------------------------------------------
 
         const initialExpanded: Record<
           string,
@@ -461,7 +437,15 @@ const MesVideos: React.FC = () => {
       ([level, levelVideos]) => {
         if (
           selectedLevel !== "all" &&
+          selectedLevel !== "other" &&
           level !== selectedLevel
+        ) {
+          return;
+        }
+
+        if (
+          selectedLevel === "other" &&
+          isKnownLevel(level)
         ) {
           return;
         }
@@ -650,24 +634,24 @@ const MesVideos: React.FC = () => {
     ];
   }, [filteredGroups]);
 
-  // ==========================================================
+  // ============================================================
   // RENDU
-  // ==========================================================
+  // ============================================================
 
   return (
-    <div className="min-h-screen bg-[#070b14] text-white">
+    <div className="min-h-screen bg-gray-50 text-gray-900 transition-colors duration-300 dark:bg-[#070b14] dark:text-white">
       {/* ====================================================== */}
       {/* HEADER */}
       {/* ====================================================== */}
 
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#070b14]/95 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur-xl transition-colors duration-300 dark:border-white/10 dark:bg-[#070b14]/95">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <button
             type="button"
             onClick={() =>
               navigate("/enseignant")
             }
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-300 transition hover:bg-white/10 hover:text-white"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-gray-100 text-gray-600 transition hover:bg-gray-200 hover:text-gray-900 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
             title="Retour"
           >
             <FaArrowLeft />
@@ -684,7 +668,7 @@ const MesVideos: React.FC = () => {
                   Mes vidéos
                 </h1>
 
-                <p className="truncate text-xs text-gray-400 sm:text-sm">
+                <p className="truncate text-xs text-gray-500 sm:text-sm dark:text-gray-400">
                   Gérez et consultez vos contenus pédagogiques
                 </p>
               </div>
@@ -703,11 +687,12 @@ const MesVideos: React.FC = () => {
         {/* ==================================================== */}
 
         <section className="mb-6">
-          <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-[#101827] to-[#0b111d] p-5 shadow-2xl shadow-black/20 sm:p-7">
+          <div className="rounded-3xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-5 shadow-xl shadow-gray-200/50 transition-colors duration-300 sm:p-7 dark:border-white/10 dark:from-[#101827] dark:to-[#0b111d] dark:shadow-2xl dark:shadow-black/20">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <div className="mb-3 flex items-center gap-2 text-blue-400">
+                <div className="mb-3 flex items-center gap-2 text-blue-500 dark:text-blue-400">
                   <FaPlayCircle />
+
                   <span className="text-sm font-semibold uppercase tracking-wider">
                     Espace enseignant
                   </span>
@@ -717,7 +702,7 @@ const MesVideos: React.FC = () => {
                   Votre bibliothèque vidéo
                 </h2>
 
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-400">
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">
                   Retrouvez ici toutes les vidéos que
                   vous avez publiées sur CODE, organisées
                   par niveau et par domaine.
@@ -725,10 +710,11 @@ const MesVideos: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="mb-2 flex items-center gap-2 text-blue-400">
+                <div className="rounded-2xl border border-gray-200 bg-gray-100 p-4 transition-colors duration-300 dark:border-white/10 dark:bg-white/5">
+                  <div className="mb-2 flex items-center gap-2 text-blue-500 dark:text-blue-400">
                     <FaVideo />
-                    <span className="text-xs text-gray-400">
+
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
                       Vidéos
                     </span>
                   </div>
@@ -738,10 +724,11 @@ const MesVideos: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="mb-2 flex items-center gap-2 text-cyan-400">
+                <div className="rounded-2xl border border-gray-200 bg-gray-100 p-4 transition-colors duration-300 dark:border-white/10 dark:bg-white/5">
+                  <div className="mb-2 flex items-center gap-2 text-cyan-500 dark:text-cyan-400">
                     <FaGraduationCap />
-                    <span className="text-xs text-gray-400">
+
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
                       Niveaux
                     </span>
                   </div>
@@ -751,10 +738,11 @@ const MesVideos: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="mb-2 flex items-center gap-2 text-purple-400">
+                <div className="rounded-2xl border border-gray-200 bg-gray-100 p-4 transition-colors duration-300 dark:border-white/10 dark:bg-white/5">
+                  <div className="mb-2 flex items-center gap-2 text-purple-500 dark:text-purple-400">
                     <FaBookOpen />
-                    <span className="text-xs text-gray-400">
+
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
                       Notions
                     </span>
                   </div>
@@ -764,10 +752,11 @@ const MesVideos: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="mb-2 flex items-center gap-2 text-emerald-400">
+                <div className="rounded-2xl border border-gray-200 bg-gray-100 p-4 transition-colors duration-300 dark:border-white/10 dark:bg-white/5">
+                  <div className="mb-2 flex items-center gap-2 text-emerald-500 dark:text-emerald-400">
                     <FaQuestionCircle />
-                    <span className="text-xs text-gray-400">
+
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
                       Questions
                     </span>
                   </div>
@@ -786,9 +775,9 @@ const MesVideos: React.FC = () => {
         {/* ==================================================== */}
 
         <section className="mb-6">
-          <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-[#0d1420] p-4 lg:flex-row">
+          <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 transition-colors duration-300 lg:flex-row dark:border-white/10 dark:bg-[#0d1420]">
             <div className="relative flex-1">
-              <FaSearch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
+              <FaSearch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
 
               <input
                 type="text"
@@ -797,7 +786,7 @@ const MesVideos: React.FC = () => {
                   setSearch(event.target.value)
                 }
                 placeholder="Rechercher une vidéo, une notion, une matière..."
-                className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-blue-500/50 focus:bg-white/[0.07]"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-11 pr-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500/50 focus:bg-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-gray-500 dark:focus:bg-white/[0.07]"
               />
             </div>
 
@@ -810,7 +799,7 @@ const MesVideos: React.FC = () => {
                 className={`whitespace-nowrap rounded-xl px-4 py-3 text-sm font-medium transition ${
                   selectedLevel === "all"
                     ? "bg-blue-600 text-white"
-                    : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white"
                 }`}
               >
                 Tous
@@ -826,7 +815,7 @@ const MesVideos: React.FC = () => {
                   className={`whitespace-nowrap rounded-xl px-4 py-3 text-sm font-medium transition ${
                     selectedLevel === niveau.id
                       ? "bg-blue-600 text-white"
-                      : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white"
                   }`}
                 >
                   {niveau.label}
@@ -842,7 +831,7 @@ const MesVideos: React.FC = () => {
                   className={`whitespace-nowrap rounded-xl px-4 py-3 text-sm font-medium transition ${
                     selectedLevel === "other"
                       ? "bg-purple-600 text-white"
-                      : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white"
                   }`}
                 >
                   Autres domaines
@@ -857,9 +846,9 @@ const MesVideos: React.FC = () => {
         {/* ==================================================== */}
 
         {loading && (
-          <section className="rounded-3xl border border-white/10 bg-[#0d1420] p-10 text-center">
+          <section className="rounded-3xl border border-gray-200 bg-white p-10 text-center transition-colors duration-300 dark:border-white/10 dark:bg-[#0d1420]">
             <div className="mx-auto mb-5 flex h-14 w-14 animate-pulse items-center justify-center rounded-2xl bg-blue-500/10">
-              <FaVideo className="text-2xl text-blue-400" />
+              <FaVideo className="text-2xl text-blue-500 dark:text-blue-400" />
             </div>
 
             <h3 className="text-lg font-semibold">
@@ -877,16 +866,16 @@ const MesVideos: React.FC = () => {
         {/* ==================================================== */}
 
         {!loading && error && (
-          <section className="rounded-3xl border border-red-500/20 bg-red-500/5 p-8 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-500/10 text-red-400">
+          <section className="rounded-3xl border border-red-200 bg-red-50 p-8 text-center dark:border-red-500/20 dark:bg-red-500/5">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-red-500 dark:bg-red-500/10 dark:text-red-400">
               <FaTimes />
             </div>
 
-            <h3 className="text-lg font-semibold text-red-300">
+            <h3 className="text-lg font-semibold text-red-600 dark:text-red-300">
               Une erreur est survenue
             </h3>
 
-            <p className="mx-auto mt-2 max-w-xl text-sm text-gray-400">
+            <p className="mx-auto mt-2 max-w-xl text-sm text-gray-600 dark:text-gray-400">
               {error}
             </p>
           </section>
@@ -899,16 +888,16 @@ const MesVideos: React.FC = () => {
         {!loading &&
           !error &&
           videos.length === 0 && (
-            <section className="rounded-3xl border border-white/10 bg-[#0d1420] p-10 text-center">
+            <section className="rounded-3xl border border-gray-200 bg-white p-10 text-center transition-colors duration-300 dark:border-white/10 dark:bg-[#0d1420]">
               <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-3xl bg-blue-500/10">
-                <FaVideo className="text-3xl text-blue-400" />
+                <FaVideo className="text-3xl text-blue-500 dark:text-blue-400" />
               </div>
 
               <h3 className="text-xl font-bold">
                 Aucune vidéo trouvée
               </h3>
 
-              <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-gray-400">
+              <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-gray-600 dark:text-gray-400">
                 Vous n'avez pas encore publié de vidéo
                 pédagogique associée à votre compte.
               </p>
@@ -918,7 +907,7 @@ const MesVideos: React.FC = () => {
                 onClick={() =>
                   navigate("/enseignant")
                 }
-                className="mt-6 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold transition hover:bg-blue-500"
+                className="mt-6 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500"
               >
                 Retour à mon espace
               </button>
@@ -933,9 +922,9 @@ const MesVideos: React.FC = () => {
           !error &&
           videos.length > 0 &&
           Object.keys(filteredGroups).length === 0 && (
-            <section className="rounded-3xl border border-white/10 bg-[#0d1420] p-10 text-center">
-              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5">
-                <FaSearch className="text-2xl text-gray-500" />
+            <section className="rounded-3xl border border-gray-200 bg-white p-10 text-center transition-colors duration-300 dark:border-white/10 dark:bg-[#0d1420]">
+              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 dark:bg-white/5">
+                <FaSearch className="text-2xl text-gray-400 dark:text-gray-500" />
               </div>
 
               <h3 className="text-lg font-semibold">
@@ -953,7 +942,7 @@ const MesVideos: React.FC = () => {
                   setSearch("");
                   setSelectedLevel("all");
                 }}
-                className="mt-5 rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-medium text-gray-300 transition hover:bg-white/10 hover:text-white"
+                className="mt-5 rounded-xl border border-gray-200 bg-gray-100 px-5 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-200 hover:text-gray-900 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
               >
                 Réinitialiser les filtres
               </button>
@@ -993,7 +982,7 @@ const MesVideos: React.FC = () => {
                 return (
                   <section
                     key={level}
-                    className="overflow-hidden rounded-3xl border border-white/10 bg-[#0d1420]"
+                    className="overflow-hidden rounded-3xl border border-gray-200 bg-white transition-colors duration-300 dark:border-white/10 dark:bg-[#0d1420]"
                   >
                     {/* ======================================== */}
                     {/* EN-TÊTE SECTION */}
@@ -1004,14 +993,14 @@ const MesVideos: React.FC = () => {
                       onClick={() =>
                         toggleLevel(level)
                       }
-                      className="flex w-full items-center justify-between gap-4 border-b border-white/10 p-5 text-left transition hover:bg-white/[0.03] sm:p-6"
+                      className="flex w-full items-center justify-between gap-4 border-b border-gray-200 p-5 text-left transition hover:bg-gray-50 sm:p-6 dark:border-white/10 dark:hover:bg-white/[0.03]"
                     >
                       <div className="flex min-w-0 items-center gap-4">
                         <div
                           className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
                             knownLevel
-                              ? "bg-blue-500/10 text-blue-400"
-                              : "bg-purple-500/10 text-purple-400"
+                              ? "bg-blue-500/10 text-blue-500 dark:text-blue-400"
+                              : "bg-purple-500/10 text-purple-500 dark:text-purple-400"
                           }`}
                         >
                           {knownLevel ? (
@@ -1027,7 +1016,7 @@ const MesVideos: React.FC = () => {
                               {title}
                             </h2>
 
-                            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-gray-400">
+                            <span className="rounded-full border border-gray-200 bg-gray-100 px-2.5 py-1 text-xs text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
                               {levelVideos.length}{" "}
                               {levelVideos.length > 1
                                 ? "vidéos"
@@ -1041,7 +1030,7 @@ const MesVideos: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/5 text-gray-400">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-gray-400">
                         {isExpanded ? (
                           <FaChevronUp />
                         ) : (
@@ -1070,7 +1059,7 @@ const MesVideos: React.FC = () => {
                               return (
                                 <article
                                   key={video.id}
-                                  className="group overflow-hidden rounded-2xl border border-white/10 bg-[#101827] transition hover:-translate-y-1 hover:border-blue-500/30 hover:shadow-xl hover:shadow-blue-950/20"
+                                  className="group overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 transition hover:-translate-y-1 hover:border-blue-500/30 hover:shadow-xl hover:shadow-blue-950/20 dark:border-white/10 dark:bg-[#101827]"
                                 >
                                   {/* ========================== */}
                                   {/* MINIATURE */}
@@ -1123,14 +1112,14 @@ const MesVideos: React.FC = () => {
                                   {/* ========================== */}
 
                                   <div className="p-4">
-                                    <h3 className="line-clamp-2 min-h-[3.5rem] text-base font-bold text-white">
+                                    <h3 className="line-clamp-2 min-h-[3.5rem] text-base font-bold text-gray-900 dark:text-white">
                                       {video.titre ||
                                         "Vidéo sans titre"}
                                     </h3>
 
                                     {video.matiere && (
-                                      <div className="mt-3 flex items-center gap-2 text-sm text-gray-400">
-                                        <FaBookOpen className="shrink-0 text-blue-400" />
+                                      <div className="mt-3 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                        <FaBookOpen className="shrink-0 text-blue-500 dark:text-blue-400" />
 
                                         <span className="truncate">
                                           {
@@ -1150,7 +1139,7 @@ const MesVideos: React.FC = () => {
                                           ) => (
                                             <span
                                               key={`${video.id}-notion-${index}`}
-                                              className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-gray-400"
+                                              className="rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-400"
                                             >
                                               {
                                                 notion
@@ -1162,7 +1151,7 @@ const MesVideos: React.FC = () => {
                                       {video.notions
                                         ?.length >
                                         3 && (
-                                        <span className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-gray-500">
+                                        <span className="rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-500">
                                           +
                                           {video
                                             .notions
@@ -1173,10 +1162,10 @@ const MesVideos: React.FC = () => {
                                     </div>
 
                                     <div className="mt-4 grid grid-cols-3 gap-2">
-                                      <div className="rounded-xl bg-white/5 p-2.5 text-center">
-                                        <FaBookOpen className="mx-auto mb-1 text-xs text-blue-400" />
+                                      <div className="rounded-xl bg-gray-100 p-2.5 text-center dark:bg-white/5">
+                                        <FaBookOpen className="mx-auto mb-1 text-xs text-blue-500 dark:text-blue-400" />
 
-                                        <p className="text-xs font-semibold text-white">
+                                        <p className="text-xs font-semibold text-gray-900 dark:text-white">
                                           {
                                             video
                                               .notions
@@ -1189,10 +1178,10 @@ const MesVideos: React.FC = () => {
                                         </p>
                                       </div>
 
-                                      <div className="rounded-xl bg-white/5 p-2.5 text-center">
-                                        <FaQuestionCircle className="mx-auto mb-1 text-xs text-purple-400" />
+                                      <div className="rounded-xl bg-gray-100 p-2.5 text-center dark:bg-white/5">
+                                        <FaQuestionCircle className="mx-auto mb-1 text-xs text-purple-500 dark:text-purple-400" />
 
-                                        <p className="text-xs font-semibold text-white">
+                                        <p className="text-xs font-semibold text-gray-900 dark:text-white">
                                           {
                                             video
                                               .questions
@@ -1205,10 +1194,10 @@ const MesVideos: React.FC = () => {
                                         </p>
                                       </div>
 
-                                      <div className="rounded-xl bg-white/5 p-2.5 text-center">
-                                        <FaList className="mx-auto mb-1 text-xs text-emerald-400" />
+                                      <div className="rounded-xl bg-gray-100 p-2.5 text-center dark:bg-white/5">
+                                        <FaList className="mx-auto mb-1 text-xs text-emerald-500 dark:text-emerald-400" />
 
-                                        <p className="text-xs font-semibold text-white">
+                                        <p className="text-xs font-semibold text-gray-900 dark:text-white">
                                           {
                                             video
                                               .exercices
@@ -1515,3 +1504,4 @@ const MesVideos: React.FC = () => {
 };
 
 export default MesVideos;
+
