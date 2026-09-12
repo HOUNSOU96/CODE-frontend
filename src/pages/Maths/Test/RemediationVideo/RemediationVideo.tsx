@@ -243,7 +243,9 @@ const buildLearningQueue = (
       const sameNotionVideos = allVideos.filter(
         (v) =>
           v.niveau === niveau &&
-          v.notions.some((n) => video.notions.includes(n)) &&
+          v.notions.some((n) =>
+            video.notions.includes(n)
+          ) &&
           v.id !== video.id
       );
 
@@ -260,7 +262,9 @@ const buildLearningQueue = (
   return result;
 };
 
-const shuffleQuestionsWithChoices = (questions: Question[]) =>
+const shuffleQuestionsWithChoices = (
+  questions: Question[]
+) =>
   shuffleArray(questions || []).map((q) => ({
     ...q,
     choix: shuffleArray(q.choix || []),
@@ -988,10 +992,14 @@ const RemediationVideo: React.FC = () => {
       );
   }, []);
 
-  // NOUVEL ALGORITHME :
-  // ➜ on ignore totalement les vidéos du niveau de l’apprenant
-  // ➜ on garde uniquement les prérequis (niveaux inférieurs)
-  // NOUVEL ALGORITHME : lister uniquement les prérequis dans la notion de la vidéo principale
+  // ============================================================
+  // ORGANISATION DES VIDÉOS PAR NOTION
+  //
+  // ORDRE :
+  // 1️⃣ Vidéos prérequis
+  // 2️⃣ Vidéo principale de la notion
+  // 3️⃣ Exercices associés à la notion
+  // ============================================================
 
   const videosByNotion: Record<
     string,
@@ -1011,7 +1019,10 @@ const RemediationVideo: React.FC = () => {
             videosByNotion[notion] = [];
           }
 
-          // 🔹 Ajouter uniquement les prérequis selon le titre
+          // ============================================================
+          // 1️⃣ AJOUTER LES VIDÉOS PRÉREQUIS
+          // ============================================================
+
           (mainVideo.prerequis || []).forEach(
             (prereqTitle) => {
               const prereqVideo =
@@ -1031,12 +1042,36 @@ const RemediationVideo: React.FC = () => {
               ) {
                 videosByNotion[
                   notion
-                ].push(prereqVideo);
+                ].push(
+                  prereqVideo
+                );
               }
             }
           );
 
-          // 🔹 Ajouter uniquement les exercices associés
+          // ============================================================
+          // 2️⃣ AJOUTER LA VIDÉO PRINCIPALE DE LA NOTION
+          // ============================================================
+
+          if (
+            !videosByNotion[
+              notion
+            ].some(
+              (v) =>
+                v.id === mainVideo.id
+            )
+          ) {
+            videosByNotion[
+              notion
+            ].push(
+              mainVideo
+            );
+          }
+
+          // ============================================================
+          // 3️⃣ AJOUTER LES EXERCICES DE LA NOTION
+          // ============================================================
+
           const exerciceVideos =
             orderedVideos.filter(
               (v) =>
@@ -1061,7 +1096,9 @@ const RemediationVideo: React.FC = () => {
               ) {
                 videosByNotion[
                   notion
-                ].push(exVideo);
+                ].push(
+                  exVideo
+                );
               }
             }
           );
