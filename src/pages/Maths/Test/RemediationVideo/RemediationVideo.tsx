@@ -6,7 +6,7 @@ import api from "@/utils/axios";
 
 import { motion, AnimatePresence } from "framer-motion";
 
-import { Loader2, X, List } from "lucide-react";
+import { Loader2, X, List, Brain } from "lucide-react";
 
 import CountdownCircle from "@/components/CountdownCircle";
 
@@ -25,7 +25,15 @@ interface Question {
 
   duration?: number;
 
-  // autres champs possibles (notion, niveau...) sont tolérés par la source
+  notion?: string;
+
+  niveau?: string;
+
+  matiere?: string;
+
+  enseignant?: string | null;
+
+  [key: string]: any;
 }
 
 interface VideoData {
@@ -35,9 +43,9 @@ interface VideoData {
 
   niveau: string;
 
-  fichier?: string; // fichier local ou url
+  fichier?: string;
 
-  videoUrl?: string; // compatibilité avec source actuelle
+  videoUrl?: string;
 
   notions: string[];
 
@@ -56,17 +64,13 @@ interface VideoData {
 
 /* -------------------- CONSTANTES & HELPERS -------------------- */
 
-// niveaux / séries
-
 const generalLevels = ["6e", "5e", "4e", "3e"] as const;
 
 const lyceeLevels = ["2nde", "1ère", "Terminale"] as const;
 
 const subSeriesMap: Record<string, string[]> = {
   A: ["A1", "A2"],
-
   F: ["F1", "F2", "F3", "F4"],
-
   G: ["G1", "G2", "G3"],
 };
 
@@ -110,18 +114,16 @@ const isVideoForLevel = (
   return false;
 };
 
-/** transform youtube watch/short/youtu.be -> youtube-nocookie embed url */
+/* -------------------- YOUTUBE -------------------- */
 
 const getSafeYouTubeUrl = (url: string): string => {
   try {
     if (!url) return "";
 
-    // handle normal watch?v=, youtu.be/ and embed/
     const u = new URL(
       url.startsWith("http") ? url : `https://${url}`
     );
 
-    // watch?v=
     if (
       u.hostname.includes("youtube.com") &&
       u.searchParams.get("v")
@@ -131,25 +133,19 @@ const getSafeYouTubeUrl = (url: string): string => {
       return `https://www.youtube-nocookie.com/embed/${vid}?rel=0&modestbranding=1&controls=1&disablekb=1`;
     }
 
-    // youtu.be short
     if (u.hostname.includes("youtu.be")) {
       const vid = u.pathname.replace("/", "");
 
       return `https://www.youtube-nocookie.com/embed/${vid}?rel=0&modestbranding=1&controls=1&disablekb=1`;
     }
 
-    // embed already or other
     return url;
   } catch {
     return url;
   }
 };
 
-/* -------------------- PREREQUIS & QUEUE BUILDERS -------------------- */
-
-/**
- * Expand prereqs recursively (same logic que backend)
- */
+/* -------------------- PREREQUIS -------------------- */
 
 const expandPrereqs = (
   video: VideoData,
@@ -288,7 +284,7 @@ interface TeacherProfile {
   teacher_photo?: string | null;
 }
 
-/* -------------------- composant principal -------------------- */
+/* -------------------- COMPOSANT -------------------- */
 
 const RemediationVideo: React.FC = () => {
   const [timerEnded, setTimerEnded] = useState(false);
@@ -309,7 +305,11 @@ const RemediationVideo: React.FC = () => {
   } = useParams<{ niveau: string; serie?: string }>();
 
   const state = location.state as
-    | { niveauActuel?: string; matiere?: string }
+    | {
+        niveauActuel?: string;
+        matiere?: string;
+        resultats?: any;
+      }
     | undefined;
 
   const niveauParam = new URLSearchParams(
@@ -336,7 +336,10 @@ const RemediationVideo: React.FC = () => {
 
   useExitNotifier({ eventType: "videofinish" });
 
-  // états principaux
+  /* ============================================================
+     ÉTATS PRINCIPAUX
+  ============================================================ */
+
   const [orderedVideos, setOrderedVideos] = useState<
     VideoData[]
   >([]);
@@ -349,13 +352,20 @@ const RemediationVideo: React.FC = () => {
     string | null
   >(null);
 
-  // profils enseignants
+  /* ============================================================
+     PROFILS ENSEIGNANTS
+  ============================================================ */
+
   const [teacherProfiles, setTeacherProfiles] = useState<
     Record<string, TeacherProfile | null>
   >({});
 
   const [loadingTeachers, setLoadingTeachers] =
     useState(false);
+
+  /* ============================================================
+     RÉCUPÉRATION DES VIDÉOS
+  ============================================================ */
 
   useEffect(() => {
     if (!niveau) {
@@ -420,25 +430,8 @@ const RemediationVideo: React.FC = () => {
             )
           );
 
-        const queue = buildLearningQueue(
-          filtered,
-          niveau
-        );
+        buildLearningQueue(filtered, niveau);
 
-        // Séparer les prérequis (niveau différent) et les vidéos normales
-        const prereqVideos = cleaned.filter(
-          (v) =>
-            !isVideoForLevel(
-              v.niveau,
-              niveau,
-              serieEffective
-            )
-        );
-
-        const mainVideos = queue;
-
-        // Construire la liste finale en respectant l'ordre des notions de la sidebar
-        // Regrouper par notion niveau actuel
         const videosByNotion: Record<
           string,
           VideoData[]
@@ -450,7 +443,6 @@ const RemediationVideo: React.FC = () => {
               videosByNotion[n] = [];
             }
 
-            // Ajouter prérequis
             v.prerequis.forEach((p) => {
               const prereqVideo = cleaned.find((vid) =>
                 vid.notions.includes(p)
@@ -468,7 +460,6 @@ const RemediationVideo: React.FC = () => {
               }
             });
 
-            // Ajouter vidéo principale
             if (
               !videosByNotion[n].some(
                 (x) => x.id === v.id
@@ -479,7 +470,6 @@ const RemediationVideo: React.FC = () => {
           });
         });
 
-        // Construire la liste finale dans l'ordre réel des notions
         const finalList: VideoData[] = [];
 
         for (const notion of Object.keys(
@@ -496,7 +486,6 @@ const RemediationVideo: React.FC = () => {
           }
         }
 
-        // Ajouter tous les prérequis présents dans la sidebar
         for (const notion in videosByNotion) {
           for (const prereqVideo of videosByNotion[
             notion
@@ -527,7 +516,6 @@ const RemediationVideo: React.FC = () => {
           new Set(completedSet)
         );
 
-        // Trouver la première vidéo non complétée
         let firstUnwatchedIndex =
           finalList.findIndex(
             (v) => !completedSet.has(v.id)
@@ -562,9 +550,9 @@ const RemediationVideo: React.FC = () => {
     navigate,
   ]);
 
-  // ============================================================
-  // RÉCUPÉRATION DES PROFILS DES ENSEIGNANTS DES VIDÉOS
-  // ============================================================
+  /* ============================================================
+     PROFILS ENSEIGNANTS
+  ============================================================ */
 
   useEffect(() => {
     let cancelled = false;
@@ -638,7 +626,10 @@ const RemediationVideo: React.FC = () => {
     };
   }, [orderedVideos]);
 
-  // lecture + quiz
+  /* ============================================================
+     LECTURE + QUIZ
+  ============================================================ */
+
   const [videoPlaying, setVideoPlaying] =
     useState(false);
 
@@ -671,7 +662,6 @@ const RemediationVideo: React.FC = () => {
     message: string;
   } | null>(null);
 
-  // UI & progression
   const [
     answerStatus,
     setAnswerStatus,
@@ -695,9 +685,9 @@ const RemediationVideo: React.FC = () => {
     setSeenVideosAtLevel,
   ] = useState<Set<string>>(new Set());
 
-  // ============================================================
-  // SIDEBAR VIDÉOS
-  // ============================================================
+  /* ============================================================
+     SIDEBAR
+  ============================================================ */
 
   const [
     isSidebarOpen,
@@ -709,9 +699,9 @@ const RemediationVideo: React.FC = () => {
     setCanShowQuiz,
   ] = useState(false);
 
-  // ======================================================
-  // 🔝 REVENIR EN HAUT DE LA PAGE
-  // ======================================================
+  /* ============================================================
+     SCROLL
+  ============================================================ */
 
   const scrollPageToTop = (
     behavior: ScrollBehavior = "smooth"
@@ -735,9 +725,9 @@ const RemediationVideo: React.FC = () => {
     });
   };
 
-  // ============================================================
-  // CHANGEMENT DE VIDÉO DEPUIS LA SIDEBAR
-  // ============================================================
+  /* ============================================================
+     CHANGEMENT VIDÉO
+  ============================================================ */
 
   const handleVideoChange = (index: number) => {
     if (
@@ -768,7 +758,6 @@ const RemediationVideo: React.FC = () => {
 
     setFadeKey((p) => p + 1);
 
-    // Fermer la sidebar sur mobile
     setIsSidebarOpen(false);
 
     scrollPageToTop();
@@ -818,7 +807,10 @@ const RemediationVideo: React.FC = () => {
     fadeKey,
   ]);
 
-  // evaluation
+  /* ============================================================
+     ÉVALUATION
+  ============================================================ */
+
   const [
     evaluationMode,
     setEvaluationMode,
@@ -839,7 +831,10 @@ const RemediationVideo: React.FC = () => {
     setEvaluationIndex,
   ] = useState(0);
 
-  // refs
+  /* ============================================================
+     REFS
+  ============================================================ */
+
   const videoRef =
     useRef<HTMLVideoElement | null>(
       null
@@ -850,7 +845,113 @@ const RemediationVideo: React.FC = () => {
       null
     );
 
-  // ====== FONCTION handleTimeUp ======
+  /* ============================================================
+     QUESTION COURANTE
+  ============================================================ */
+
+  const currentVideo =
+    orderedVideos[currentIndex];
+
+  const currentQuestion =
+    shuffledQuestions[
+      currentQuestionIndex
+    ];
+
+  /* ============================================================
+     ⭐ NOUVELLE FONCTION :
+     OUVRIR EXPLICATION AVEC L'IA
+  ============================================================ */
+
+  const handleOpenExplicationQuestion = () => {
+    if (!currentQuestion) {
+      return;
+    }
+
+    if (!selectedAnswer) {
+      return;
+    }
+
+    const bonneReponse =
+      currentQuestion.bonne_reponse || "";
+
+    const notion =
+      currentQuestion.notion ||
+      currentVideo?.notions?.[0] ||
+      currentVideo?.titre ||
+      "Notion non précisée";
+
+    const niveauQuestion =
+      currentQuestion.niveau ||
+      currentVideo?.niveau ||
+      niveau;
+
+    const enseignant =
+      currentQuestion.enseignant ??
+      currentVideo?.enseignant ??
+      null;
+
+    const correcte =
+      normalize(selectedAnswer) ===
+      normalize(bonneReponse);
+
+    navigate("/explication-question", {
+      state: {
+        question: {
+          ...currentQuestion,
+
+          notion,
+
+          niveau: niveauQuestion,
+
+          matiere:
+            currentQuestion.matiere ||
+            currentVideo?.matiere ||
+            matiere,
+
+          enseignant,
+        },
+
+        questionActuelle: {
+          ...currentQuestion,
+
+          notion,
+
+          niveau: niveauQuestion,
+
+          matiere:
+            currentQuestion.matiere ||
+            currentVideo?.matiere ||
+            matiere,
+
+          enseignant,
+        },
+
+        niveauActuel: niveauQuestion,
+
+        serieActuelle:
+          serieEffective ?? serieActuelle ?? "",
+
+        resultats: state?.resultats ?? null,
+
+        reponseUtilisateur:
+          selectedAnswer,
+
+        bonneReponse,
+
+        correcte,
+
+        notion,
+
+        classe: niveauQuestion,
+
+        enseignant,
+      },
+    });
+  };
+
+  /* ============================================================
+     HANDLE TIME UP
+  ============================================================ */
 
   const handleTimeUp = () => {
     setFeedback({
@@ -886,7 +987,10 @@ const RemediationVideo: React.FC = () => {
     }, 2500);
   };
 
-  // titres
+  /* ============================================================
+     TITRES
+  ============================================================ */
+
   const currentVideoTitle =
     orderedVideos[currentIndex]?.titre ||
     "";
@@ -895,7 +999,10 @@ const RemediationVideo: React.FC = () => {
     orderedVideos[currentIndex + 1]?.titre ||
     null;
 
-  // son click
+  /* ============================================================
+     SON
+  ============================================================ */
+
   useEffect(() => {
     questionSoundRef.current =
       new Audio("/sounds/click.mp3");
@@ -907,7 +1014,9 @@ const RemediationVideo: React.FC = () => {
     };
   }, []);
 
-  // ====== ÉTAT PLEIN ÉCRAN ======
+  /* ============================================================
+     PLEIN ÉCRAN
+  ============================================================ */
 
   const [
     isFullscreen,
@@ -931,11 +1040,6 @@ const RemediationVideo: React.FC = () => {
     )
   );
 
-  // current video & url
-  const currentVideo =
-    orderedVideos[currentIndex];
-
-  // ✔️ priorité fichier local → sinon YouTube → sinon vide
   const videoUrl =
     currentVideo?.fichier?.trim()
       ? currentVideo.fichier
@@ -945,7 +1049,6 @@ const RemediationVideo: React.FC = () => {
     !!videoUrl &&
     /^https?:\/\/.+/.test(videoUrl);
 
-  // Sauvegarder la vidéo courante dans localStorage
   const handleVideoComplete = (
     videoId: string
   ) => {
@@ -992,14 +1095,9 @@ const RemediationVideo: React.FC = () => {
       );
   }, []);
 
-  // ============================================================
-  // ORGANISATION DES VIDÉOS PAR NOTION
-  //
-  // ORDRE :
-  // 1️⃣ Vidéos prérequis
-  // 2️⃣ Vidéo principale de la notion
-  // 3️⃣ Exercices associés à la notion
-  // ============================================================
+  /* ============================================================
+     ORGANISATION PAR NOTION
+  ============================================================ */
 
   const videosByNotion: Record<
     string,
@@ -1018,10 +1116,6 @@ const RemediationVideo: React.FC = () => {
           if (!videosByNotion[notion]) {
             videosByNotion[notion] = [];
           }
-
-          // ============================================================
-          // 1️⃣ AJOUTER LES VIDÉOS PRÉREQUIS
-          // ============================================================
 
           (mainVideo.prerequis || []).forEach(
             (prereqTitle) => {
@@ -1049,10 +1143,6 @@ const RemediationVideo: React.FC = () => {
             }
           );
 
-          // ============================================================
-          // 2️⃣ AJOUTER LA VIDÉO PRINCIPALE DE LA NOTION
-          // ============================================================
-
           if (
             !videosByNotion[
               notion
@@ -1067,10 +1157,6 @@ const RemediationVideo: React.FC = () => {
               mainVideo
             );
           }
-
-          // ============================================================
-          // 3️⃣ AJOUTER LES EXERCICES DE LA NOTION
-          // ============================================================
 
           const exerciceVideos =
             orderedVideos.filter(
@@ -1108,6 +1194,10 @@ const RemediationVideo: React.FC = () => {
 
   const notionOrder =
     Object.keys(videosByNotion);
+
+  /* ============================================================
+     NAVIGATION CLAVIER
+  ============================================================ */
 
   const [
     focusArea,
@@ -1260,6 +1350,10 @@ const RemediationVideo: React.FC = () => {
     selectedAnswer,
   ]);
 
+  /* ============================================================
+     PLEIN ÉCRAN
+  ============================================================ */
+
   const requestFullscreenLandscape = async (
     videoElement?: HTMLDivElement | null
   ) => {
@@ -1354,6 +1448,10 @@ const RemediationVideo: React.FC = () => {
         handleFullscreenChange
       );
   }, []);
+
+  /* ============================================================
+     NAVIGATION CLAVIER VIDÉOS
+  ============================================================ */
 
   useEffect(() => {
     const handleKey = (
@@ -1537,6 +1635,10 @@ const RemediationVideo: React.FC = () => {
     focusArea,
   ]);
 
+  /* ============================================================
+     DÉMARRER VIDÉO
+  ============================================================ */
+
   const startVideo = () => {
     scrollPageToTop();
 
@@ -1569,7 +1671,10 @@ const RemediationVideo: React.FC = () => {
     }
   };
 
-  // ✅ Fonction corrigée : affiche les questions du quiz quand on clique sur “Evaluation”
+  /* ============================================================
+     ÉVALUATION
+  ============================================================ */
+
   const handleGoToQuestions = () => {
     setShowCountdown(false);
 
@@ -1591,6 +1696,10 @@ const RemediationVideo: React.FC = () => {
       )
     );
   };
+
+  /* ============================================================
+     VALIDATION
+  ============================================================ */
 
   const handleValidateAnswer = () => {
     const currentQ =
@@ -1633,6 +1742,8 @@ const RemediationVideo: React.FC = () => {
 
           setQuizKey((p) => p + 1);
         } else {
+          if (!currentVideo) return;
+
           setCompletedVideos(
             (prev) =>
               new Set(prev).add(
@@ -1668,38 +1779,27 @@ const RemediationVideo: React.FC = () => {
       setFeedback({
         type: "error",
         message:
-          "❌ Mauvaise réponse ! Vous devez revoir la vidéo",
+          "❌ Mauvaise réponse ! Vous pouvez utiliser l'explication avec l'IA pour comprendre votre raisonnement.",
       });
 
       setAnswerStatus("wrong");
 
+      /*
+       * IMPORTANT :
+       * On ne renvoie plus immédiatement l'apprenant
+       * vers la vidéo. Le bouton "Explication avec l'IA"
+       * lui permet maintenant d'échanger avec CODE IA.
+       */
+
       setTimeout(() => {
         setFeedback(null);
-
-        setVideoPlaying(false);
-
-        setShowQuiz(false);
-
-        setCurrentQuestionIndex(0);
-
-        setSelectedAnswer("");
-
-        setAnswerStatus("none");
-
-        setShuffledQuestions(
-          shuffleQuestionsWithChoices(
-            currentVideo?.questions || []
-          )
-        );
-
-        scrollPageToTop();
-
-        requestAnimationFrame(() => {
-          scrollPageToTop();
-        });
-      }, 1400);
+      }, 2200);
     }
   };
+
+  /* ============================================================
+     ÉVALUATION D'UNE NOTION
+  ============================================================ */
 
   const startEvaluationForNotion = (
     notion: string
@@ -1767,9 +1867,10 @@ const RemediationVideo: React.FC = () => {
     setFadeKey((p) => p + 1);
   };
 
-  /**
-   * handleNextVideo
-   */
+  /* ============================================================
+     VIDÉO SUIVANTE
+  ============================================================ */
+
   const handleNextVideo = () => {
     if (!currentVideo) {
       navigate("/matiere", {
@@ -1804,9 +1905,6 @@ const RemediationVideo: React.FC = () => {
       (currentVideo.notions &&
         currentVideo.notions[0]) ||
       null;
-
-    let moveToIndex =
-      currentIndex + 1;
 
     if (currentNotion) {
       const videosOfThisNotion =
@@ -1934,7 +2032,9 @@ const RemediationVideo: React.FC = () => {
     });
   };
 
-  /* -------------------- RENDER -------------------- */
+  /* ============================================================
+     RENDER
+  ============================================================ */
 
   if (loading)
     return (
@@ -1966,9 +2066,9 @@ const RemediationVideo: React.FC = () => {
     ? getSafeYouTubeUrl(videoUrl)
     : videoUrl;
 
-  // ============================================================
-  // PROFIL ENSEIGNANT DE LA VIDÉO COURANTE
-  // ============================================================
+  /* ============================================================
+     ENSEIGNANT COURANT
+  ============================================================ */
 
   const currentTeacher =
     currentVideo?.enseignant
@@ -1976,10 +2076,6 @@ const RemediationVideo: React.FC = () => {
           currentVideo.enseignant
         ]
       : null;
-
-  // ============================================================
-  // URL DE LA PHOTO DE L'ENSEIGNANT
-  // ============================================================
 
   const currentTeacherPhoto =
     currentTeacher?.teacher_photo
@@ -2006,20 +2102,12 @@ const RemediationVideo: React.FC = () => {
           })()
       : null;
 
-  // ============================================================
-  // NOM DE L'ENSEIGNANT
-  // ============================================================
-
   const currentTeacherName =
     currentTeacher
       ? `${currentTeacher.prenom || ""} ${
           currentTeacher.nom || ""
         }`.trim()
       : currentVideo?.enseignant || "";
-
-  // ============================================================
-  // OUVRIR LE PROFIL DE L'ENSEIGNANT
-  // ============================================================
 
   const handleTeacherProfile = () => {
     const teacherEmail =
@@ -2039,6 +2127,7 @@ const RemediationVideo: React.FC = () => {
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-black text-white">
+
       {accessMessage && (
         <motion.div
           initial={{
@@ -2060,7 +2149,7 @@ const RemediationVideo: React.FC = () => {
       )}
 
       {/* ========================================================
-          BOUTON MOBILE POUR OUVRIR LA SIDEBAR
+          BOUTON MOBILE
       ======================================================== */}
 
       <button
@@ -2075,7 +2164,7 @@ const RemediationVideo: React.FC = () => {
       </button>
 
       {/* ========================================================
-          SIDEBAR DES VIDEOS
+          SIDEBAR
       ======================================================== */}
 
       <aside
@@ -2086,7 +2175,6 @@ const RemediationVideo: React.FC = () => {
         <div className="sticky top-24 p-4 lg:p-5">
           <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden">
 
-            {/* HEADER SIDEBAR */}
             <div className="p-5 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between gap-3">
 
@@ -2116,7 +2204,6 @@ const RemediationVideo: React.FC = () => {
               </div>
             </div>
 
-            {/* LISTE */}
             <div className="max-h-[calc(100vh-180px)] overflow-y-auto p-3 space-y-2">
 
               {orderedVideos.map(
@@ -2182,7 +2269,6 @@ const RemediationVideo: React.FC = () => {
                       }`}
                     >
 
-                      {/* VIDEO */}
                       <button
                         type="button"
                         onClick={() =>
@@ -2233,32 +2319,28 @@ const RemediationVideo: React.FC = () => {
                         </div>
                       </button>
 
-                      {/* ENSEIGNANT SIDEBAR */}
                       {video.enseignant && (
                         <div className="px-4 pb-4 pt-0">
 
                           <div className="flex items-center gap-2">
 
-                            {/* PHOTO CLIQUABLE */}
                             <button
                               type="button"
-                              onClick={
-                                () => {
-                                  const teacherEmail =
-                                    teacher?.email ||
-                                    video.enseignant;
+                              onClick={() => {
+                                const teacherEmail =
+                                  teacher?.email ||
+                                  video.enseignant;
 
-                                  if (!teacherEmail) {
-                                    return;
-                                  }
-
-                                  navigate(
-                                    `/enseignant/profil/${encodeURIComponent(
-                                      teacherEmail
-                                    )}`
-                                  );
+                                if (!teacherEmail) {
+                                  return;
                                 }
-                              }
+
+                                navigate(
+                                  `/enseignant/profil/${encodeURIComponent(
+                                    teacherEmail
+                                  )}`
+                                );
+                              }}
                               className="shrink-0 rounded-full focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800"
                               title="Voir le profil de l'enseignant"
                             >
@@ -2285,26 +2367,23 @@ const RemediationVideo: React.FC = () => {
                                 Enseignant
                               </p>
 
-                              {/* NOM CLIQUABLE */}
                               <button
                                 type="button"
-                                onClick={
-                                  () => {
-                                    const teacherEmail =
-                                      teacher?.email ||
-                                      video.enseignant;
+                                onClick={() => {
+                                  const teacherEmail =
+                                    teacher?.email ||
+                                    video.enseignant;
 
-                                    if (!teacherEmail) {
-                                      return;
-                                    }
-
-                                    navigate(
-                                      `/enseignant/profil/${encodeURIComponent(
-                                        teacherEmail
-                                      )}`
-                                    );
+                                  if (!teacherEmail) {
+                                    return;
                                   }
-                                }
+
+                                  navigate(
+                                    `/enseignant/profil/${encodeURIComponent(
+                                      teacherEmail
+                                    )}`
+                                  );
+                                }}
                                 className="text-xs font-semibold text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 hover:underline truncate text-left focus:outline-none"
                                 title="Voir le profil de l'enseignant"
                               >
@@ -2352,9 +2431,9 @@ const RemediationVideo: React.FC = () => {
             {currentTitle}
           </h1>
 
-          {/* ============================================================
-              ENSEIGNANT DE LA VIDÉO COURANTE
-          ============================================================ */}
+          {/* ====================================================
+              ENSEIGNANT
+          ==================================================== */}
 
           {currentVideo?.enseignant && (
             <div className="mb-5 flex justify-center">
@@ -2362,10 +2441,6 @@ const RemediationVideo: React.FC = () => {
               <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-4">
 
                 <div className="flex items-center gap-4">
-
-                  {/* ==================================================
-                      PHOTO CLIQUABLE
-                  ================================================== */}
 
                   <button
                     type="button"
@@ -2397,17 +2472,11 @@ const RemediationVideo: React.FC = () => {
                     )}
                   </button>
 
-                  {/* ==================================================
-                      NOM DE L'ENSEIGNANT
-                  ================================================== */}
-
                   <div className="min-w-0 flex-1 text-left">
 
                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                       Enseignant de cette vidéo
                     </p>
-
-                    {/* NOM CLIQUABLE */}
 
                     <button
                       type="button"
@@ -2416,16 +2485,9 @@ const RemediationVideo: React.FC = () => {
                       }
                       disabled={!currentTeacher}
                       className="font-bold text-lg text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 hover:underline transition text-left focus:outline-none disabled:no-underline disabled:cursor-default"
-                      title={
-                        currentTeacher
-                          ? "Voir le profil de l'enseignant"
-                          : undefined
-                      }
                     >
                       {currentTeacherName}
                     </button>
-
-                    {/* CHARGEMENT DU PROFIL */}
 
                     {!currentTeacher &&
                       loadingTeachers && (
@@ -2443,10 +2505,12 @@ const RemediationVideo: React.FC = () => {
             </div>
           )}
 
-          {/* video player area */}
+          {/* ====================================================
+              VIDEO
+          ==================================================== */}
+
           <AnimatePresence mode="wait">
 
-            {/* ✅ VIDEO */}
             {!showQuiz &&
               videoPlaying &&
               isUrlValid && (
@@ -2467,8 +2531,8 @@ const RemediationVideo: React.FC = () => {
                   className="relative rounded-xl overflow-hidden shadow-2xl w-full my-4"
                 >
 
-                  {/* 🕒 Countdown */}
                   <div className="flex flex-col items-center mb-3">
+
                     <CountdownCircle
                       key={`${fadeKey}-${timerResetCounter}`}
                       duration={5}
@@ -2484,9 +2548,9 @@ const RemediationVideo: React.FC = () => {
                     <span className="text-sm text-gray-400 mt-1">
                       Temps restant
                     </span>
+
                   </div>
 
-                  {/* 🎥 Zone vidéo */}
                   <div
                     ref={
                       videoContainerRef
@@ -2586,14 +2650,12 @@ const RemediationVideo: React.FC = () => {
 
                           localStorage.setItem(
                             `lastVideo_${matiere}_${currentVideo.id}`,
-                            JSON.stringify(
-                              {
-                                position:
-                                  videoRef
-                                    .current
-                                    .currentTime,
-                              }
-                            )
+                            JSON.stringify({
+                              position:
+                                videoRef
+                                  .current
+                                  .currentTime,
+                            })
                           );
                         }}
                         onEnded={() => {
@@ -2635,9 +2697,10 @@ const RemediationVideo: React.FC = () => {
                       />
                     )}
 
-                    {/* 🔘 Bouton plein écran */}
                     <div className="absolute bottom-4 right-4">
+
                       <button
+                        type="button"
                         onClick={() => {
                           if (isFullscreen) {
                             exitFullscreenPortrait();
@@ -2653,13 +2716,16 @@ const RemediationVideo: React.FC = () => {
                           ? "↩️ Réduire l'écran"
                           : "↔️ Plein écran"}
                       </button>
+
                     </div>
+
                   </div>
 
-                  {/* Bouton passer au quiz */}
                   {timerEnded && (
                     <div className="flex justify-center mt-6">
+
                       <button
+                        type="button"
                         onClick={
                           handleGoToQuestions
                         }
@@ -2667,15 +2733,16 @@ const RemediationVideo: React.FC = () => {
                       >
                         Evaluation
                       </button>
+
                     </div>
                   )}
 
                 </motion.div>
               )}
 
-            {/* ============================================================
-                ✅ QUIZ
-            ============================================================ */}
+            {/* ====================================================
+                QUIZ
+            ==================================================== */}
 
             {showQuiz &&
               shuffledQuestions.length >
@@ -2701,6 +2768,7 @@ const RemediationVideo: React.FC = () => {
                 >
 
                   <div className="flex justify-between items-start mb-4">
+
                     <p className="font-medium text-lg text-gray-800 dark:text-gray-200">
                       ⏱ Temps restant :
                     </p>
@@ -2718,7 +2786,7 @@ const RemediationVideo: React.FC = () => {
                         });
 
                         setVideoPlaying(
-                          true
+                          false
                         );
 
                         setShowQuiz(
@@ -2738,6 +2806,7 @@ const RemediationVideo: React.FC = () => {
                         );
                       }}
                     />
+
                   </div>
 
                   <motion.div
@@ -2760,6 +2829,8 @@ const RemediationVideo: React.FC = () => {
                     className="space-y-5"
                   >
 
+                    {/* QUESTION */}
+
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                       {
                         shuffledQuestions[
@@ -2768,7 +2839,12 @@ const RemediationVideo: React.FC = () => {
                       }
                     </h2>
 
+                    {/* ==================================================
+                        CHOIX
+                    ================================================== */}
+
                     <div className="grid gap-4 mt-4">
+
                       {shuffledQuestions[
                         currentQuestionIndex
                       ].choix.map(
@@ -2776,6 +2852,7 @@ const RemediationVideo: React.FC = () => {
                           opt,
                           idx
                         ) => {
+
                           const isSelected =
                             selectedAnswer ===
                             opt;
@@ -2830,11 +2907,22 @@ const RemediationVideo: React.FC = () => {
                                 checked={
                                   isSelected
                                 }
-                                onChange={() =>
+                                onChange={() => {
                                   setSelectedAnswer(
                                     opt
-                                  )
-                                }
+                                  );
+
+                                  /*
+                                   * Dès que l'apprenant
+                                   * choisit une réponse,
+                                   * le bouton Explication
+                                   * avec l'IA devient
+                                   * disponible.
+                                   */
+                                  setAnswerStatus(
+                                    "none"
+                                  );
+                                }}
                                 className="accent-blue-600 scale-125"
                               />
 
@@ -2848,17 +2936,60 @@ const RemediationVideo: React.FC = () => {
                           );
                         }
                       )}
+
                     </div>
 
-                    <div className="flex justify-end mt-6">
+                    {/* ==================================================
+                        ACTIONS DE LA QUESTION
+                    ================================================== */}
+
+                    <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6">
+
+                      {/* ==================================================
+                          ⭐ EXPLICATION IA
+                      ================================================== */}
+
+                      {selectedAnswer && (
+                        <motion.button
+                          type="button"
+                          initial={{
+                            opacity: 0,
+                            y: 8,
+                          }}
+                          animate={{
+                            opacity: 1,
+                            y: 0,
+                          }}
+                          whileHover={{
+                            scale: 1.02,
+                          }}
+                          whileTap={{
+                            scale: 0.98,
+                          }}
+                          onClick={
+                            handleOpenExplicationQuestion
+                          }
+                          className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-purple-500 bg-purple-600/10 hover:bg-purple-600 text-purple-700 dark:text-purple-300 hover:text-white font-semibold shadow transition-all"
+                        >
+                          <Brain className="w-5 h-5" />
+
+                          💡 Explication avec CODE IA
+                        </motion.button>
+                      )}
+
+                      {/* ==================================================
+                          VALIDATION
+                      ================================================== */}
+
                       <button
+                        type="button"
                         onClick={
                           handleValidateAnswer
                         }
                         disabled={
                           !selectedAnswer
                         }
-                        className={`px-6 py-2 rounded-full shadow transition-all text-white text-base ${
+                        className={`px-6 py-3 rounded-xl shadow transition-all text-white text-base font-semibold ${
                           selectedAnswer
                             ? "bg-blue-600 hover:bg-blue-700"
                             : "bg-gray-400 cursor-not-allowed"
@@ -2866,13 +2997,55 @@ const RemediationVideo: React.FC = () => {
                       >
                         Valider
                       </button>
+
                     </div>
 
+                    {/* ==================================================
+                        MESSAGE D'AIDE
+                    ================================================== */}
+
+                    {selectedAnswer && (
+                      <motion.div
+                        initial={{
+                          opacity: 0,
+                        }}
+                        animate={{
+                          opacity: 1,
+                        }}
+                        className="mt-3 rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 p-4"
+                      >
+                        <div className="flex items-start gap-3">
+
+                          <Brain className="w-5 h-5 text-purple-600 dark:text-purple-400 mt-0.5 shrink-0" />
+
+                          <div>
+
+                            <p className="font-semibold text-purple-800 dark:text-purple-300">
+                              Tu veux comprendre ta réponse ?
+                            </p>
+
+                            <p className="text-sm text-purple-700 dark:text-purple-400 mt-1">
+                              Choisis « Explication avec l’IA »
+                              pour discuter avec CODE IA de ton
+                              raisonnement, de ton erreur éventuelle
+                              et de la méthode à utiliser.
+                            </p>
+
+                          </div>
+
+                        </div>
+                      </motion.div>
+                    )}
+
                   </motion.div>
+
                 </motion.div>
               )}
 
-            {/* VIDEO LOCKED */}
+            {/* ====================================================
+                VIDEO LOCKED
+            ==================================================== */}
+
             {!videoPlaying &&
               !isUrlValid &&
               !showQuiz &&
@@ -2900,7 +3073,10 @@ const RemediationVideo: React.FC = () => {
                 </motion.div>
               )}
 
-            {/* START BUTTON */}
+            {/* ====================================================
+                START BUTTON
+            ==================================================== */}
+
             {!videoPlaying &&
               !showQuiz &&
               isAvailable && (
@@ -2968,6 +3144,10 @@ const RemediationVideo: React.FC = () => {
               )}
 
           </AnimatePresence>
+
+          {/* ====================================================
+              FEEDBACK
+          ==================================================== */}
 
           {feedback && (
             <motion.div

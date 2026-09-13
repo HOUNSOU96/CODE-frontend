@@ -2127,6 +2127,39 @@ const ListeInscrits: React.FC = () => {
         </button>
 
 
+
+
+          {/* ==================================================
+    💡 GESTION DES PROJETS ET IDÉES
+================================================== */}
+
+<button
+
+  onClick={() =>
+    navigate(
+      "/admin/projets"
+    )
+  }
+
+  className="
+    px-6
+    py-3
+    font-semibold
+    rounded-xl
+    bg-cyan-600
+    text-white
+    hover:bg-cyan-700
+    transition
+    w-64
+    text-center
+  "
+>
+  💡 GESTION DES PROJETS
+</button>
+
+
+
+
         {/* ==================================================
             CODES D'ACTIVATION
         ================================================== */}

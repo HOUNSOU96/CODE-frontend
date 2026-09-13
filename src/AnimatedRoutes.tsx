@@ -36,8 +36,10 @@ import QuestionsAdmin from "./pages/admin/QuestionsAdmin";
 import ConversationAdmin from "./pages/admin/ConversationAdmin";
 import GestionEnseignants from "./pages/admin/GestionEnseignants";
 import EnsProfil from "./pages/Enseignant/EnsProfil";
+import AdminProjets from "./pages/admin/AdminProjets";
 
 
+import ExplicationQuestion from "./pages/ExplicationQuestion";
 // ==========================================================
 // PAGES PUBLIQUES
 // ==========================================================
@@ -59,6 +61,7 @@ import ConversationsEnseignantsAdmin from "./pages/admin/ConversationsEnseignant
 import ProfilEnseignant from "./pages/Enseignant/ProfilEnseignant";
 import Enseignant from "./pages/Enseignant/Enseignant";
 import MesVideos from "./pages/Enseignant/MesVideos";
+import Projets from "./pages/Projets";
 // ==========================================================
 // PAGES PROTÉGÉES — ANCIENNE STRUCTURE
 // ==========================================================
@@ -843,6 +846,15 @@ const AnimatedRoutes: React.FC = () => {
           path="/activation"
           element={<Activation />}
         />
+
+
+        <Route
+  path="/projets"
+  element={
+      <Projets />
+  }
+/>
+
 
         <Route
           path="/admin/documents"
@@ -2120,6 +2132,20 @@ const AnimatedRoutes: React.FC = () => {
           }
         />
 
+
+
+        <Route
+  path="/explication-question"
+  element={
+    <RequireAuth>
+    <Layout>
+      <ExplicationQuestion />
+    </Layout>
+    </RequireAuth>
+  }
+/>
+
+
         <Route
           path="/maths/test/remediationvideo/:niveau/:serie?"
           element={
@@ -2349,7 +2375,20 @@ const AnimatedRoutes: React.FC = () => {
 />
 
 
+{/* ==================================================
+    ADMIN — PROJETS ET IDÉES
+    ================================================== */}
 
+<Route
+  path="/admin/projets"
+  element={
+    <RequireAuth>
+      <Layout>
+        <AdminProjets />
+      </Layout>
+    </RequireAuth>
+  }
+/>
 
 
         {/* ==================================================

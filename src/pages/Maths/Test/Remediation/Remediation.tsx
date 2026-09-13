@@ -50,7 +50,6 @@ type QuestionRemediation = {
 
   situation?: {
     texte?: string;
-
     image?: string;
   };
 
@@ -403,7 +402,6 @@ const Remediation: React.FC = () => {
               {
                 params: {
                   niveau,
-
                   serie:
                     serie ||
                     undefined,
@@ -434,6 +432,7 @@ const Remediation: React.FC = () => {
       };
 
     recupererResultats();
+
   }, [
     resultatsTransmis,
     niveau,
@@ -459,6 +458,7 @@ const Remediation: React.FC = () => {
       ) {
         questions =
           questionsRemediationTransmises;
+
       } else if (
         Array.isArray(
           resultats?.questionsRemediation
@@ -466,6 +466,7 @@ const Remediation: React.FC = () => {
       ) {
         questions =
           resultats.questionsRemediation;
+
       } else if (
         Array.isArray(
           resultats?.questions_remediation
@@ -473,6 +474,7 @@ const Remediation: React.FC = () => {
       ) {
         questions =
           resultats.questions_remediation;
+
       } else if (
         Array.isArray(
           resultats?.questions
@@ -488,7 +490,6 @@ const Remediation: React.FC = () => {
           index
         ) => ({
           ...question,
-
           id:
             question.id ??
             `question-remediation-${index}`,
@@ -520,6 +521,7 @@ const Remediation: React.FC = () => {
   useEffect(() => {
     const recupererProfilsEnseignants =
       async () => {
+
         const emails = [
           ...new Set(
             toutesLesQuestions
@@ -542,6 +544,7 @@ const Remediation: React.FC = () => {
           emails.length === 0
         ) {
           setTeacherProfiles({});
+
           return;
         }
 
@@ -554,6 +557,7 @@ const Remediation: React.FC = () => {
         await Promise.all(
           emails.map(
             async (email) => {
+
               if (
                 teacherProfiles[email]
               ) {
@@ -581,7 +585,9 @@ const Remediation: React.FC = () => {
                   "👨‍🏫 Profil enseignant récupéré :",
                   res.data
                 );
+
               } catch (error) {
+
                 console.error(
                   `❌ Impossible de récupérer le profil de ${email}`,
                   error
@@ -607,6 +613,7 @@ const Remediation: React.FC = () => {
     ) {
       recupererProfilsEnseignants();
     }
+
   }, [
     toutesLesQuestions,
   ]);
@@ -641,6 +648,7 @@ const Remediation: React.FC = () => {
         question,
         index
       ) => {
+
         console.log(
           `📌 Question ${index + 1}`,
           {
@@ -669,6 +677,7 @@ const Remediation: React.FC = () => {
     console.log(
       "================================================"
     );
+
   }, [
     toutesLesQuestions,
   ]);
@@ -683,6 +692,7 @@ const Remediation: React.FC = () => {
     (
       valeur: unknown
     ): string => {
+
       if (
         valeur === undefined ||
         valeur === null
@@ -711,6 +721,7 @@ const Remediation: React.FC = () => {
       reponse: string,
       question: QuestionRemediation
     ): string | null => {
+
       if (
         !Array.isArray(
           question.choix
@@ -758,6 +769,7 @@ const Remediation: React.FC = () => {
     (
       question: QuestionRemediation
     ): string => {
+
       const bonneReponse =
         question.bonne_reponse ??
         question.bonneReponse;
@@ -802,6 +814,7 @@ const Remediation: React.FC = () => {
     (
       question: QuestionRemediation
     ): string => {
+
       const reponseUser =
         question.reponse_apprenant ??
         question.reponseUser ??
@@ -847,6 +860,7 @@ const Remediation: React.FC = () => {
     (
       question: QuestionRemediation
     ): boolean => {
+
       const reponseUser =
         question.reponse_apprenant ??
         question.reponseUser ??
@@ -915,6 +929,7 @@ const Remediation: React.FC = () => {
           question.choix
         )
       ) {
+
         const contenuChoixUser =
           getChoixDepuisLettre(
             userNormalise,
@@ -947,6 +962,7 @@ const Remediation: React.FC = () => {
           question.choix
         )
       ) {
+
         const contenuChoixBonne =
           getChoixDepuisLettre(
             bonneNormalisee,
@@ -986,6 +1002,7 @@ const Remediation: React.FC = () => {
     (
       question: QuestionRemediation
     ): string => {
+
       return (
         question.notion ??
         question.notions ??
@@ -1005,6 +1022,7 @@ const Remediation: React.FC = () => {
     (
       question: QuestionRemediation
     ): string => {
+
       return (
         question.niveau ??
         "Non précisée"
@@ -1122,6 +1140,7 @@ const Remediation: React.FC = () => {
 
   const handleNextStep =
     () => {
+
       setCurrentStep(
         (previous) =>
           Math.min(
@@ -1139,6 +1158,7 @@ const Remediation: React.FC = () => {
 
   const handlePreviousStep =
     () => {
+
       setCurrentStep(
         (previous) =>
           Math.max(
@@ -1156,13 +1176,89 @@ const Remediation: React.FC = () => {
 
   /*
    * ========================================================
+   * EXPLICATION DE LA QUESTION
+   * ========================================================
+   *
+   * Le bouton "Explication" ouvre ExplicationQuestion.tsx.
+   * La question actuelle est transmise dans location.state.
+   * ========================================================
+   */
+
+  const handleExplicationQuestion =
+    (
+      question: QuestionRemediation
+    ) => {
+
+      navigate(
+        "/explication-question",
+        {
+          state: {
+            question,
+
+            questionActuelle:
+              question,
+
+            niveauActuel:
+              resultats?.niveau ??
+              niveau,
+
+            serieActuelle:
+              resultats?.serie ??
+              serie ??
+              "",
+
+            resultats,
+
+            reponseUtilisateur:
+              getReponseUserAffichage(
+                question
+              ),
+
+            bonneReponse:
+              getBonneReponseAffichage(
+                question
+              ),
+
+            correcte:
+              estQuestionCorrecte(
+                question
+              ),
+
+            notion:
+              getNotionQuestion(
+                question
+              ),
+
+            classe:
+              getClasseQuestion(
+                question
+              ),
+
+            enseignant:
+              question.enseignant
+              ?? null,
+          },
+        }
+      );
+
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: "smooth",
+      });
+    };
+
+  /*
+   * ========================================================
    * LANCER LA REMÉDIATION VIDÉO
    * ========================================================
    */
 
   const handleStartRemediation =
     () => {
+
       if (!niveau) {
+
         console.warn(
           "⚠️ Niveau manquant."
         );
@@ -1229,6 +1325,7 @@ const Remediation: React.FC = () => {
           replace: true,
 
           state: {
+
             currentNotion:
               notions[0] ??
               null,
@@ -1275,9 +1372,12 @@ const Remediation: React.FC = () => {
    */
 
   if (loadingResultats) {
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 text-center">
+
           <div className="text-4xl mb-4">
             ⏳
           </div>
@@ -1285,7 +1385,9 @@ const Remediation: React.FC = () => {
           <p className="text-gray-700 dark:text-gray-200 font-semibold">
             Chargement des résultats...
           </p>
+
         </div>
+
       </div>
     );
   }
@@ -1339,6 +1441,7 @@ const Remediation: React.FC = () => {
     "Enseignant";
 
   if (questionActuelle) {
+
     correcteActuelle =
       estQuestionCorrecte(
         questionActuelle
@@ -1372,6 +1475,7 @@ const Remediation: React.FC = () => {
           )
           ? teacherActuel.teacher_photo
           : (() => {
+
               const baseUrl =
                 api.defaults.baseURL?.replace(
                   /\/$/,
@@ -1390,6 +1494,7 @@ const Remediation: React.FC = () => {
                 /^\//,
                 ""
               )}`;
+
             })()
         : null;
 
@@ -1419,6 +1524,7 @@ const Remediation: React.FC = () => {
    */
 
   return (
+
     <div className="w-full max-w-5xl mx-auto bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-6 sm:p-10 space-y-8">
 
       {/* ==================================================
@@ -1426,16 +1532,23 @@ const Remediation: React.FC = () => {
       ================================================== */}
 
       <div className="text-center">
+
         <h1 className="text-4xl font-extrabold text-center text-blue-700">
+
           REMÉDIATION:{" "}
+
           {titreNiveau}
+
         </h1>
 
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+
           Consultez les résultats détaillés
           de votre évaluation avant de
           poursuivre le programme.
+
         </p>
+
       </div>
 
       {/* ==================================================
@@ -1443,31 +1556,47 @@ const Remediation: React.FC = () => {
       ================================================== */}
 
       <div className="bg-gray-100 dark:bg-gray-700 rounded-xl p-4">
+
         <div className="flex items-center justify-between gap-3 mb-2">
 
           <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+
             Étape {currentStep + 1} sur{" "}
+
             {totalSteps}
+
           </span>
 
           {isQuestionStep && (
+
             <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+
               Question{" "}
+
               {currentQuestionIndex + 1} /{" "}
+
               {toutesLesQuestions.length}
+
             </span>
+
           )}
 
         </div>
 
         <div className="w-full h-3 bg-gray-300 dark:bg-gray-600 rounded-full overflow-hidden">
+
           <div
+
             className="h-full bg-blue-600 rounded-full transition-all duration-500"
+
             style={{
               width: `${((currentStep + 1) / totalSteps) * 100}%`,
             }}
+
           />
+
         </div>
+
       </div>
 
       {/* ==================================================
@@ -1475,11 +1604,17 @@ const Remediation: React.FC = () => {
       ================================================== */}
 
       {errorResultats && (
+
         <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 p-5 rounded-lg">
+
           <p className="text-red-700 dark:text-red-300 font-semibold">
+
             ❌ {errorResultats}
+
           </p>
+
         </div>
+
       )}
 
       {/* ==================================================
@@ -1487,18 +1622,23 @@ const Remediation: React.FC = () => {
       ================================================== */}
 
       {currentStep === 0 && (
+
         <section className="bg-gray-100 dark:bg-gray-700 p-6 rounded-xl shadow-md">
 
           <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">
+
             📊 Résultats de l'évaluation
+
           </h2>
 
           {resultats ? (
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
               {/* NOTE */}
 
               <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Note
                 </p>
@@ -1506,11 +1646,13 @@ const Remediation: React.FC = () => {
                 <p className="text-2xl font-bold text-green-600">
                   {resultats.note}/20
                 </p>
+
               </div>
 
               {/* MENTION */}
 
               <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Mention
                 </p>
@@ -1518,11 +1660,13 @@ const Remediation: React.FC = () => {
                 <p className="font-bold text-blue-700 dark:text-blue-300">
                   {resultats.mention}
                 </p>
+
               </div>
 
               {/* QUESTIONS */}
 
               <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Nombre de questions
                 </p>
@@ -1530,11 +1674,13 @@ const Remediation: React.FC = () => {
                 <p className="text-2xl font-bold text-blue-600">
                   {toutesLesQuestions.length}
                 </p>
+
               </div>
 
               {/* NOTIONS */}
 
               <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Nombre de notions non acquises
                 </p>
@@ -1542,16 +1688,21 @@ const Remediation: React.FC = () => {
                 <p className="text-2xl font-bold text-purple-600">
                   {notionsBrutes.length}
                 </p>
+
               </div>
 
             </div>
+
           ) : (
+
             <p className="text-gray-600 dark:text-gray-300">
               Aucun résultat disponible.
             </p>
+
           )}
 
         </section>
+
       )}
 
       {/* ==================================================
@@ -1560,6 +1711,7 @@ const Remediation: React.FC = () => {
 
       {isQuestionStep &&
         questionActuelle && (
+
           <section
             className={`rounded-xl shadow-md overflow-hidden border-l-4 ${
               correcteActuelle
@@ -1583,8 +1735,11 @@ const Remediation: React.FC = () => {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
 
                 <h2 className="font-bold text-xl text-gray-800 dark:text-white">
+
                   Question{" "}
+
                   {currentQuestionIndex + 1}
+
                 </h2>
 
                 <span
@@ -1594,9 +1749,11 @@ const Remediation: React.FC = () => {
                       : "bg-red-600 text-white"
                   }`}
                 >
+
                   {correcteActuelle
                     ? "✅ Correcte"
                     : "❌ Incorrecte"}
+
                 </span>
 
               </div>
@@ -1610,6 +1767,7 @@ const Remediation: React.FC = () => {
               ================================================= */}
 
               {teacherEmailActuel && (
+
                 <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4">
 
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -1619,13 +1777,17 @@ const Remediation: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => {
+
                         if (
                           teacherProfileUrlActuel
                         ) {
+
                           navigate(
                             teacherProfileUrlActuel
                           );
+
                         }
+
                       }}
                       disabled={
                         !teacherActuel
@@ -1633,9 +1795,11 @@ const Remediation: React.FC = () => {
                       className="group shrink-0 disabled:cursor-default"
                       title="Voir le profil de l'enseignant"
                     >
+
                       <div className="h-14 w-14 overflow-hidden rounded-full border-2 border-blue-500 bg-gray-200 dark:bg-gray-700 shadow-sm group-hover:shadow-md group-hover:border-blue-700 transition">
 
                         {teacherPhotoActuelle ? (
+
                           <img
                             src={
                               teacherPhotoActuelle
@@ -1649,19 +1813,27 @@ const Remediation: React.FC = () => {
                             onError={(
                               event
                             ) => {
+
                               event.currentTarget.style.display =
                                 "none";
+
                             }}
                           />
+
                         ) : (
+
                           <div className="flex h-full w-full items-center justify-center text-sm font-bold text-gray-500 dark:text-gray-300">
+
                             {
                               teacherInitialsActuelles
                             }
+
                           </div>
+
                         )}
 
                       </div>
+
                     </button>
 
                     {/* NOM + PRÉNOM */}
@@ -1669,27 +1841,39 @@ const Remediation: React.FC = () => {
                     <div className="min-w-0 flex-1">
 
                       <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+
                         Question proposée par
+
                       </p>
 
                       {teacherActuel ? (
+
                         <button
                           type="button"
                           onClick={() => {
+
                             navigate(
                               teacherProfileUrlActuel
                             );
+
                           }}
                           className="font-semibold text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 hover:underline transition text-left"
                         >
+
                           {
                             teacherFullNameActuel
                           }
+
                         </button>
+
                       ) : (
+
                         <p className="text-sm text-gray-500 dark:text-gray-400">
+
                           Chargement de l'enseignant...
+
                         </p>
+
                       )}
 
                     </div>
@@ -1697,6 +1881,7 @@ const Remediation: React.FC = () => {
                     {/* BOUTON PROFIL */}
 
                     {teacherActuel && (
+
                       <button
                         type="button"
                         onClick={() =>
@@ -1707,13 +1892,17 @@ const Remediation: React.FC = () => {
                         className="hidden sm:flex shrink-0 items-center justify-center h-9 w-9 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition"
                         title="Voir le profil de l'enseignant"
                       >
+
                         →
+
                       </button>
+
                     )}
 
                   </div>
 
                 </div>
+
               )}
 
               {/* =================================================
@@ -1722,9 +1911,50 @@ const Remediation: React.FC = () => {
 
               <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm">
 
-                <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">
-                  Énoncé
-                </p>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+
+                  <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+
+                    Énoncé
+
+                  </p>
+
+                  {/* =================================================
+                      BOUTON EXPLICATION
+                  ================================================= */}
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleExplicationQuestion(
+                        questionActuelle
+                      )
+                    }
+                    className="
+                      inline-flex
+                      items-center
+                      justify-center
+                      gap-2
+                      px-4
+                      py-2
+                      rounded-lg
+                      bg-amber-500
+                      hover:bg-amber-600
+                      text-white
+                      font-bold
+                      shadow-md
+                      transition
+                      w-full
+                      sm:w-auto
+                    "
+                    title="Voir l'explication de cette question"
+                  >
+
+                    💡 Explication
+
+                  </button>
+
+                </div>
 
                 <div
                   className="font-semibold text-gray-800 dark:text-white leading-relaxed"
@@ -1750,9 +1980,11 @@ const Remediation: React.FC = () => {
                   </p>
 
                   <p className="font-semibold text-blue-700 dark:text-blue-300">
+
                     {getClasseQuestion(
                       questionActuelle
                     )}
+
                   </p>
 
                 </div>
@@ -1764,9 +1996,11 @@ const Remediation: React.FC = () => {
                   </p>
 
                   <p className="font-semibold text-purple-700 dark:text-purple-300">
+
                     {getNotionQuestion(
                       questionActuelle
                     )}
+
                   </p>
 
                 </div>
@@ -1782,10 +2016,13 @@ const Remediation: React.FC = () => {
               ) &&
                 questionActuelle.choix.length >
                   0 && (
+
                   <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
 
                     <p className="text-sm text-gray-500 dark:text-gray-400 font-semibold mb-2">
+
                       Choix proposés
+
                     </p>
 
                     <div className="space-y-2">
@@ -1795,6 +2032,7 @@ const Remediation: React.FC = () => {
                           choix,
                           choixIndex
                         ) => {
+
                           const lettre =
                             String.fromCharCode(
                               65 +
@@ -1802,24 +2040,31 @@ const Remediation: React.FC = () => {
                             );
 
                           return (
+
                             <div
                               key={
                                 choixIndex
                               }
                               className="p-2 rounded bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
                             >
+
                               <strong>
                                 {lettre}.
                               </strong>{" "}
+
                               {choix}
+
                             </div>
+
                           );
+
                         }
                       )}
 
                     </div>
 
                   </div>
+
                 )}
 
               {/* =================================================
@@ -1829,11 +2074,15 @@ const Remediation: React.FC = () => {
               <div className="bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-lg p-4">
 
                 <p className="text-sm text-green-700 dark:text-green-300 font-semibold mb-1">
+
                   ✅ Bonne réponse
+
                 </p>
 
                 <p className="font-bold text-green-800 dark:text-green-200">
+
                   {bonneReponseActuelle}
+
                 </p>
 
               </div>
@@ -1857,9 +2106,11 @@ const Remediation: React.FC = () => {
                       : "text-red-700 dark:text-red-300"
                   }`}
                 >
+
                   {correcteActuelle
                     ? "✅ Votre choix"
                     : "❌ Votre choix"}
+
                 </p>
 
                 <p
@@ -1869,7 +2120,9 @@ const Remediation: React.FC = () => {
                       : "text-red-800 dark:text-red-200"
                   }`}
                 >
+
                   {reponseUserActuelle}
+
                 </p>
 
               </div>
@@ -1877,6 +2130,7 @@ const Remediation: React.FC = () => {
             </div>
 
           </section>
+
         )}
 
       {/* ==================================================
@@ -1884,17 +2138,22 @@ const Remediation: React.FC = () => {
       ================================================== */}
 
       {isResumeStep && (
+
         <section className="space-y-6">
 
           <div className="bg-blue-50 dark:bg-blue-900/30 p-6 rounded-xl shadow-md">
 
             <h2 className="text-2xl font-bold text-blue-700 dark:text-blue-200 mb-2">
+
               📊 Résumé de votre évaluation
+
             </h2>
 
             <p className="text-gray-700 dark:text-gray-200">
+
               Voici maintenant le bilan de
               l'ensemble de vos réponses.
+
             </p>
 
           </div>
@@ -1908,7 +2167,9 @@ const Remediation: React.FC = () => {
               </p>
 
               <p className="text-3xl font-bold text-blue-700 dark:text-blue-200">
+
                 {toutesLesQuestions.length}
+
               </p>
 
             </div>
@@ -1920,7 +2181,9 @@ const Remediation: React.FC = () => {
               </p>
 
               <p className="text-3xl font-bold text-green-700 dark:text-green-200">
+
                 {questionsCorrectes.length}
+
               </p>
 
             </div>
@@ -1932,7 +2195,9 @@ const Remediation: React.FC = () => {
               </p>
 
               <p className="text-3xl font-bold text-red-700 dark:text-red-200">
+
                 {questionsIncorrectes.length}
+
               </p>
 
             </div>
@@ -1940,6 +2205,7 @@ const Remediation: React.FC = () => {
           </div>
 
         </section>
+
       )}
 
       {/* ==================================================
@@ -1947,17 +2213,24 @@ const Remediation: React.FC = () => {
       ================================================== */}
 
       {isNotionsStep && (
+
         <section className="bg-purple-50 dark:bg-purple-900/30 p-6 rounded-xl shadow-md">
 
           <h2 className="text-2xl font-semibold text-purple-700 dark:text-purple-200 mb-4">
+
             📚 Notions à revoir
+
           </h2>
 
           {notionsBrutes.length > 0 ? (
+
             <>
+
               <p className="text-gray-700 dark:text-gray-200 mb-4">
+
                 Les notions suivantes nécessitent
                 une attention particulière :
+
               </p>
 
               <div className="flex flex-wrap gap-2">
@@ -1967,25 +2240,36 @@ const Remediation: React.FC = () => {
                     notion,
                     index
                   ) => (
+
                     <span
                       key={`${notion}-${index}`}
                       className="px-4 py-2 rounded-full bg-purple-600 text-white font-semibold text-sm"
                     >
+
                       {notion}
+
                     </span>
+
                   )
                 )}
 
               </div>
+
             </>
+
           ) : (
+
             <p className="text-green-700 dark:text-green-300 font-semibold">
+
               🎉 Aucune notion non acquise n'a
               été détectée.
+
             </p>
+
           )}
 
         </section>
+
       )}
 
       {/* ==================================================
@@ -1993,6 +2277,7 @@ const Remediation: React.FC = () => {
       ================================================== */}
 
       {isMessageStep && (
+
         <section
           className={`p-6 rounded-xl shadow-md ${
             questionsIncorrectes.length > 0
@@ -2002,39 +2287,60 @@ const Remediation: React.FC = () => {
         >
 
           {questionsIncorrectes.length > 0 ? (
+
             <>
+
               <h2 className="text-2xl font-semibold text-blue-700 dark:text-blue-200 mb-3">
+
                 📚 Poursuivre le programme
+
               </h2>
 
               <p className="text-gray-700 dark:text-gray-200">
+
                 Les réponses incorrectes
                 permettent d'identifier les
                 notions qui nécessitent une attention particulière.
+
               </p>
 
               <p className="text-gray-700 dark:text-gray-200 mt-3">
+
                 Vous pouvez poursuivre le programme.
+
               </p>
+
             </>
+
           ) : (
+
             <>
+
               <h2 className="text-2xl font-semibold text-green-700 dark:text-green-300 mb-3">
+
                 🎉 Évaluation réussie
+
               </h2>
 
               <p className="text-gray-700 dark:text-gray-200">
+
                 Toutes les questions sont
                 correctes.
+
               </p>
 
               <p className="text-gray-700 dark:text-gray-200 mt-3">
+
                 Vous pouvez poursuivre le programme.
+
               </p>
+
             </>
+
           )}
 
         </section>
+
       )}
 
       {/* ==================================================
@@ -2059,7 +2365,9 @@ const Remediation: React.FC = () => {
               : "bg-gray-600 text-white hover:bg-gray-700"
           }`}
         >
+
           ← Précédent
+
         </button>
 
         {/* INDICATION CENTRALE */}
@@ -2067,27 +2375,41 @@ const Remediation: React.FC = () => {
         <div className="text-center text-sm text-gray-500 dark:text-gray-400">
 
           {isQuestionStep ? (
+
             <span>
+
               Question{" "}
+
               {currentQuestionIndex + 1} sur{" "}
+
               {toutesLesQuestions.length}
+
             </span>
+
           ) : currentStep === 0 ? (
+
             <span>
               Résultats de l'évaluation
             </span>
+
           ) : isResumeStep ? (
+
             <span>
               Résumé de l'évaluation
             </span>
+
           ) : isNotionsStep ? (
+
             <span>
               Notions à revoir
             </span>
+
           ) : (
+
             <span>
               Fin de l'analyse
             </span>
+
           )}
 
         </div>
@@ -2095,6 +2417,7 @@ const Remediation: React.FC = () => {
         {/* BOUTON SUIVANT OU CONTINUER */}
 
         {!isMessageStep ? (
+
           <button
             type="button"
             onClick={
@@ -2102,9 +2425,13 @@ const Remediation: React.FC = () => {
             }
             className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition"
           >
+
             Suivant →
+
           </button>
+
         ) : (
+
           <button
             type="button"
             onClick={
@@ -2117,8 +2444,11 @@ const Remediation: React.FC = () => {
                 : "bg-gray-400 cursor-not-allowed"
             }`}
           >
+
             🚀 Continuez
+
           </button>
+
         )}
 
       </div>
