@@ -284,6 +284,26 @@ interface TeacherProfile {
   teacher_photo?: string | null;
 }
 
+/* -------------------- EXPLICATION IA -------------------- */
+
+interface PendingExplanation {
+  question: Question;
+
+  reponseUtilisateur: string;
+
+  bonneReponse: string;
+
+  correcte: boolean;
+
+  notion: string;
+
+  niveau: string;
+
+  matiere: string;
+
+  enseignant?: string | null;
+}
+
 /* -------------------- COMPOSANT -------------------- */
 
 const RemediationVideo: React.FC = () => {
@@ -362,6 +382,21 @@ const RemediationVideo: React.FC = () => {
 
   const [loadingTeachers, setLoadingTeachers] =
     useState(false);
+
+  /* ============================================================
+     EXPLICATION IA EN ATTENTE
+  ============================================================ */
+
+  /*
+   * Contient la question à expliquer après une mauvaise réponse.
+   * Cette donnée est conservée même lorsque le quiz disparaît
+   * afin que le bouton "Explication avec CODE IA" puisse rester
+   * disponible sous le bouton "Démarrer la vidéo".
+   */
+  const [
+    pendingExplanation,
+    setPendingExplanation,
+  ] = useState<PendingExplanation | null>(null);
 
   /* ============================================================
      RÉCUPÉRATION DES VIDÉOS
@@ -750,6 +785,12 @@ const RemediationVideo: React.FC = () => {
     setSelectedAnswer("");
     setAnswerStatus("none");
 
+    /*
+     * Une navigation manuelle vers une autre vidéo
+     * annule l'explication en attente.
+     */
+    setPendingExplanation(null);
+
     setShuffledQuestions(
       shuffleQuestionsWithChoices(
         video.questions || []
@@ -858,9 +899,48 @@ const RemediationVideo: React.FC = () => {
     ];
 
   /* ============================================================
-     ⭐ NOUVELLE FONCTION :
-     OUVRIR EXPLICATION AVEC L'IA
+     ⭐ OUVRIR EXPLICATION AVEC L'IA
   ============================================================ */
+
+  const openExplanation = (
+    explanation: PendingExplanation
+  ) => {
+    navigate("/explication-question", {
+      state: {
+        question: explanation.question,
+
+        questionActuelle:
+          explanation.question,
+
+        niveauActuel:
+          explanation.niveau,
+
+        serieActuelle:
+          serieEffective ?? serieActuelle ?? "",
+
+        resultats:
+          state?.resultats ?? null,
+
+        reponseUtilisateur:
+          explanation.reponseUtilisateur,
+
+        bonneReponse:
+          explanation.bonneReponse,
+
+        correcte:
+          explanation.correcte,
+
+        notion:
+          explanation.notion,
+
+        classe:
+          explanation.niveau,
+
+        enseignant:
+          explanation.enseignant,
+      },
+    });
+  };
 
   const handleOpenExplicationQuestion = () => {
     if (!currentQuestion) {
@@ -894,58 +974,39 @@ const RemediationVideo: React.FC = () => {
       normalize(selectedAnswer) ===
       normalize(bonneReponse);
 
-    navigate("/explication-question", {
-      state: {
-        question: {
-          ...currentQuestion,
-
-          notion,
-
-          niveau: niveauQuestion,
-
-          matiere:
-            currentQuestion.matiere ||
-            currentVideo?.matiere ||
-            matiere,
-
-          enseignant,
-        },
-
-        questionActuelle: {
-          ...currentQuestion,
-
-          notion,
-
-          niveau: niveauQuestion,
-
-          matiere:
-            currentQuestion.matiere ||
-            currentVideo?.matiere ||
-            matiere,
-
-          enseignant,
-        },
-
-        niveauActuel: niveauQuestion,
-
-        serieActuelle:
-          serieEffective ?? serieActuelle ?? "",
-
-        resultats: state?.resultats ?? null,
-
-        reponseUtilisateur:
-          selectedAnswer,
-
-        bonneReponse,
-
-        correcte,
+    openExplanation({
+      question: {
+        ...currentQuestion,
 
         notion,
 
-        classe: niveauQuestion,
+        niveau: niveauQuestion,
+
+        matiere:
+          currentQuestion.matiere ||
+          currentVideo?.matiere ||
+          matiere,
 
         enseignant,
       },
+
+      reponseUtilisateur:
+        selectedAnswer,
+
+      bonneReponse,
+
+      correcte,
+
+      notion,
+
+      niveau: niveauQuestion,
+
+      matiere:
+        currentQuestion.matiere ||
+        currentVideo?.matiere ||
+        matiere,
+
+      enseignant,
     });
   };
 
@@ -1644,6 +1705,12 @@ const RemediationVideo: React.FC = () => {
 
     setFeedback(null);
 
+    /*
+     * Dès que l'utilisateur redémarre la vidéo,
+     * le bouton "Explication avec CODE IA" disparaît.
+     */
+    setPendingExplanation(null);
+
     setVideoPlaying(true);
 
     setShowQuiz(false);
@@ -1776,24 +1843,109 @@ const RemediationVideo: React.FC = () => {
         }
       }, 900);
     } else {
+      /*
+       * ========================================================
+       * MAUVAISE RÉPONSE
+       * ========================================================
+       *
+       * On mémorise immédiatement la question et la réponse
+       * de l'apprenant afin que l'explication IA reste disponible
+       * après le retour à la vidéo.
+       */
+
+      const bonneReponse =
+        currentQ.bonne_reponse || "";
+
+      const notion =
+        currentQ.notion ||
+        currentVideo?.notions?.[0] ||
+        currentVideo?.titre ||
+        "Notion non précisée";
+
+      const niveauQuestion =
+        currentQ.niveau ||
+        currentVideo?.niveau ||
+        niveau;
+
+      const enseignant =
+        currentQ.enseignant ??
+        currentVideo?.enseignant ??
+        null;
+
+      setPendingExplanation({
+        question: {
+          ...currentQ,
+
+          notion,
+
+          niveau: niveauQuestion,
+
+          matiere:
+            currentQ.matiere ||
+            currentVideo?.matiere ||
+            matiere,
+
+          enseignant,
+        },
+
+        reponseUtilisateur:
+          selectedAnswer,
+
+        bonneReponse,
+
+        correcte: false,
+
+        notion,
+
+        niveau: niveauQuestion,
+
+        matiere:
+          currentQ.matiere ||
+          currentVideo?.matiere ||
+          matiere,
+
+        enseignant,
+      });
+
       setFeedback({
         type: "error",
         message:
-          "❌ Mauvaise réponse ! Vous pouvez utiliser l'explication avec l'IA pour comprendre votre raisonnement.",
+          "❌ Mauvaise réponse ! Retournez à la vidéo pour revoir cette notion. Vous pourrez ensuite demander une explication avec CODE IA.",
       });
 
       setAnswerStatus("wrong");
 
       /*
-       * IMPORTANT :
-       * On ne renvoie plus immédiatement l'apprenant
-       * vers la vidéo. Le bouton "Explication avec l'IA"
-       * lui permet maintenant d'échanger avec CODE IA.
+       * On attend un court instant pour afficher le message,
+       * puis on revient directement à la vidéo correspondant
+       * à la question.
        */
-
       setTimeout(() => {
         setFeedback(null);
-      }, 2200);
+
+        setShowQuiz(false);
+
+        setVideoPlaying(false);
+
+        setShowCountdown(false);
+
+        setTimerEnded(false);
+
+        /*
+         * On conserve la question dans pendingExplanation.
+         * On ne vide donc pas pendingExplanation ici.
+         */
+
+        setCurrentQuestionIndex(
+          currentQuestionIndex
+        );
+
+        setAnswerStatus("none");
+
+        setFadeKey((p) => p + 1);
+
+        scrollPageToTop();
+      }, 1800);
     }
   };
 
@@ -2912,13 +3064,6 @@ const RemediationVideo: React.FC = () => {
                                     opt
                                   );
 
-                                  /*
-                                   * Dès que l'apprenant
-                                   * choisit une réponse,
-                                   * le bouton Explication
-                                   * avec l'IA devient
-                                   * disponible.
-                                   */
                                   setAnswerStatus(
                                     "none"
                                   );
@@ -3034,6 +3179,7 @@ const RemediationVideo: React.FC = () => {
                           </div>
 
                         </div>
+
                       </motion.div>
                     )}
 
@@ -3080,8 +3226,8 @@ const RemediationVideo: React.FC = () => {
             {!videoPlaying &&
               !showQuiz &&
               isAvailable && (
-                <motion.button
-                  key={`start-btn-${fadeKey}`}
+                <motion.div
+                  key={`start-container-${fadeKey}`}
                   initial={{
                     opacity: 0,
                     scale: 0.9,
@@ -3094,60 +3240,111 @@ const RemediationVideo: React.FC = () => {
                     opacity: 0,
                     scale: 0.9,
                   }}
-                  whileHover={{
-                    scale: 1.05,
-                  }}
-                  whileTap={{
-                    scale: 0.95,
-                  }}
                   transition={{
                     duration: 0.4,
                   }}
-                  onClick={() => {
-                    scrollPageToTop();
-
-                    setVideoPlaying(
-                      true
-                    );
-
-                    setTimerEnded(
-                      false
-                    );
-
-                    setTimerResetCounter(
-                      (p) => p + 1
-                    );
-
-                    setCurrentQuestionIndex(
-                      0
-                    );
-
-                    setSelectedAnswer(
-                      ""
-                    );
-
-                    setAnswerStatus(
-                      "none"
-                    );
-
-                    setShuffledQuestions(
-                      shuffleQuestionsWithChoices(
-                        currentVideo?.questions ||
-                          []
-                      )
-                    );
-                  }}
-                  className="bg-green-600 text-white px-6 py-3 rounded-full shadow-lg hover:bg-green-700 active:bg-green-800 transition-all duration-300"
+                  className="flex flex-col items-center gap-4"
                 >
-                  ▶️ Démarrer la vidéo
-                </motion.button>
+
+                  {/* ==================================================
+                      DÉMARRER LA VIDÉO
+                  ================================================== */}
+
+                  <motion.button
+                    type="button"
+                    whileHover={{
+                      scale: 1.05,
+                    }}
+                    whileTap={{
+                      scale: 0.95,
+                    }}
+                    onClick={() => {
+                      scrollPageToTop();
+
+                      /*
+                       * Le bouton Explication IA doit disparaître
+                       * dès que la vidéo est redémarrée.
+                       */
+                      setPendingExplanation(null);
+
+                      setVideoPlaying(
+                        true
+                      );
+
+                      setTimerEnded(
+                        false
+                      );
+
+                      setTimerResetCounter(
+                        (p) => p + 1
+                      );
+
+                      setCurrentQuestionIndex(
+                        0
+                      );
+
+                      setSelectedAnswer(
+                        ""
+                      );
+
+                      setAnswerStatus(
+                        "none"
+                      );
+
+                      setShuffledQuestions(
+                        shuffleQuestionsWithChoices(
+                          currentVideo?.questions ||
+                            []
+                        )
+                      );
+                    }}
+                    className="bg-green-600 text-white px-6 py-3 rounded-full shadow-lg hover:bg-green-700 active:bg-green-800 transition-all duration-300"
+                  >
+                    ▶️ Démarrer la vidéo
+                  </motion.button>
+
+                  {/* ==================================================
+                      ⭐ EXPLICATION IA APRÈS MAUVAISE RÉPONSE
+                  ================================================== */}
+
+                  {pendingExplanation && (
+                    <motion.button
+                      type="button"
+                      initial={{
+                        opacity: 0,
+                        y: 10,
+                      }}
+                      animate={{
+                        opacity: 1,
+                        y: 0,
+                      }}
+                      whileHover={{
+                        scale: 1.03,
+                      }}
+                      whileTap={{
+                        scale: 0.97,
+                      }}
+                      onClick={() => {
+                        openExplanation(
+                          pendingExplanation
+                        );
+                      }}
+                      className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-purple-500 bg-purple-600/10 hover:bg-purple-600 text-purple-700 dark:text-purple-300 hover:text-white font-semibold shadow-lg transition-all"
+                    >
+                      <Brain className="w-5 h-5" />
+
+                      💡 Explication avec CODE IA
+                    </motion.button>
+                  )}
+
+                </motion.div>
               )}
 
           </AnimatePresence>
 
-          {/* ====================================================
+          {/* ============================================================
               FEEDBACK
-          ==================================================== */}
+          ============================================================ */}
 
           {feedback && (
             <motion.div
