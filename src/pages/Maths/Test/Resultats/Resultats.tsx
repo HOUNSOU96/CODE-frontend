@@ -1,30 +1,107 @@
-import React, { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { motion } from "framer-motion";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
+
+import {
+  AnimatePresence,
+  motion,
+} from "framer-motion";
+
 import api from "@/utils/axios";
-import { trierNotionsNonAcquises } from "../../../../data/utils/notions";
+
+import {
+  trierNotionsNonAcquises,
+} from "../../../../data/utils/notions";
+
 import { useAuth } from "../../../../hooks/useAuth";
+
 import DarkModeToggle from "@/components/DarkModeToggle";
 import AudioManager from "@/components/AudioManager";
-import { User } from "lucide-react";
+
+import {
+  Award,
+  BookOpen,
+  CalendarDays,
+  CheckCircle2,
+  Download,
+  GraduationCap,
+  Loader2,
+  Mail,
+  QrCode,
+  RefreshCw,
+  Sparkles,
+  Target,
+  User,
+  ArrowRight,
+  AlertCircle,
+  FileText,
+  Send,
+  ShieldCheck,
+} from "lucide-react";
+
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import QRCode from "react-qr-code";
 
-const mots = ["BIENVENU", "SUR", "CODE"];
-const couleurs = ["#00FF00", "#FFFF00", "#FF0000"];
+// ============================================================
+// ANIMATION CODE
+// ============================================================
+
+const mots = [
+  "BIENVENU",
+  "SUR",
+  "CODE",
+];
+
+const couleurs = [
+  "#00FF00",
+  "#FFFF00",
+  "#FF0000",
+];
+
+// ============================================================
+// COULEURS DES MENTIONS
+// ============================================================
 
 const mentionColors: Record<string, string> = {
-  "Très Bien": "bg-emerald-500 text-white shadow-md",
-  "Bien": "bg-yellow-400 text-black shadow-md",
-  "Assez Bien": "bg-yellow-300 text-black shadow-md",
-  "Passable": "bg-orange-400 text-white shadow-md",
-  "Insuffisant": "bg-red-600 text-white shadow-md",
+  Excellente:
+    "bg-emerald-600 text-white border-emerald-500 dark:bg-emerald-500 dark:border-emerald-400",
+
+  "Très Bien":
+    "bg-emerald-500 text-white border-emerald-400 dark:bg-emerald-500 dark:border-emerald-400",
+
+  Bien:
+    "bg-blue-500 text-white border-blue-400 dark:bg-blue-500 dark:border-blue-400",
+
+  "Assez Bien":
+    "bg-yellow-400 text-gray-900 border-yellow-300 dark:bg-yellow-400 dark:text-gray-900 dark:border-yellow-300",
+
+  Passable:
+    "bg-orange-500 text-white border-orange-400 dark:bg-orange-500 dark:border-orange-400",
+
+  Insuffisant:
+    "bg-red-600 text-white border-red-500 dark:bg-red-600 dark:border-red-500",
 };
+
+// ============================================================
+// TYPES
+// ============================================================
 
 type ResultatType = {
   note: number;
   mention: string;
+
+  matiere?: string;
+  niveau?: string;
+  serie?: string | null;
 
   notionsNonAcquises?: string[];
   notions_non_acquises?: string[];
@@ -47,6 +124,7 @@ type ResultatsLocationState = {
 
   notionsNonAcquises?: string[];
 
+  matiereActuelle?: string;
   niveauActuel?: string;
   serieActuelle?: string;
 
@@ -55,364 +133,2478 @@ type ResultatsLocationState = {
   [key: string]: any;
 };
 
+// ============================================================
+// COMPOSANT
+// ============================================================
 
 const Resultats: React.FC = () => {
   const location = useLocation();
-  const { niveau, serie } = useParams<{ niveau: string; serie: string }>();
+
+  const {
+    matiere,
+    niveau,
+    serie,
+  } = useParams<{
+    matiere: string;
+    niveau: string;
+    serie: string;
+  }>();
+
   const navigate = useNavigate();
-  const resultRef = useRef<HTMLDivElement>(null);
-  const sentPDF = useRef(false);
-  const { user: apprenant, token, loading: loadingAuth } = useAuth();
+
+  // ==========================================================
+  // RÉFÉRENCES
+  // ==========================================================
+
+  const resultRef =
+    useRef<HTMLDivElement>(null);
+
+  const sentPDF =
+    useRef(false);
+
+  // ==========================================================
+  // AUTHENTIFICATION
+  // ==========================================================
+
+  const {
+    user: apprenant,
+    token,
+    loading: loadingAuth,
+  } = useAuth();
+
+  // ==========================================================
+  // STATE
+  // ==========================================================
 
   const state =
-  (location.state || {}) as ResultatsLocationState;
+    (location.state || {}) as ResultatsLocationState;
+
+  const [resultats, setResultats] =
+    useState<ResultatType | null>(
+      state.resultats ?? null
+    );
+
+  const [loadingResult, setLoadingResult] =
+    useState(!resultats);
+
+  const [error, setError] =
+    useState<string | null>(null);
+
+  const [sending, setSending] =
+    useState(false);
+
+  const [success, setSuccess] =
+    useState("");
+
+  const [motActuel, setMotActuel] =
+    useState(0);
+
+  const [orActif, setOrActif] =
+    useState(false);
+
+  // ==========================================================
+  // DONNÉES TRANSMISES PAR QUESTIONS
+  // ==========================================================
 
   const questionsRemediation =
-    state.questionsRemediation ?? [];
+    state.questionsRemediation ??
+    state.resultats?.questionsRemediation ??
+    state.resultats?.questions_remediation ??
+    [];
 
   const questionsDuTest =
-  state.questionsDuTest ?? [];
+    state.questionsDuTest ?? [];
 
   const reponsesDuTest =
-  state.reponsesDuTest ?? [];
+    state.reponsesDuTest ?? [];
 
- 
+  // ==========================================================
+  // NIVEAUX
+  // ==========================================================
 
+  const niveauxCollege = [
+    "6e",
+    "5e",
+    "4e",
+    "3e",
+  ];
 
-  // 🧠 Initialisation robuste
-  const [resultats, setResultats] = useState<ResultatType | null>(
-    location.state?.resultats ?? null
+  // ==========================================================
+  // DONNÉES PRINCIPALES
+  // ==========================================================
+
+  const matiereActuelle =
+    matiere ||
+    state.matiereActuelle ||
+    resultats?.matiere ||
+    "";
+
+  const niveauActuel =
+    niveau ||
+    state.niveauActuel ||
+    resultats?.niveau ||
+    "";
+
+  const serieActuelle =
+    serie ||
+    state.serieActuelle ||
+    resultats?.serie ||
+    "none";
+
+  const serieNormalisee =
+    serieActuelle &&
+    serieActuelle.toLowerCase() !== "none"
+      ? serieActuelle.toLowerCase()
+      : "none";
+
+  // ==========================================================
+  // MATIÈRE
+  // ==========================================================
+
+  const formatMatiere = (
+    value?: string
+  ) => {
+    if (!value) {
+      return "Évaluation";
+    }
+
+    const labels: Record<string, string> = {
+      maths: "Mathématiques",
+      mathematiques: "Mathématiques",
+      francais: "Français",
+      anglais: "Anglais",
+      pct: "Physique-Chimie",
+      physiquechimie: "Physique-Chimie",
+      svt: "Sciences de la Vie et de la Terre",
+      histoire: "Histoire",
+      geographie: "Géographie",
+      programmation: "Programmation",
+      informatique: "Informatique",
+      volleyball: "Volleyball",
+      football: "Football",
+    };
+
+    const normalized =
+      value
+        .normalize("NFD")
+        .replace(
+          /[\u0300-\u036f]/g,
+          ""
+        )
+        .toLowerCase()
+        .replace(
+          /[-_]/g,
+          ""
+        );
+
+    if (labels[normalized]) {
+      return labels[normalized];
+    }
+
+    return value
+      .replace(/-/g, " ")
+      .replace(/_/g, " ")
+      .replace(
+        /\b\w/g,
+        (c) => c.toUpperCase()
+      );
+  };
+
+  const matiereLabel =
+    formatMatiere(
+      matiereActuelle
+    );
+
+  // ==========================================================
+  // NIVEAU
+  // ==========================================================
+
+  const normalizeNiveau = (
+    value?: string
+  ) => {
+    if (!value) {
+      return "";
+    }
+
+    const normalized =
+      value
+        .normalize("NFD")
+        .replace(
+          /[\u0300-\u036f]/g,
+          ""
+        )
+        .toLowerCase()
+        .trim();
+
+    const mapping: Record<string, string> = {
+      "6eme": "6e",
+      "5eme": "5e",
+      "4eme": "4e",
+      "3eme": "3e",
+      "2nde": "2nde",
+      seconde: "2nde",
+      "1ere": "1ere",
+      "1re": "1ere",
+      premiere: "1ere",
+      terminale: "tle",
+      tle: "tle",
+    };
+
+    return (
+      mapping[normalized] ??
+      normalized
+    );
+  };
+
+  const niveauNormalise =
+    normalizeNiveau(
+      niveauActuel
+    );
+
+  const formatNiveau = (
+    value?: string
+  ) => {
+    const normalized =
+      normalizeNiveau(value);
+
+    const labels: Record<string, string> = {
+      "6e": "6e",
+      "5e": "5e",
+      "4e": "4e",
+      "3e": "3e",
+      "2nde": "2nde",
+      "1ere": "1ère",
+      tle: "Terminale",
+    };
+
+    return (
+      labels[normalized] ??
+      value ??
+      ""
+    );
+  };
+
+  const niveauComplet =
+    niveauxCollege.includes(
+      niveauNormalise
+    )
+      ? formatNiveau(
+          niveauActuel
+        )
+      : `${formatNiveau(
+          niveauActuel
+        )}${
+          serieNormalisee !==
+          "none"
+            ? ` — Série ${serieNormalisee.toUpperCase()}`
+            : ""
+        }`;
+
+  // ==========================================================
+  // RÉSULTATS
+  // ==========================================================
+
+  // ==========================================================
+// RÉSULTATS
+// ==========================================================
+
+/**
+ * Récupération robuste de la vraie note.
+ *
+ * IMPORTANT :
+ * On privilégie toujours la note réellement calculée
+ * et enregistrée par le backend/test.
+ *
+ * On ne recalcule à partir de nbBonnesReponses
+ * que si aucune note n'est disponible.
+ */
+const recupererNoteReelle = (
+  resultat: ResultatType | null
+): number | null => {
+  if (!resultat) {
+    return null;
+  }
+
+  // --------------------------------------------------------
+  // 1. NOTE DIRECTE
+  // --------------------------------------------------------
+
+  const valeursPossibles = [
+    resultat.note,
+    resultat.note_sur_20,
+    resultat.noteSur20,
+    resultat.score_sur_20,
+    resultat.scoreSur20,
+    resultat.resultat?.note,
+    resultat.resultat?.note_sur_20,
+    resultat.resultat?.noteSur20,
+    resultat.data?.note,
+    resultat.data?.note_sur_20,
+  ];
+
+  for (const valeur of valeursPossibles) {
+    if (
+      valeur !== null &&
+      valeur !== undefined &&
+      valeur !== "" &&
+      Number.isFinite(Number(valeur))
+    ) {
+      const nombre =
+        Number(valeur);
+
+      if (
+        nombre >= 0 &&
+        nombre <= 20
+      ) {
+        return nombre;
+      }
+    }
+  }
+
+  // --------------------------------------------------------
+  // 2. SI LE BACKEND FOURNIT LE NOMBRE DE BONNES RÉPONSES
+  // --------------------------------------------------------
+
+  const bonnesReponses =
+    Number(
+      resultat.nbBonnesReponses ??
+      resultat.nb_bonnes_reponses ??
+      resultat.nombreBonnesReponses ??
+      resultat.nombre_bonnes_reponses ??
+      resultat.score
+    );
+
+  const nombreQuestions =
+    Number(
+      resultat.nbQuestions ??
+      resultat.nb_questions ??
+      resultat.nombreQuestions ??
+      resultat.nombre_questions
+    );
+
+  /*
+   * On ne fait ce calcul que si le backend
+   * n'a fourni aucune note sur 20.
+   */
+  if (
+    Number.isFinite(
+      bonnesReponses
+    ) &&
+    Number.isFinite(
+      nombreQuestions
+    ) &&
+    nombreQuestions > 0 &&
+    bonnesReponses >= 0
+  ) {
+    return Number(
+      (
+        (bonnesReponses /
+          nombreQuestions) *
+        20
+      ).toFixed(2)
+    );
+  }
+
+  return null;
+};
+
+const noteReelle =
+  recupererNoteReelle(
+    resultats
   );
-  const [loadingResult, setLoadingResult] = useState(!resultats);
-  const [error, setError] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
-  const [success, setSuccess] = useState("");
-  const [motActuel, setMotActuel] = useState(0);
-  const [orActif, setOrActif] = useState(false);
 
-  const note = resultats?.note ?? 0;
-  const mention = resultats?.mention ?? "";
-  // Vérifier si le niveau correspond au collège (6e à 3e)
-const niveauxCollege = ["6e", "5e", "4e", "3e"];
+// ----------------------------------------------------------
+// NOTE AFFICHÉE
+// ----------------------------------------------------------
 
-const niveauComplet =
-  niveau && niveauxCollege.includes(niveau.toLowerCase())
-    ? niveau.toUpperCase()
-    : `${niveau ?? ""} ${serie ?? ""}`.toUpperCase();
+const note =
+  noteReelle ?? 0;
+
+// ----------------------------------------------------------
+// MENTION
+// ----------------------------------------------------------
+
+const mention =
+  resultats?.mention ??
+  resultats?.mention_finale ??
+  resultats?.mentionFinale ??
+  resultats?.resultat?.mention ??
+  "";
+
+// ----------------------------------------------------------
+// DEBUG NOTE
+// ----------------------------------------------------------
+
+useEffect(() => {
+  console.log(
+    "========================================"
+  );
+
+  console.log(
+    "VÉRIFICATION DE LA NOTE AFFICHÉE"
+  );
+
+  console.log(
+    "========================================"
+  );
+
+  console.log(
+    "Objet resultats complet :",
+    resultats
+  );
+
+  console.log(
+    "resultats.note :",
+    resultats?.note
+  );
+
+  console.log(
+    "resultats.note_sur_20 :",
+    resultats?.note_sur_20
+  );
+
+  console.log(
+    "resultats.noteSur20 :",
+    resultats?.noteSur20
+  );
+
+  console.log(
+    "resultats.score :",
+    resultats?.score
+  );
+
+  console.log(
+    "resultats.nbBonnesReponses :",
+    resultats?.nbBonnesReponses
+  );
+
+  console.log(
+    "resultats.nbQuestions :",
+    resultats?.nbQuestions
+  );
+
+  console.log(
+    "NOTE RETENUE :",
+    noteReelle
+  );
+
+  console.log(
+    "NOTE AFFICHÉE :",
+    note
+  );
+
+  console.log(
+    "MENTION :",
+    mention
+  );
+
+  console.log(
+    "========================================"
+  );
+}, [
+  resultats,
+  noteReelle,
+  note,
+  mention,
+]);
 
   const notionsNonAcquises =
-  Array.isArray(resultats?.notionsNonAcquises)
-    ? resultats.notionsNonAcquises
-    : state.notionsNonAcquises ?? [];
-  const notionsTriees = trierNotionsNonAcquises(notionsNonAcquises, niveauComplet);
-  const mentionStyle = mentionColors[mention] || "bg-gray-500 text-white shadow-md";
-  const dateEmission = new Date().toLocaleDateString("fr-FR");
+    Array.isArray(
+      resultats?.notionsNonAcquises
+    )
+      ? resultats.notionsNonAcquises
+      : Array.isArray(
+          resultats?.notions_non_acquises
+        )
+      ? resultats.notions_non_acquises
+      : state.notionsNonAcquises ??
+        [];
 
-  // 🛠️ Debug
-  useEffect(() => {
-    console.log("location.state =", location.state);
-    console.log("location.state.resultats =", location.state?.resultats);
-  }, [location.state]);
+  const notionsTriees =
+    trierNotionsNonAcquises(
+      notionsNonAcquises,
+      niveauComplet
+    );
 
-  // 📦 Si résultat pas dans state, charger via API
+  const mentionStyle =
+    mentionColors[mention] ??
+    "bg-gray-600 text-white border-gray-500 dark:bg-gray-700 dark:border-gray-600";
+
+  const dateEmission =
+    new Date().toLocaleDateString(
+      "fr-FR",
+      {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      }
+    );
+
+  // ==========================================================
+  // POURCENTAGE
+  // ==========================================================
+
+  const pourcentage =
+    Math.round(
+      (note / 20) * 100
+    );
+
+  // ==========================================================
+  // DEBUG
+  // ==========================================================
+
   useEffect(() => {
-    if (!resultats && token && niveau) {
-      setLoadingResult(true);
-      api
-        .get("/api/resultats/dernier", {
-          params: { niveau, serie },
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        .then((res) => {
-          setResultats(res.data);
-          setError(null);
-        })
-        .catch(() => {
-          setError("Erreur lors du chargement des résultats.");
-        })
-        .finally(() => {
-          setLoadingResult(false);
-        });
+    console.log(
+      "========== RESULTATS =========="
+    );
+
+    console.log(
+      "location.state =",
+      location.state
+    );
+
+    console.log(
+      "matiere =",
+      matiere
+    );
+
+    console.log(
+      "niveau =",
+      niveau
+    );
+
+    console.log(
+      "serie =",
+      serie
+    );
+
+    console.log(
+      "resultats =",
+      location.state?.resultats
+    );
+  }, [
+    location.state,
+    matiere,
+    niveau,
+    serie,
+  ]);
+
+  // ==========================================================
+  // CHARGEMENT DU DERNIER RÉSULTAT
+  // ==========================================================
+
+  useEffect(() => {
+    if (
+      resultats ||
+      !token ||
+      !matiereActuelle ||
+      !niveauActuel
+    ) {
+      return;
     }
-  }, [resultats, token, niveau, serie]);
 
-  useEffect(() => {
-    const motTimer = setInterval(() => {
-      setMotActuel((prev) => {
-        if (prev + 1 === mots.length) {
-          setTimeout(() => setOrActif(true), 1000);
+    setLoadingResult(true);
+
+    api
+      .get(
+        "/api/resultats/dernier",
+        {
+          params: {
+            matiere:
+              matiereActuelle,
+
+            niveau:
+              niveauActuel,
+
+            serie:
+              serieNormalisee !==
+              "none"
+                ? serieNormalisee
+                : undefined,
+          },
+
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+          },
         }
-        return prev + 1;
+      )
+      .then((res) => {
+        console.log(
+          "Dernier résultat reçu :",
+          res.data
+        );
+
+        setResultats(
+          res.data
+        );
+
+        setError(null);
+      })
+      .catch((err) => {
+        console.error(
+          "Erreur récupération résultat :",
+          err
+        );
+
+        setError(
+          "Erreur lors du chargement des résultats."
+        );
+      })
+      .finally(() => {
+        setLoadingResult(
+          false
+        );
       });
-    }, 1000);
-    return () => clearInterval(motTimer);
-  }, []);
+  }, [
+    resultats,
+    token,
+    matiereActuelle,
+    niveauActuel,
+    serieNormalisee,
+  ]);
+
+  // ==========================================================
+  // ANIMATION CODE
+  // ==========================================================
 
   useEffect(() => {
-    const sendPDF = async () => {
-      if (sentPDF.current || !token || !apprenant?.email || !resultRef.current) return;
+    if (
+      motActuel >= mots.length
+    ) {
+      setOrActif(true);
+      return;
+    }
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      sentPDF.current = true;
-      setSending(true);
+    const timer =
+      window.setTimeout(() => {
+        setMotActuel(
+          (prev) =>
+            Math.min(
+              prev + 1,
+              mots.length
+            )
+        );
+      }, 1400);
+
+    return () => {
+      window.clearTimeout(
+        timer
+      );
+    };
+  }, [motActuel]);
+
+  // ==========================================================
+  // GÉNÉRATION DU PDF
+  // ==========================================================
+  //
+  // CORRECTION IMPORTANTE :
+  //
+  // Nous ne capturons plus directement le composant affiché.
+  //
+  // Nous créons une COPIE spéciale destinée au PDF.
+  //
+  // Cette copie :
+  // - possède une largeur fixe adaptée au PDF ;
+  // - force les cartes à avoir une hauteur suffisante ;
+  // - empêche les textes d'être coupés ;
+  // - masque les actions ;
+  // - désactive les animations ;
+  // - utilise un fond blanc ;
+  // - reste sur UNE SEULE page A4.
+  //
+  // ==========================================================
+
+  const generatePDF =
+    async () => {
+      if (
+        !resultRef.current
+      ) {
+        return null;
+      }
+
+      console.log(
+        "========================================"
+      );
+
+      console.log(
+        "GÉNÉRATION DU PDF — UNE SEULE PAGE"
+      );
+
+      console.log(
+        "========================================"
+      );
+
+      const original =
+        resultRef.current;
+
+      // --------------------------------------------------------
+      // LARGEUR DE LA COPIE PDF
+      // --------------------------------------------------------
+
+      /*
+       * 794 px correspond approximativement
+       * à la largeur d'une page A4 à 96 DPI.
+       *
+       * Cela permet au navigateur de recalculer
+       * proprement les colonnes et les textes
+       * avant la capture.
+       */
+      const pdfWidth =
+        794;
+
+      // --------------------------------------------------------
+      // CLONAGE DU RAPPORT
+      // --------------------------------------------------------
+
+      const clone =
+        original.cloneNode(
+          true
+        ) as HTMLDivElement;
+
+      clone.setAttribute(
+        "data-pdf-report",
+        "true"
+      );
+
+      // --------------------------------------------------------
+      // POSITIONNEMENT HORS ÉCRAN
+      // --------------------------------------------------------
+
+      clone.style.position =
+        "fixed";
+
+      clone.style.left =
+        "-100000px";
+
+      clone.style.top =
+        "0";
+
+      clone.style.width =
+        `${pdfWidth}px`;
+
+      clone.style.maxWidth =
+        `${pdfWidth}px`;
+
+      clone.style.minWidth =
+        `${pdfWidth}px`;
+
+      clone.style.margin =
+        "0";
+
+      clone.style.padding =
+        "0";
+
+      clone.style.opacity =
+        "1";
+
+      clone.style.transform =
+        "none";
+
+      clone.style.animation =
+        "none";
+
+      clone.style.transition =
+        "none";
+
+      clone.style.overflow =
+        "visible";
+
+      clone.style.height =
+        "auto";
+
+      clone.style.maxHeight =
+        "none";
+
+      clone.style.background =
+        "#ffffff";
+
+      clone.style.boxShadow =
+        "none";
+
+      clone.style.borderRadius =
+        "0";
+
+      // --------------------------------------------------------
+      // SUPPRESSION DES ÉLÉMENTS INUTILES
+      // --------------------------------------------------------
+
+      clone
+        .querySelectorAll(
+          "[data-pdf-hide='true']"
+        )
+        .forEach(
+          (element) => {
+            element.remove();
+          }
+        );
+
+      // --------------------------------------------------------
+      // STYLE SPÉCIAL PDF
+      // --------------------------------------------------------
+
+      const pdfStyle =
+        document.createElement(
+          "style"
+        );
+
+      pdfStyle.setAttribute(
+        "data-pdf-style",
+        "true"
+      );
+
+      pdfStyle.textContent = `
+        /* =====================================================
+           RAPPORT GLOBAL
+        ====================================================== */
+
+        [data-pdf-report] {
+          width: ${pdfWidth}px !important;
+          max-width: ${pdfWidth}px !important;
+          min-width: ${pdfWidth}px !important;
+          height: auto !important;
+          max-height: none !important;
+          overflow: visible !important;
+          background: #ffffff !important;
+          color: #111827 !important;
+          box-shadow: none !important;
+          border-radius: 0 !important;
+          transform: none !important;
+          animation: none !important;
+          transition: none !important;
+        }
+
+        /* =====================================================
+           TOUS LES ÉLÉMENTS
+        ====================================================== */
+
+        [data-pdf-report] *,
+        [data-pdf-report] *::before,
+        [data-pdf-report] *::after {
+          box-sizing: border-box !important;
+        }
+
+        [data-pdf-report] * {
+          animation: none !important;
+          transition: none !important;
+        }
+
+        /* =====================================================
+           IMPORTANT :
+           EMPÊCHER LES CONTENUS D'ÊTRE COUPÉS
+        ====================================================== */
+
+        [data-pdf-report] section,
+        [data-pdf-report] footer,
+        [data-pdf-report] div {
+          overflow: visible !important;
+          max-height: none !important;
+        }
+
+        /* =====================================================
+           CARTES APPRENANT / FORMATION / MATIÈRE
+        ====================================================== */
+
+        [data-pdf-card="student"],
+        [data-pdf-card="formation"],
+        [data-pdf-card="subject"] {
+          min-height: 82px !important;
+          height: auto !important;
+          max-height: none !important;
+          overflow: visible !important;
+          display: flex !important;
+          align-items: center !important;
+          padding: 12px !important;
+        }
+
+        [data-pdf-card="student"] > div:last-child,
+        [data-pdf-card="formation"] > div:last-child,
+        [data-pdf-card="subject"] > div:last-child {
+          min-width: 0 !important;
+          height: auto !important;
+          overflow: visible !important;
+        }
+
+        [data-pdf-card="student"] p,
+        [data-pdf-card="formation"] p,
+        [data-pdf-card="subject"] p {
+          height: auto !important;
+          max-height: none !important;
+          overflow: visible !important;
+          line-height: 1.35 !important;
+          white-space: normal !important;
+        }
+
+        /* =====================================================
+           ICÔNES DES CARTES
+        ====================================================== */
+
+        [data-pdf-card="student"] > div:first-child,
+        [data-pdf-card="formation"] > div:first-child,
+        [data-pdf-card="subject"] > div:first-child {
+          width: 40px !important;
+          min-width: 40px !important;
+          height: 40px !important;
+          min-height: 40px !important;
+          flex-shrink: 0 !important;
+        }
+
+        /* =====================================================
+           EMAIL
+        ====================================================== */
+
+        [data-pdf-email="true"] {
+          height: auto !important;
+          min-height: 24px !important;
+          overflow: visible !important;
+          line-height: 1.4 !important;
+        }
+
+        /* =====================================================
+           SECTIONS
+        ====================================================== */
+
+        [data-pdf-report] section {
+          padding-top: 16px !important;
+          padding-bottom: 16px !important;
+        }
+
+        /* =====================================================
+           BANDEAU
+        ====================================================== */
+
+        [data-pdf-report] > div:first-child {
+          padding-top: 20px !important;
+          padding-bottom: 20px !important;
+        }
+
+        /* =====================================================
+           TITRES
+        ====================================================== */
+
+        [data-pdf-report] h2 {
+          line-height: 1.15 !important;
+        }
+
+        [data-pdf-report] h3 {
+          line-height: 1.2 !important;
+        }
+
+        [data-pdf-report] p {
+          line-height: 1.35 !important;
+        }
+
+        /* =====================================================
+           CARTES DE NOTIONS
+        ====================================================== */
+
+        [data-pdf-notion="true"] {
+          padding: 9px !important;
+          min-height: 48px !important;
+          height: auto !important;
+          overflow: visible !important;
+          break-inside: avoid !important;
+        }
+
+        [data-pdf-notion="true"] span {
+          line-height: 1.35 !important;
+          height: auto !important;
+          max-height: none !important;
+          overflow: visible !important;
+        }
+
+        /* =====================================================
+           QR CODE
+        ====================================================== */
+
+        [data-pdf-qr="true"] {
+          padding: 10px !important;
+          overflow: visible !important;
+        }
+
+        [data-pdf-qr="true"] svg {
+          width: 100px !important;
+          height: 100px !important;
+        }
+
+        /* =====================================================
+           PIED DE PAGE
+        ====================================================== */
+
+        [data-pdf-footer="true"] {
+          padding-top: 10px !important;
+          padding-bottom: 10px !important;
+          min-height: auto !important;
+          height: auto !important;
+          overflow: visible !important;
+        }
+
+        /* =====================================================
+           TEXTE
+        ====================================================== */
+
+        [data-pdf-report] .truncate {
+          overflow: visible !important;
+          text-overflow: clip !important;
+          white-space: normal !important;
+        }
+      `;
+
+      clone.appendChild(
+        pdfStyle
+      );
+
+      // --------------------------------------------------------
+      // AJOUT TEMPORAIRE AU DOM
+      // --------------------------------------------------------
+
+      document.body.appendChild(
+        clone
+      );
 
       try {
-        const canvas = await html2canvas(resultRef.current, {
-          scale: 2,
-          useCORS: true,
-        });
+        // ------------------------------------------------------
+        // ATTENDRE LE RECALCUL DU DOM
+        // ------------------------------------------------------
 
-        const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+        await new Promise(
+          (resolve) =>
+            requestAnimationFrame(
+              () =>
+                requestAnimationFrame(
+                  resolve
+                )
+            )
+        );
 
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
+        // ------------------------------------------------------
+        // CAPTURE
+        // ------------------------------------------------------
 
-        const imgWidth = pageWidth;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        const canvas =
+          await html2canvas(
+            clone,
+            {
+              scale: 1.15,
 
-        let position = 0;
-        let heightLeft = imgHeight;
+              useCORS: true,
 
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+              backgroundColor:
+                "#ffffff",
 
-        while (heightLeft > 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-          heightLeft -= pageHeight;
+              logging: false,
+
+              imageTimeout:
+                15000,
+
+              removeContainer:
+                true,
+
+              windowWidth:
+                pdfWidth,
+
+              onclone: (
+                clonedDocument
+              ) => {
+                /*
+                 * Suppression du mode sombre
+                 * dans la copie de html2canvas.
+                 */
+                clonedDocument.documentElement.classList.remove(
+                  "dark"
+                );
+
+                clonedDocument.body.classList.remove(
+                  "dark"
+                );
+
+                /*
+                 * Sécurité supplémentaire :
+                 * aucun élément PDF ne doit
+                 * couper son contenu.
+                 */
+                clonedDocument
+                  .querySelectorAll(
+                    "[data-pdf-report] *"
+                  )
+                  .forEach(
+                    (element) => {
+                      const el =
+                        element as HTMLElement;
+
+                      el.style.animation =
+                        "none";
+
+                      el.style.transition =
+                        "none";
+
+                      el.style.maxHeight =
+                        "none";
+
+                      el.style.overflow =
+                        "visible";
+                    }
+                  );
+              },
+            }
+          );
+
+        console.log(
+          "Canvas généré :",
+          canvas.width,
+          "x",
+          canvas.height
+        );
+
+        if (
+          canvas.width <= 0 ||
+          canvas.height <= 0
+        ) {
+          throw new Error(
+            "Le canvas généré est invalide."
+          );
         }
 
-        const pdfBlob = pdf.output("blob");
+        // ------------------------------------------------------
+        // DOCUMENT PDF A4
+        // ------------------------------------------------------
 
-        const formData = new FormData();
-        formData.append("file", pdfBlob, `Resultat_${niveauComplet}.pdf`);
-        formData.append("niveau", niveauComplet);
-        formData.append("apprenant", JSON.stringify({
-          email: apprenant.email,
-          prenom: apprenant.prenom,
-          nom: apprenant.nom,
-        }));
+        const pdf =
+          new jsPDF({
+            orientation:
+              "portrait",
 
-        await api.post("/api/send-result-pdf", formData, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
+            unit:
+              "mm",
+
+            format:
+              "a4",
+
+            compress:
+              true,
+          });
+
+        const pageWidth =
+          pdf.internal.pageSize.getWidth();
+
+        const pageHeight =
+          pdf.internal.pageSize.getHeight();
+
+        // ------------------------------------------------------
+        // MARGES
+        // ------------------------------------------------------
+
+        const margin =
+          4;
+
+        const availableWidth =
+          pageWidth -
+          margin * 2;
+
+        const availableHeight =
+          pageHeight -
+          margin * 2;
+
+        // ------------------------------------------------------
+        // CALCUL DU FACTEUR DE RÉDUCTION
+        // ------------------------------------------------------
+
+        const scaleX =
+          availableWidth /
+          canvas.width;
+
+        const scaleY =
+          availableHeight /
+          canvas.height;
+
+        const finalScale =
+          Math.min(
+            scaleX,
+            scaleY
+          );
+
+        const imageWidth =
+          canvas.width *
+          finalScale;
+
+        const imageHeight =
+          canvas.height *
+          finalScale;
+
+        const x =
+          (pageWidth -
+            imageWidth) /
+          2;
+
+        const y =
+          (pageHeight -
+            imageHeight) /
+          2;
+
+        console.log(
+          "Dimensions A4 :",
+          pageWidth,
+          "x",
+          pageHeight,
+          "mm"
+        );
+
+        console.log(
+          "Rapport dans PDF :",
+          imageWidth.toFixed(2),
+          "x",
+          imageHeight.toFixed(2),
+          "mm"
+        );
+
+        console.log(
+          "Facteur de réduction :",
+          finalScale.toFixed(4)
+        );
+
+        // ------------------------------------------------------
+        // JPEG COMPRESSÉ
+        // ------------------------------------------------------
+
+        const imageData =
+          canvas.toDataURL(
+            "image/jpeg",
+            0.72
+          );
+
+        console.log(
+          "Image JPEG créée."
+        );
+
+        // ------------------------------------------------------
+        // UNE SEULE PAGE
+        // ------------------------------------------------------
+
+        pdf.addImage(
+          imageData,
+          "JPEG",
+          x,
+          y,
+          imageWidth,
+          imageHeight,
+          undefined,
+          "FAST"
+        );
+
+        console.log(
+          "PDF UNE SEULE PAGE généré."
+        );
+
+        return pdf;
+
+      } finally {
+        // ------------------------------------------------------
+        // SUPPRESSION DE LA COPIE
+        // ------------------------------------------------------
+
+        if (
+          clone.parentNode
+        ) {
+          clone.parentNode.removeChild(
+            clone
+          );
+        }
+      }
+    };
+
+  // ==========================================================
+  // ENVOI AUTOMATIQUE DU PDF
+  // ==========================================================
+
+  useEffect(() => {
+    const sendPDF =
+      async () => {
+        if (
+          sentPDF.current ||
+          !token ||
+          !apprenant?.email ||
+          !resultRef.current
+        ) {
+          return;
+        }
+
+        await new Promise(
+          (resolve) =>
+            setTimeout(
+              resolve,
+              1200
+            )
+        );
+
+        setSending(true);
+
+        try {
+          console.log(
+            "========================================"
+          );
+
+          console.log(
+            "DÉBUT ENVOI AUTOMATIQUE DU PDF"
+          );
+
+          console.log(
+            "========================================"
+          );
+
+          const pdf =
+            await generatePDF();
+
+          if (!pdf) {
+            throw new Error(
+              "Impossible de générer le PDF."
+            );
+          }
+
+          const pdfBlob =
+            pdf.output(
+              "blob"
+            );
+
+          const tailleMo =
+            pdfBlob.size /
+            (1024 * 1024);
+
+          console.log(
+            "========================================"
+          );
+
+          console.log(
+            "PDF FINAL"
+          );
+
+          console.log(
+            "Taille :",
+            pdfBlob.size,
+            "octets"
+          );
+
+          console.log(
+            "Taille :",
+            tailleMo.toFixed(2),
+            "Mo"
+          );
+
+          console.log(
+            "========================================"
+          );
+
+          if (
+            pdfBlob.size === 0
+          ) {
+            throw new Error(
+              "Le PDF généré est vide."
+            );
+          }
+
+          /*
+           * Sécurité Brevo.
+           */
+          if (
+            pdfBlob.size >
+            12 * 1024 * 1024
+          ) {
+            console.warn(
+              "⚠️ Le PDF dépasse 12 Mo."
+            );
+
+            console.warn(
+              "Brevo pourrait refuser le message."
+            );
+          }
+
+          const formData =
+            new FormData();
+
+          const nomFichier =
+            `Resultat_${matiereLabel}_${niveauComplet}.pdf`;
+
+          formData.append(
+            "file",
+            pdfBlob,
+            nomFichier
+          );
+
+          formData.append(
+            "matiere",
+            matiereActuelle
+          );
+
+          formData.append(
+            "niveau",
+            niveauComplet
+          );
+
+          formData.append(
+            "serie",
+            serieNormalisee
+          );
+
+          formData.append(
+            "apprenant",
+            JSON.stringify({
+              email:
+                apprenant.email,
+
+              prenom:
+                apprenant.prenom,
+
+              nom:
+                apprenant.nom,
+            })
+          );
+
+          console.log(
+            "---------- DONNÉES ENVOYÉES ----------"
+          );
+
+          console.log(
+            "Fichier :",
+            nomFichier
+          );
+
+          console.log(
+            "Matière :",
+            matiereActuelle
+          );
+
+          console.log(
+            "Niveau :",
+            niveauComplet
+          );
+
+          console.log(
+            "Série :",
+            serieNormalisee
+          );
+
+          console.log(
+            "Apprenant :",
+            {
+              email:
+                apprenant.email,
+
+              prenom:
+                apprenant.prenom,
+
+              nom:
+                apprenant.nom,
+            }
+          );
+
+          // ----------------------------------------------------
+          // ENVOI BACKEND
+          // ----------------------------------------------------
+
+          const response =
+            await api.post(
+              "/api/send-result-pdf",
+              formData,
+              {
+                headers: {
+                  Authorization:
+                    `Bearer ${token}`,
+
+                  "Content-Type":
+                    "multipart/form-data",
+                },
+              }
+            );
+
+          console.log(
+            "========================================"
+          );
+
+          console.log(
+            "PDF ENVOYÉ AVEC SUCCÈS"
+          );
+
+          console.log(
+            "Réponse backend :",
+            response.data
+          );
+
+          console.log(
+            "========================================"
+          );
+
+          sentPDF.current =
+            true;
+
+          setSuccess(
+            "Votre rapport a été envoyé avec succès."
+          );
+
+        } catch (error: any) {
+          console.error(
+            "========================================"
+          );
+
+          console.error(
+            "ERREUR ENVOI PDF"
+          );
+
+          console.error(
+            "========================================"
+          );
+
+          console.error(
+            "Erreur complète :",
+            error
+          );
+
+          console.error(
+            "Statut HTTP :",
+            error?.response?.status
+          );
+
+          console.error(
+            "Réponse backend :",
+            error?.response?.data
+          );
+
+          console.error(
+            "Message :",
+            error?.message
+          );
+
+          sentPDF.current =
+            false;
+
+          setSuccess(
+            "L'envoi automatique du rapport a échoué."
+          );
+
+        } finally {
+          setSending(false);
+        }
+      };
+
+    sendPDF();
+
+  }, [
+    token,
+    apprenant,
+    matiereActuelle,
+    niveauComplet,
+    serieNormalisee,
+    matiereLabel,
+  ]);
+
+  // ==========================================================
+  // DÉMARRER LA REMÉDIATION
+  // ==========================================================
+
+  const handleRemediationStart =
+    () => {
+      if (
+        !matiereActuelle ||
+        !niveauActuel
+      ) {
+        console.warn(
+          "⚠️ Impossible de démarrer la remédiation."
+        );
+
+        return;
+      }
+
+      navigate(
+        `/test/remediation/${matiereActuelle}/${niveauActuel.toLowerCase()}/${serieNormalisee}`,
+        {
+          replace: true,
+
+          state: {
+            resultats,
+
+            questionsRemediation,
+
+            questionsDuTest,
+
+            reponsesDuTest,
+
+            notions_non_acquises:
+              notionsNonAcquises,
+
+            matiereActuelle,
+
+            niveauActuel,
+
+            serieActuelle:
+              serieNormalisee,
           },
-        });
+        }
+      );
+    };
 
-        setSuccess("✅ PDF envoyé avec succès !");
+  // ==========================================================
+  // TÉLÉCHARGER LE PDF
+  // ==========================================================
+
+  const handleDownloadPDF =
+    async () => {
+      try {
+        setSending(true);
+
+        const pdf =
+          await generatePDF();
+
+        if (!pdf) {
+          return;
+        }
+
+        const nomFichier =
+          `Resultat_${matiereLabel}_${niveauComplet}.pdf`;
+
+        const blob =
+          pdf.output(
+            "blob"
+          );
+
+        console.log(
+          "PDF téléchargé :",
+          (
+            blob.size /
+            (1024 * 1024)
+          ).toFixed(2),
+          "Mo"
+        );
+
+        pdf.save(
+          nomFichier
+        );
+
       } catch (error) {
-        console.error("❌ Erreur d'envoi PDF :", error);
-        setSuccess("❌ Échec de l'envoi du PDF.");
+        console.error(
+          "Erreur téléchargement PDF :",
+          error
+        );
       } finally {
         setSending(false);
       }
     };
 
-    sendPDF();
-  }, [token, apprenant, niveauComplet]);
+  // ==========================================================
+  // CHARGEMENT
+  // ==========================================================
 
-const handleRemediationStart = () => {
-  if (!niveau) {
-    console.warn(
-      "⚠️ Impossible de démarrer la remédiation : niveau manquant."
-    );
-    return;
-  }
-
-  const serieRoute = serie
-    ? serie.toLowerCase()
-    : "none";
-
-  navigate(
-    `/maths/test/remediation/${niveau.toLowerCase()}/${serieRoute}`,
-    {
-      replace: true,
-
-       state: {
-      resultats: state.resultats,
-
-      questionsRemediation,
-
-      questionsDuTest,
-
-      reponsesDuTest,
-
-      notions_non_acquises:
-        notionsNonAcquises,
-
-      niveauActuel:
-        niveau,
-
-      serieActuelle:
-        serie,
-    },
-    }
-  );
-};
-
-  const handleDownloadPDF = async () => {
-    if (!resultRef.current) return;
-
-    const canvas = await html2canvas(resultRef.current, {
-      scale: 2,
-      useCORS: true,
-    });
-
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-
-    const imgWidth = pageWidth;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    let position = 0;
-    let heightLeft = imgHeight;
-
-    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
-
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-    }
-
-    pdf.save(`Resultat_${niveauComplet}.pdf`);
-  };
-
-  if (loadingAuth || loadingResult) {
+  if (
+    loadingAuth ||
+    loadingResult
+  ) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-black text-white text-xl">
-        Chargement des résultats...
-      </div>
-    );
-  }
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-blue-50 px-4 dark:from-slate-950 dark:via-slate-900 dark:to-blue-950/30">
 
-  if (error || !resultats) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-black text-yellow-300 px-4 text-center">
-        <p className="mb-6 text-2xl font-semibold">{error ?? "Résultats soumis mais données manquantes pour l'affichage."}</p>
-        <button
-          onClick={() => navigate("/")}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full font-semibold shadow-md transition"
+        <motion.div
+          initial={{
+            opacity: 0,
+            scale: 0.95,
+          }}
+          animate={{
+            opacity: 1,
+            scale: 1,
+          }}
+          className="flex flex-col items-center text-center"
         >
-          Retour à l'accueil
-        </button>
-      </div>
-    );
-  }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center px-4">
+          <div className="relative mb-6">
 
-      <DarkModeToggle />
-      <AudioManager />
+            <div className="absolute inset-0 rounded-full bg-blue-500/20 blur-2xl" />
 
-      <div className="fixed inset-0 z-0 overflow-hidden">
-        {mots.slice(0, motActuel).map((mot, i) => (
-          <motion.span
-            key={i}
-            className="absolute top-1/4 left-1/2 -translate-x-1/2 text-6xl font-bold"
-            initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 1 }}
-            style={{ color: orActif ? "gold" : couleurs[i] }}
-          >
-            {mot}
-          </motion.span>
-        ))}
-      </div>
+            <div className="relative flex h-20 w-20 items-center justify-center rounded-full border border-blue-100 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
 
-      <motion.div
-        ref={resultRef}
-        className="relative max-w-3xl mx-auto my-16 bg-white rounded-3xl shadow-2xl p-10 space-y-8 z-10 text-black"
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-      >
-        <h1 className="text-4xl font-extrabold text-center text-blue-700">
-          EVALUATION DIAGNOSTIQUE : {niveauComplet}
-        </h1>
+              <Loader2 className="h-9 w-9 animate-spin text-blue-600 dark:text-blue-400" />
 
-        <div className="text-center space-y-1">
-          <div className="flex items-center justify-center gap-3 text-xl font-semibold text-gray-800">
-            <User className="w-6 h-6 text-blue-600" />
-            {apprenant?.prenom} {apprenant?.nom}
-          </div>
-          <p className="text-sm text-gray-600">📧 {apprenant?.email}</p>
-          <p className="text-sm text-gray-600">🗓️ Date: {dateEmission}</p>
-          <p className="text-sm font-semibold text-blue-700 mt-2">CODE</p>
-        </div>
-
-        <div className="text-center space-y-3">
-          <p className="text-3xl font-bold text-green-700">Note : {note}/20</p>
-          <p className={`inline-block px-6 py-2 rounded-full text-xl font-semibold ${mentionStyle}`}>
-            Mention : {mention}
-          </p>
-         
-        </div>
-
-        <section className="bg-gray-50 p-6 rounded-xl shadow-inner">
-          <h2 className="text-xl font-semibold mb-4 text-gray-800 border-b border-gray-300 pb-2">
-            Notions à réviser :
-          </h2>
-          {notionsTriees.length === 0 ? (
-            <p className="text-green-600 text-center font-semibold text-lg">
-              Tu as maîtrisé toutes les notions de prérequis ! 🎉
-            </p>
-          ) : (
-            <ul className="list-disc list-inside text-gray-800 text-base">
-              {notionsTriees.map((notion, index) => (
-                <li key={index} className="mb-1">{notion}</li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <div className="flex flex-wrap justify-center gap-4 mt-8">
-          
-            <button
-              onClick={handleRemediationStart}
-              className="bg-green-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full font-semibold shadow-md transition"
-            >
-              📚 Continuer
-            </button>
-          
-
-          <button
-            onClick={handleDownloadPDF}
-            className="bg-blue-700 hover:bg-green-800 text-white px-6 py-3 rounded-full font-semibold shadow-md transition"
-          >
-            📄 Télécharger le PDF
-          </button>
-        </div>
-
-        <div className="mt-10 text-center border-t pt-6 border-gray-300">
-          <h2 className="text-xl font-bold text-gray-700 mb-4">Retrouve-nous en ligne</h2>
-          <p className="text-sm text-gray-600 mb-2">Scanne le QR code ci-dessous pour visiter CODE</p>
-          <div className="flex justify-center">
-            <div className="flex justify-center">
-               <QRCode value="https://code-frontend-rho.vercel.app" size={128} />
             </div>
 
           </div>
-          <p className="text-gray-500 text-xs mt-2">CODE</p>
+
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+            Préparation de votre rapport
+          </h2>
+
+          <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
+            Nous récupérons vos résultats...
+          </p>
+
+        </motion.div>
+
+      </div>
+    );
+  }
+
+  // ==========================================================
+  // ERREUR
+  // ==========================================================
+
+  if (
+    error ||
+    !resultats
+  ) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-blue-50 px-4 dark:from-slate-950 dark:via-slate-900 dark:to-blue-950/30">
+
+        <div className="w-full max-w-lg rounded-3xl border border-red-200 bg-white p-8 text-center shadow-xl dark:border-red-900/50 dark:bg-slate-900">
+
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400">
+
+            <AlertCircle className="h-8 w-8" />
+
+          </div>
+
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+            Résultat indisponible
+          </h2>
+
+          <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-slate-400">
+            {error ??
+              "Les résultats ont été soumis, mais les données nécessaires à leur affichage sont momentanément indisponibles."}
+          </p>
+
+          <button
+            onClick={() =>
+              navigate("/")
+            }
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+          >
+
+            Retour à l'accueil
+
+            <ArrowRight className="h-4 w-4" />
+
+          </button>
+
         </div>
 
-        {sending && (
-          <p className="text-center mt-4 text-lg font-medium text-blue-600">Envoi du PDF...</p>
-        )}
+      </div>
+    );
+  }
 
-        {success && (
-          <p className="text-center mt-4 text-lg font-semibold text-emerald-600">{success}</p>
-        )}
-      </motion.div>
+  // ==========================================================
+  // AFFICHAGE
+  // ==========================================================
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 transition-colors duration-300 dark:from-slate-950 dark:via-slate-900 dark:to-blue-950/30">
+
+      {/* ======================================================
+          CONTRÔLES
+      ======================================================= */}
+
+      <div className="fixed right-4 top-4 z-50 flex items-center gap-2">
+
+        <DarkModeToggle />
+
+        <AudioManager />
+
+      </div>
+
+      {/* ======================================================
+          ANIMATION CODE
+      ======================================================= */}
+
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+
+        <AnimatePresence mode="wait">
+
+          {mots[
+            motActuel - 1
+          ] && (
+
+            <motion.span
+              key={
+                motActuel
+              }
+              className="absolute left-1/2 top-1/4 -translate-x-1/2 text-5xl font-black sm:text-8xl"
+              initial={{
+                y: 45,
+                opacity: 0,
+                scale: 0.94,
+                filter:
+                  "blur(8px)",
+              }}
+              animate={{
+                y: 0,
+                opacity: 0.035,
+                scale: 1,
+                filter:
+                  "blur(0px)",
+              }}
+              exit={{
+                y: -45,
+                opacity: 0,
+                scale: 1.04,
+                filter:
+                  "blur(8px)",
+              }}
+              transition={{
+                duration: 0.7,
+                ease: "easeInOut",
+              }}
+              style={{
+                color:
+                  orActif
+                    ? "gold"
+                    : couleurs[
+                        motActuel -
+                          1
+                      ],
+              }}
+            >
+
+              {
+                mots[
+                  motActuel -
+                    1
+                ]
+              }
+
+            </motion.span>
+
+          )}
+
+        </AnimatePresence>
+
+      </div>
+
+      {/* ======================================================
+          PAGE
+      ======================================================= */}
+
+      <main className="relative z-10 mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
+
+        {/* ====================================================
+            EN-TÊTE HORS PDF
+        ===================================================== */}
+
+        <div
+          data-pdf-hide="true"
+          className="mb-7 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"
+        >
+
+          <div>
+
+            <div className="mb-3 flex items-center gap-3">
+
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/20 dark:bg-blue-500">
+
+                <Award className="h-5 w-5" />
+
+              </div>
+
+              <div>
+
+                <span className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">
+                  CODE · Évaluation
+                </span>
+
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-500">
+                  Rapport diagnostique personnalisé
+                </p>
+
+              </div>
+
+            </div>
+
+            <h1 className="text-2xl font-extrabold tracking-tight text-gray-950 dark:text-white sm:text-3xl">
+              Votre rapport diagnostique
+            </h1>
+
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500 dark:text-slate-400">
+              Analyse de vos prérequis en{" "}
+              <span className="font-semibold text-gray-700 dark:text-slate-200">
+                {matiereLabel}
+              </span>
+              .
+            </p>
+
+          </div>
+
+          <button
+            onClick={
+              handleDownloadPDF
+            }
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-700 dark:hover:bg-slate-800 dark:hover:text-blue-400"
+          >
+
+            <Download className="h-4 w-4" />
+
+            Télécharger le PDF
+
+          </button>
+
+        </div>
+
+        {/* ====================================================
+            RAPPORT
+        ===================================================== */}
+
+        <motion.div
+          ref={resultRef}
+          data-pdf-static="true"
+          data-pdf-report="true"
+          initial={{
+            opacity: 0,
+            y: 30,
+          }}
+          animate={{
+            opacity: 1,
+            y: 0,
+          }}
+          transition={{
+            duration: 0.7,
+            ease: "easeOut",
+          }}
+          className="overflow-hidden rounded-[2rem] border border-gray-200 bg-white shadow-2xl shadow-gray-200/50 transition-colors duration-300 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/30"
+        >
+
+          {/* ==================================================
+              BANDEAU CODE
+          =================================================== */}
+
+          <div className="relative overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 px-6 py-8 text-white sm:px-10">
+
+            <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
+
+            <div className="absolute -bottom-24 -left-10 h-48 w-48 rounded-full bg-cyan-400/10 blur-2xl" />
+
+            <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+
+              <div>
+
+                <div className="mb-3 flex items-center gap-2">
+
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
+
+                    <BookOpen className="h-5 w-5" />
+
+                  </div>
+
+                  <span className="text-sm font-bold uppercase tracking-[0.2em]">
+                    CODE
+                  </span>
+
+                </div>
+
+                <h2 className="text-2xl font-black sm:text-3xl">
+                  Rapport d'évaluation
+                </h2>
+
+                <p className="mt-2 max-w-xl text-sm leading-6 text-blue-100">
+                  Une évaluation diagnostique destinée
+                  à identifier les notions déjà maîtrisées
+                  et celles qui nécessitent une remédiation.
+                </p>
+
+              </div>
+
+              <div className="shrink-0">
+
+                <div className="rounded-2xl border border-white/20 bg-white/10 px-5 py-4 text-center backdrop-blur">
+
+                  <p className="text-xs font-semibold uppercase tracking-wider text-blue-100">
+                    Date
+                  </p>
+
+                  <p className="mt-1 text-sm font-bold">
+                    {dateEmission}
+                  </p>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* ==================================================
+              INFORMATIONS APPRENANT
+          =================================================== */}
+
+          <section className="border-b border-gray-200 px-6 py-7 dark:border-slate-700 sm:px-10">
+
+            <div className="grid gap-4 sm:grid-cols-3">
+
+              {/* APPRENANT */}
+
+              <div
+                data-pdf-card="student"
+                className="flex min-h-[82px] items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 transition-colors dark:border-slate-700 dark:bg-slate-800/70"
+              >
+
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400">
+
+                  <User className="h-5 w-5" />
+
+                </div>
+
+                <div className="min-w-0">
+
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                    Apprenant
+                  </p>
+
+                  <p className="truncate text-sm font-bold leading-5 text-gray-900 dark:text-white">
+
+                    {apprenant?.prenom}{" "}
+                    {apprenant?.nom}
+
+                  </p>
+
+                </div>
+
+              </div>
+
+              {/* FORMATION */}
+
+              <div
+                data-pdf-card="formation"
+                className="flex min-h-[82px] items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 transition-colors dark:border-slate-700 dark:bg-slate-800/70"
+              >
+
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-400">
+
+                  <GraduationCap className="h-5 w-5" />
+
+                </div>
+
+                <div className="min-w-0">
+
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                    Formation
+                  </p>
+
+                  <p className="truncate text-sm font-bold leading-5 text-gray-900 dark:text-white">
+                    {niveauComplet}
+                  </p>
+
+                </div>
+
+              </div>
+
+              {/* MATIÈRE */}
+
+              <div
+                data-pdf-card="subject"
+                className="flex min-h-[82px] items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 transition-colors dark:border-slate-700 dark:bg-slate-800/70"
+              >
+
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-100 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-400">
+
+                  <BookOpen className="h-5 w-5" />
+
+                </div>
+
+                <div className="min-w-0">
+
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                    Matière
+                  </p>
+
+                  <p className="truncate text-sm font-bold leading-5 text-gray-900 dark:text-white">
+                    {matiereLabel}
+                  </p>
+
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* EMAIL */}
+
+            {apprenant?.email && (
+              <div
+                data-pdf-email="true"
+                className="mt-4 flex min-h-[24px] items-center gap-2 text-sm leading-5 text-gray-500 dark:text-slate-400"
+              >
+
+                <Mail className="h-4 w-4 shrink-0" />
+
+                <span className="break-all">
+                  {apprenant.email}
+                </span>
+
+              </div>
+            )}
+
+          </section>
+
+          {/* ==================================================
+              RÉSULTAT
+          =================================================== */}
+
+          <section className="px-6 py-8 dark:bg-slate-900 sm:px-10">
+
+            <div className="grid gap-6 md:grid-cols-[1fr_260px]">
+
+              {/* MESSAGE */}
+
+              <div className="flex flex-col justify-center">
+
+                <div className="mb-3 flex items-center gap-2">
+
+                  <Sparkles className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+
+                  <span className="text-sm font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                    Résultat diagnostique
+                  </span>
+
+                </div>
+
+                <h3 className="text-2xl font-black text-gray-950 dark:text-white sm:text-3xl">
+                  Votre niveau de maîtrise
+                </h3>
+
+                <p className="mt-3 max-w-xl text-sm leading-6 text-gray-600 dark:text-slate-400">
+                  Cette note représente votre niveau
+                  de maîtrise des notions utilisées comme
+                  prérequis pour votre niveau actuel.
+                </p>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+
+                  <div className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
+
+                    <Target className="h-4 w-4" />
+
+                    {pourcentage}% de réussite
+
+                  </div>
+
+                  <div className="inline-flex items-center gap-2 rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-bold text-gray-700 dark:bg-slate-800 dark:text-slate-300">
+
+                    <CalendarDays className="h-4 w-4" />
+
+                    {dateEmission}
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* NOTE */}
+
+              <div className="flex flex-col items-center justify-center rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 text-center dark:border-blue-900/50 dark:from-blue-950/50 dark:to-indigo-950/50">
+
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">
+                  Note obtenue
+                </p>
+
+                <div className="mt-2 flex items-baseline">
+
+                  <span className="text-6xl font-black tracking-tight text-gray-950 dark:text-white">
+                    {note}
+                  </span>
+
+                  <span className="ml-1 text-xl font-bold text-gray-400 dark:text-slate-500">
+                    /20
+                  </span>
+
+                </div>
+
+                <div
+                  className={`mt-4 inline-flex items-center gap-2 rounded-full border px-5 py-2 text-sm font-bold shadow-sm ${mentionStyle}`}
+                >
+
+                  <Award className="h-4 w-4" />
+
+                  {mention ||
+                    "Évaluation"}
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </section>
+
+          {/* ==================================================
+              NOTIONS
+          =================================================== */}
+
+          <section className="border-t border-gray-200 bg-gray-50/80 px-6 py-8 dark:border-slate-700 dark:bg-slate-950/40 sm:px-10">
+
+            <div className="mb-5 flex items-start gap-4">
+
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-orange-600 dark:bg-orange-950/50 dark:text-orange-400">
+
+                <RefreshCw className="h-5 w-5" />
+
+              </div>
+
+              <div>
+
+                <h3 className="text-xl font-extrabold text-gray-950 dark:text-white">
+                  Notions à réviser
+                </h3>
+
+                <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
+                  Les notions identifiées pendant
+                  l'évaluation et proposées pour
+                  la remédiation.
+                </p>
+
+              </div>
+
+            </div>
+
+            {notionsTriees.length ===
+            0 ? (
+
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center dark:border-emerald-900/50 dark:bg-emerald-950/30">
+
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400">
+
+                  <CheckCircle2 className="h-6 w-6" />
+
+                </div>
+
+                <p className="text-lg font-bold text-emerald-800 dark:text-emerald-300">
+                  Toutes les notions semblent maîtrisées !
+                </p>
+
+                <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-400">
+                  Félicitations pour ce résultat.
+                </p>
+
+              </div>
+
+            ) : (
+
+              <div className="grid gap-3 sm:grid-cols-2">
+
+                {notionsTriees.map(
+                  (
+                    notion,
+                    index
+                  ) => (
+
+                    <motion.div
+                      key={index}
+                      data-pdf-notion="true"
+                      initial={{
+                        opacity: 0,
+                        y: 8,
+                      }}
+                      animate={{
+                        opacity: 1,
+                        y: 0,
+                      }}
+                      transition={{
+                        delay:
+                          index *
+                          0.04,
+                      }}
+                      className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-colors dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/10"
+                    >
+
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-orange-100 text-xs font-bold text-orange-700 dark:bg-orange-950/60 dark:text-orange-300">
+                        {index + 1}
+                      </span>
+
+                      <span className="text-sm font-medium leading-6 text-gray-700 dark:text-slate-300">
+                        {notion}
+                      </span>
+
+                    </motion.div>
+
+                  )
+                )}
+
+              </div>
+
+            )}
+
+          </section>
+
+          {/* ==================================================
+              QR CODE
+          =================================================== */}
+
+          <section className="border-t border-gray-200 px-6 py-8 dark:border-slate-700 dark:bg-slate-900 sm:px-10">
+
+            <div className="flex flex-col items-center text-center">
+
+              <div className="mb-3 flex items-center gap-2">
+
+                <QrCode className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                  Découvrez CODE
+                </h3>
+
+              </div>
+
+              <p className="mb-5 max-w-md text-sm leading-6 text-gray-500 dark:text-slate-400">
+                Retrouvez votre environnement éducatif
+                et poursuivez votre apprentissage
+                directement sur la plateforme CODE.
+              </p>
+
+              <div
+                data-pdf-qr="true"
+                className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700"
+              >
+
+                <QRCode
+                  value="https://code-frontend-rho.vercel.app"
+                  size={140}
+                />
+
+              </div>
+
+              <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-gray-400 dark:text-slate-500">
+                CODE — L'écosystème éducatif mondial
+              </p>
+
+            </div>
+
+          </section>
+
+          {/* ==================================================
+              ACTIONS
+              EXCLUES DU PDF
+          =================================================== */}
+
+          <section
+            data-pdf-hide="true"
+            className="border-t border-gray-200 bg-gray-50 px-6 py-7 dark:border-slate-700 dark:bg-slate-950/50 sm:px-10"
+          >
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+
+              <button
+                onClick={
+                  handleRemediationStart
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+              >
+
+                <Target className="h-4 w-4" />
+
+                Commencer la remédiation
+
+                <ArrowRight className="h-4 w-4" />
+
+              </button>
+
+              <button
+                onClick={
+                  handleDownloadPDF
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-6 py-3 text-sm font-bold text-blue-700 shadow-sm transition hover:border-blue-400 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-900 dark:text-blue-400 dark:hover:border-blue-700 dark:hover:bg-slate-800"
+              >
+
+                <Download className="h-4 w-4" />
+
+                Télécharger le rapport PDF
+
+              </button>
+
+            </div>
+
+            {/* ------------------------------------------------
+                MESSAGE ENVOI PDF
+            ------------------------------------------------- */}
+
+            <div className="mt-5 text-center">
+
+              {sending && (
+
+                <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
+
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+
+                  Préparation et envoi de votre rapport...
+
+                </div>
+
+              )}
+
+              {!sending &&
+                success && (
+
+                  <div
+                    className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold ${
+                      success.includes(
+                        "échoué"
+                      )
+                        ? "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300"
+                        : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                    }`}
+                  >
+
+                    {success.includes(
+                      "échoué"
+                    ) ? (
+                      <AlertCircle className="h-3.5 w-3.5" />
+                    ) : (
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    )}
+
+                    {success}
+
+                  </div>
+
+                )}
+
+            </div>
+
+            {/* ------------------------------------------------
+                INDICATEUR DE CONFIDENTIALITÉ
+            ------------------------------------------------- */}
+
+            <div className="mt-5 flex items-center justify-center gap-2 text-[11px] font-medium text-gray-400 dark:text-slate-500">
+
+              <ShieldCheck className="h-3.5 w-3.5" />
+
+              Rapport personnalisé généré par CODE
+
+              <Send className="h-3.5 w-3.5" />
+
+              Envoyé par e-mail
+
+            </div>
+
+          </section>
+
+          {/* ==================================================
+              PIED DE PAGE
+          =================================================== */}
+
+          <footer
+            data-pdf-footer="true"
+            className="border-t border-gray-200 bg-white px-6 py-5 text-center dark:border-slate-700 dark:bg-slate-900"
+          >
+
+            <div className="flex items-center justify-center gap-2">
+
+              <FileText className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />
+
+              <p className="text-xs font-semibold text-gray-400 dark:text-slate-500">
+                CODE — L'écosystème éducatif mondial
+              </p>
+
+            </div>
+
+            <p className="mt-1 text-[11px] text-gray-400 dark:text-slate-600">
+              Tout ce qui est enseignable doit pouvoir
+              trouver sa place sur CODE.
+            </p>
+
+          </footer>
+
+        </motion.div>
+
+      </main>
+
     </div>
   );
 };

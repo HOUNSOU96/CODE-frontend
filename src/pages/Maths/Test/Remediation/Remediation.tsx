@@ -3,12 +3,10 @@ import React, {
   useMemo,
   useState,
 } from "react";
-
 import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
-
 import api from "@/utils/axios";
 
 /*
@@ -25,32 +23,30 @@ type QuestionRemediation = {
   choix?: string[];
 
   bonne_reponse?: string | null;
-
   bonneReponse?: string | null;
 
   reponse_apprenant?: string | null;
-
   reponseUser?: string | null;
-
   reponse_user?: string | null;
 
   notion?: string | null;
-
   notions?: string | null;
-
   theme?: string | null;
-
   chapitre?: string | null;
 
   niveau?: string | null;
-
   classe?: string | null;
 
   enseignant?: string | null;
 
+  matiere?: string | null;
+
+  serie?: string | string[] | null;
+
   situation?: {
     texte?: string;
     image?: string;
+    [key: string]: any;
   };
 
   correcte?: boolean;
@@ -68,13 +64,10 @@ type TeacherProfile = {
   id?: number;
 
   nom: string;
-
   prenom: string;
-
   email: string;
 
   telephone?: string | null;
-
   pays_residence?: string | null;
 
   teacher_photo?: string | null;
@@ -92,6 +85,8 @@ type ResultatType = {
   note: number;
 
   mention: string;
+
+  matiere?: string;
 
   niveau?: string;
 
@@ -122,6 +117,9 @@ type ResultatType = {
 
 type LocationState = {
   resultats?: ResultatType;
+
+  matiereActuelle?: string;
+  matiere?: string;
 
   questionsRemediation?: QuestionRemediation[];
 
@@ -191,12 +189,30 @@ const Remediation: React.FC = () => {
 
   /*
    * ========================================================
-   * RÉSULTATS
+   * RÉSULTATS TRANSMIS
    * ========================================================
    */
 
   const resultatsTransmis =
     state.resultats ?? null;
+
+  /*
+   * ========================================================
+   * MATIÈRE
+   *
+   * Priorité :
+   * 1. state.matiereActuelle
+   * 2. state.matiere
+   * 3. resultats.matiere
+   * 4. question.matiere plus tard si nécessaire
+   * ========================================================
+   */
+
+  const matiere =
+    state.matiereActuelle ??
+    state.matiere ??
+    resultatsTransmis?.matiere ??
+    "";
 
   /*
    * ========================================================
@@ -312,6 +328,11 @@ const Remediation: React.FC = () => {
     );
 
     console.log(
+      "📚 Matière =",
+      matiere
+    );
+
+    console.log(
       "📊 resultats =",
       resultatsTransmis
     );
@@ -342,6 +363,7 @@ const Remediation: React.FC = () => {
     );
   }, [
     location.state,
+    matiere,
     resultatsTransmis,
     questionsRemediationTransmises,
     questionsDuTest,
@@ -381,6 +403,16 @@ const Remediation: React.FC = () => {
       return;
     }
 
+    if (!matiere) {
+      setErrorResultats(
+        "La matière de l'évaluation est introuvable."
+      );
+
+      setLoadingResultats(false);
+
+      return;
+    }
+
     const recupererResultats =
       async () => {
         try {
@@ -396,12 +428,30 @@ const Remediation: React.FC = () => {
             "📡 Récupération du dernier résultat depuis le backend..."
           );
 
+          console.log(
+            "📚 Matière :",
+            matiere
+          );
+
+          console.log(
+            "🎓 Niveau :",
+            niveau
+          );
+
+          console.log(
+            "🏷️ Série :",
+            serie
+          );
+
           const res =
             await api.get(
               "/api/resultats/dernier",
               {
                 params: {
+                  matiere,
+
                   niveau,
+
                   serie:
                     serie ||
                     undefined,
@@ -432,9 +482,9 @@ const Remediation: React.FC = () => {
       };
 
     recupererResultats();
-
   }, [
     resultatsTransmis,
+    matiere,
     niveau,
     serie,
   ]);
@@ -458,7 +508,6 @@ const Remediation: React.FC = () => {
       ) {
         questions =
           questionsRemediationTransmises;
-
       } else if (
         Array.isArray(
           resultats?.questionsRemediation
@@ -466,7 +515,6 @@ const Remediation: React.FC = () => {
       ) {
         questions =
           resultats.questionsRemediation;
-
       } else if (
         Array.isArray(
           resultats?.questions_remediation
@@ -474,7 +522,6 @@ const Remediation: React.FC = () => {
       ) {
         questions =
           resultats.questions_remediation;
-
       } else if (
         Array.isArray(
           resultats?.questions
@@ -490,14 +537,32 @@ const Remediation: React.FC = () => {
           index
         ) => ({
           ...question,
+
           id:
             question.id ??
             `question-remediation-${index}`,
+
+          matiere:
+            question.matiere ??
+            matiere,
+
+          niveau:
+            question.niveau ??
+            question.classe ??
+            niveau,
+
+          serie:
+            question.serie ??
+            serie ??
+            null,
         })
       );
     }, [
       questionsRemediationTransmises,
       resultats,
+      matiere,
+      niveau,
+      serie,
     ]);
 
   /*
@@ -521,7 +586,6 @@ const Remediation: React.FC = () => {
   useEffect(() => {
     const recupererProfilsEnseignants =
       async () => {
-
         const emails = [
           ...new Set(
             toutesLesQuestions
@@ -557,7 +621,6 @@ const Remediation: React.FC = () => {
         await Promise.all(
           emails.map(
             async (email) => {
-
               if (
                 teacherProfiles[email]
               ) {
@@ -585,9 +648,7 @@ const Remediation: React.FC = () => {
                   "👨‍🏫 Profil enseignant récupéré :",
                   res.data
                 );
-
               } catch (error) {
-
                 console.error(
                   `❌ Impossible de récupérer le profil de ${email}`,
                   error
@@ -613,7 +674,6 @@ const Remediation: React.FC = () => {
     ) {
       recupererProfilsEnseignants();
     }
-
   }, [
     toutesLesQuestions,
   ]);
@@ -639,6 +699,11 @@ const Remediation: React.FC = () => {
     );
 
     console.log(
+      "📚 Matière :",
+      matiere
+    );
+
+    console.log(
       "📚 Données :",
       toutesLesQuestions
     );
@@ -648,12 +713,17 @@ const Remediation: React.FC = () => {
         question,
         index
       ) => {
-
         console.log(
           `📌 Question ${index + 1}`,
           {
+            matiere:
+              question.matiere,
+
             niveau:
               question.niveau,
+
+            serie:
+              question.serie,
 
             bonne_reponse:
               question.bonne_reponse ??
@@ -677,9 +747,9 @@ const Remediation: React.FC = () => {
     console.log(
       "================================================"
     );
-
   }, [
     toutesLesQuestions,
+    matiere,
   ]);
 
   /*
@@ -692,7 +762,6 @@ const Remediation: React.FC = () => {
     (
       valeur: unknown
     ): string => {
-
       if (
         valeur === undefined ||
         valeur === null
@@ -721,7 +790,6 @@ const Remediation: React.FC = () => {
       reponse: string,
       question: QuestionRemediation
     ): string | null => {
-
       if (
         !Array.isArray(
           question.choix
@@ -769,7 +837,6 @@ const Remediation: React.FC = () => {
     (
       question: QuestionRemediation
     ): string => {
-
       const bonneReponse =
         question.bonne_reponse ??
         question.bonneReponse;
@@ -814,7 +881,6 @@ const Remediation: React.FC = () => {
     (
       question: QuestionRemediation
     ): string => {
-
       const reponseUser =
         question.reponse_apprenant ??
         question.reponseUser ??
@@ -860,7 +926,6 @@ const Remediation: React.FC = () => {
     (
       question: QuestionRemediation
     ): boolean => {
-
       const reponseUser =
         question.reponse_apprenant ??
         question.reponseUser ??
@@ -929,7 +994,6 @@ const Remediation: React.FC = () => {
           question.choix
         )
       ) {
-
         const contenuChoixUser =
           getChoixDepuisLettre(
             userNormalise,
@@ -962,7 +1026,6 @@ const Remediation: React.FC = () => {
           question.choix
         )
       ) {
-
         const contenuChoixBonne =
           getChoixDepuisLettre(
             bonneNormalisee,
@@ -1002,7 +1065,6 @@ const Remediation: React.FC = () => {
     (
       question: QuestionRemediation
     ): string => {
-
       return (
         question.notion ??
         question.notions ??
@@ -1022,9 +1084,9 @@ const Remediation: React.FC = () => {
     (
       question: QuestionRemediation
     ): string => {
-
       return (
         question.niveau ??
+        question.classe ??
         "Non précisée"
       );
     };
@@ -1140,7 +1202,6 @@ const Remediation: React.FC = () => {
 
   const handleNextStep =
     () => {
-
       setCurrentStep(
         (previous) =>
           Math.min(
@@ -1158,7 +1219,6 @@ const Remediation: React.FC = () => {
 
   const handlePreviousStep =
     () => {
-
       setCurrentStep(
         (previous) =>
           Math.max(
@@ -1178,17 +1238,12 @@ const Remediation: React.FC = () => {
    * ========================================================
    * EXPLICATION DE LA QUESTION
    * ========================================================
-   *
-   * Le bouton "Explication" ouvre ExplicationQuestion.tsx.
-   * La question actuelle est transmise dans location.state.
-   * ========================================================
    */
 
   const handleExplicationQuestion =
     (
       question: QuestionRemediation
     ) => {
-
       navigate(
         "/explication-question",
         {
@@ -1197,6 +1252,14 @@ const Remediation: React.FC = () => {
 
             questionActuelle:
               question,
+
+            matiereActuelle:
+              question.matiere ??
+              matiere,
+
+            matiere:
+              question.matiere ??
+              matiere,
 
             niveauActuel:
               resultats?.niveau ??
@@ -1235,8 +1298,8 @@ const Remediation: React.FC = () => {
               ),
 
             enseignant:
-              question.enseignant
-              ?? null,
+              question.enseignant ??
+              null,
           },
         }
       );
@@ -1256,11 +1319,17 @@ const Remediation: React.FC = () => {
 
   const handleStartRemediation =
     () => {
-
       if (!niveau) {
-
         console.warn(
           "⚠️ Niveau manquant."
+        );
+
+        return;
+      }
+
+      if (!matiere) {
+        console.warn(
+          "⚠️ Matière manquante."
         );
 
         return;
@@ -1298,6 +1367,21 @@ const Remediation: React.FC = () => {
       );
 
       console.log(
+        "📚 Matière :",
+        matiere
+      );
+
+      console.log(
+        "🎓 Niveau :",
+        niveau
+      );
+
+      console.log(
+        "🏷️ Série :",
+        serie
+      );
+
+      console.log(
         "📚 Notions :",
         notions
       );
@@ -1316,8 +1400,19 @@ const Remediation: React.FC = () => {
         "================================================"
       );
 
+      /*
+       * ROUTE GÉNÉRIQUE
+       *
+       * Exemple :
+       * /test/remediationvideo/maths/3e/none
+       *
+       * /test/remediationvideo/physique/tle/c
+       *
+       * /test/remediationvideo/anglais/2nde/a
+       */
+
       navigate(
-        `/maths/test/remediationvideo/${niveau.toLowerCase()}/${(
+        `/test/remediationvideo/${matiere.toLowerCase()}/${niveau.toLowerCase()}/${(
           serie ||
           "none"
         ).toLowerCase()}`,
@@ -1325,6 +1420,13 @@ const Remediation: React.FC = () => {
           replace: true,
 
           state: {
+            matiereActuelle:
+              resultats?.matiere ??
+              matiere,
+
+            matiere:
+              resultats?.matiere ??
+              matiere,
 
             currentNotion:
               notions[0] ??
@@ -1372,12 +1474,9 @@ const Remediation: React.FC = () => {
    */
 
   if (loadingResultats) {
-
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 text-center">
-
           <div className="text-4xl mb-4">
             ⏳
           </div>
@@ -1385,9 +1484,7 @@ const Remediation: React.FC = () => {
           <p className="text-gray-700 dark:text-gray-200 font-semibold">
             Chargement des résultats...
           </p>
-
         </div>
-
       </div>
     );
   }
@@ -1425,11 +1522,13 @@ const Remediation: React.FC = () => {
 
   let teacherActuel:
     | TeacherProfile
-    | null = null;
+    | null =
+    null;
 
   let teacherPhotoActuelle:
     | string
-    | null = null;
+    | null =
+    null;
 
   let teacherInitialsActuelles =
     "?";
@@ -1441,7 +1540,6 @@ const Remediation: React.FC = () => {
     "Enseignant";
 
   if (questionActuelle) {
-
     correcteActuelle =
       estQuestionCorrecte(
         questionActuelle
@@ -1470,12 +1568,11 @@ const Remediation: React.FC = () => {
 
     teacherPhotoActuelle =
       teacherActuel?.teacher_photo
-        ? /^https?:\/\//i.test(
+        ? /^https?:\/\/.+/i.test(
             teacherActuel.teacher_photo
           )
           ? teacherActuel.teacher_photo
           : (() => {
-
               const baseUrl =
                 api.defaults.baseURL?.replace(
                   /\/$/,
@@ -1483,7 +1580,9 @@ const Remediation: React.FC = () => {
                 ) || "";
 
               const normalizedBase =
-                baseUrl.endsWith("/api")
+                baseUrl.endsWith(
+                  "/api"
+                )
                   ? baseUrl.slice(
                       0,
                       -4
@@ -1494,7 +1593,6 @@ const Remediation: React.FC = () => {
                 /^\//,
                 ""
               )}`;
-
             })()
         : null;
 
@@ -1524,7 +1622,6 @@ const Remediation: React.FC = () => {
    */
 
   return (
-
     <div className="w-full max-w-5xl mx-auto bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-6 sm:p-10 space-y-8">
 
       {/* ==================================================
@@ -1535,7 +1632,13 @@ const Remediation: React.FC = () => {
 
         <h1 className="text-4xl font-extrabold text-center text-blue-700">
 
-          REMÉDIATION:{" "}
+          REMÉDIATION{" "}
+
+          {matiere
+            ? `— ${matiere.toUpperCase()}`
+            : ""}
+
+          {": "}
 
           {titreNiveau}
 
@@ -1568,7 +1671,6 @@ const Remediation: React.FC = () => {
           </span>
 
           {isQuestionStep && (
-
             <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
 
               Question{" "}
@@ -1578,7 +1680,6 @@ const Remediation: React.FC = () => {
               {toutesLesQuestions.length}
 
             </span>
-
           )}
 
         </div>
@@ -1586,13 +1687,10 @@ const Remediation: React.FC = () => {
         <div className="w-full h-3 bg-gray-300 dark:bg-gray-600 rounded-full overflow-hidden">
 
           <div
-
             className="h-full bg-blue-600 rounded-full transition-all duration-500"
-
             style={{
               width: `${((currentStep + 1) / totalSteps) * 100}%`,
             }}
-
           />
 
         </div>
@@ -1604,7 +1702,6 @@ const Remediation: React.FC = () => {
       ================================================== */}
 
       {errorResultats && (
-
         <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 p-5 rounded-lg">
 
           <p className="text-red-700 dark:text-red-300 font-semibold">
@@ -1614,7 +1711,6 @@ const Remediation: React.FC = () => {
           </p>
 
         </div>
-
       )}
 
       {/* ==================================================
@@ -1622,7 +1718,6 @@ const Remediation: React.FC = () => {
       ================================================== */}
 
       {currentStep === 0 && (
-
         <section className="bg-gray-100 dark:bg-gray-700 p-6 rounded-xl shadow-md">
 
           <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">
@@ -1635,16 +1730,40 @@ const Remediation: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
+              {/* MATIÈRE */}
+
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+
+                  Matière
+
+                </p>
+
+                <p className="text-xl font-bold text-blue-600">
+
+                  {resultats.matiere ??
+                    matiere ??
+                    "Non précisée"}
+
+                </p>
+
+              </div>
+
               {/* NOTE */}
 
               <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
 
                 <p className="text-sm text-gray-500 dark:text-gray-400">
+
                   Note
+
                 </p>
 
                 <p className="text-2xl font-bold text-green-600">
+
                   {resultats.note}/20
+
                 </p>
 
               </div>
@@ -1654,11 +1773,15 @@ const Remediation: React.FC = () => {
               <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
 
                 <p className="text-sm text-gray-500 dark:text-gray-400">
+
                   Mention
+
                 </p>
 
                 <p className="font-bold text-blue-700 dark:text-blue-300">
+
                   {resultats.mention}
+
                 </p>
 
               </div>
@@ -1668,11 +1791,16 @@ const Remediation: React.FC = () => {
               <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
 
                 <p className="text-sm text-gray-500 dark:text-gray-400">
+
                   Nombre de questions
+
                 </p>
 
                 <p className="text-2xl font-bold text-blue-600">
-                  {toutesLesQuestions.length}
+
+                  {resultats.nbQuestions ??
+                    toutesLesQuestions.length}
+
                 </p>
 
               </div>
@@ -1682,11 +1810,15 @@ const Remediation: React.FC = () => {
               <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
 
                 <p className="text-sm text-gray-500 dark:text-gray-400">
+
                   Nombre de notions non acquises
+
                 </p>
 
                 <p className="text-2xl font-bold text-purple-600">
+
                   {notionsBrutes.length}
+
                 </p>
 
               </div>
@@ -1696,13 +1828,14 @@ const Remediation: React.FC = () => {
           ) : (
 
             <p className="text-gray-600 dark:text-gray-300">
+
               Aucun résultat disponible.
+
             </p>
 
           )}
 
         </section>
-
       )}
 
       {/* ==================================================
@@ -1720,9 +1853,7 @@ const Remediation: React.FC = () => {
             }`}
           >
 
-            {/* ==================================================
-                EN-TÊTE QUESTION
-            ================================================== */}
+            {/* EN-TÊTE QUESTION */}
 
             <div
               className={`px-5 py-4 ${
@@ -1762,9 +1893,7 @@ const Remediation: React.FC = () => {
 
             <div className="p-5 space-y-5">
 
-              {/* =================================================
-                  ENSEIGNANT
-              ================================================= */}
+              {/* ENSEIGNANT */}
 
               {teacherEmailActuel && (
 
@@ -1777,17 +1906,13 @@ const Remediation: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => {
-
                         if (
                           teacherProfileUrlActuel
                         ) {
-
                           navigate(
                             teacherProfileUrlActuel
                           );
-
                         }
-
                       }}
                       disabled={
                         !teacherActuel
@@ -1813,10 +1938,8 @@ const Remediation: React.FC = () => {
                             onError={(
                               event
                             ) => {
-
                               event.currentTarget.style.display =
                                 "none";
-
                             }}
                           />
 
@@ -1851,11 +1974,9 @@ const Remediation: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
-
                             navigate(
                               teacherProfileUrlActuel
                             );
-
                           }}
                           className="font-semibold text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 hover:underline transition text-left"
                         >
@@ -1905,9 +2026,7 @@ const Remediation: React.FC = () => {
 
               )}
 
-              {/* =================================================
-                  ÉNONCÉ
-              ================================================= */}
+              {/* ÉNONCÉ */}
 
               <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm">
 
@@ -1919,9 +2038,7 @@ const Remediation: React.FC = () => {
 
                   </p>
 
-                  {/* =================================================
-                      BOUTON EXPLICATION
-                  ================================================= */}
+                  {/* BOUTON EXPLICATION */}
 
                   <button
                     type="button"
@@ -1950,7 +2067,7 @@ const Remediation: React.FC = () => {
                     title="Voir l'explication de cette question"
                   >
 
-                    💡 Explication
+                    💡 Explication avec CODE IA
 
                   </button>
 
@@ -1967,16 +2084,16 @@ const Remediation: React.FC = () => {
 
               </div>
 
-              {/* =================================================
-                  CLASSE + NOTION
-              ================================================= */}
+              {/* CLASSE + NOTION */}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
 
                   <p className="text-xs text-gray-500 dark:text-gray-400">
+
                     🎓 Classe
+
                   </p>
 
                   <p className="font-semibold text-blue-700 dark:text-blue-300">
@@ -1992,7 +2109,9 @@ const Remediation: React.FC = () => {
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
 
                   <p className="text-xs text-gray-500 dark:text-gray-400">
+
                     📚 Notion
+
                   </p>
 
                   <p className="font-semibold text-purple-700 dark:text-purple-300">
@@ -2007,9 +2126,7 @@ const Remediation: React.FC = () => {
 
               </div>
 
-              {/* =================================================
-                  CHOIX
-              ================================================= */}
+              {/* CHOIX */}
 
               {Array.isArray(
                 questionActuelle.choix
@@ -2057,7 +2174,6 @@ const Remediation: React.FC = () => {
                             </div>
 
                           );
-
                         }
                       )}
 
@@ -2067,9 +2183,7 @@ const Remediation: React.FC = () => {
 
                 )}
 
-              {/* =================================================
-                  BONNE RÉPONSE
-              ================================================= */}
+              {/* BONNE RÉPONSE */}
 
               <div className="bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-lg p-4">
 
@@ -2087,9 +2201,7 @@ const Remediation: React.FC = () => {
 
               </div>
 
-              {/* =================================================
-                  RÉPONSE APPRENANT
-              ================================================= */}
+              {/* RÉPONSE APPRENANT */}
 
               <div
                 className={`rounded-lg p-4 border ${
@@ -2130,7 +2242,6 @@ const Remediation: React.FC = () => {
             </div>
 
           </section>
-
         )}
 
       {/* ==================================================
@@ -2163,7 +2274,9 @@ const Remediation: React.FC = () => {
             <div className="bg-blue-50 dark:bg-blue-900/30 p-5 rounded-xl shadow-md text-center">
 
               <p className="text-sm text-blue-700 dark:text-blue-300">
+
                 Total
+
               </p>
 
               <p className="text-3xl font-bold text-blue-700 dark:text-blue-200">
@@ -2177,7 +2290,9 @@ const Remediation: React.FC = () => {
             <div className="bg-green-50 dark:bg-green-900/30 p-5 rounded-xl shadow-md text-center">
 
               <p className="text-sm text-green-700 dark:text-green-300">
+
                 Correctes
+
               </p>
 
               <p className="text-3xl font-bold text-green-700 dark:text-green-200">
@@ -2191,7 +2306,9 @@ const Remediation: React.FC = () => {
             <div className="bg-red-50 dark:bg-red-900/30 p-5 rounded-xl shadow-md text-center">
 
               <p className="text-sm text-red-700 dark:text-red-200">
+
                 Incorrectes
+
               </p>
 
               <p className="text-3xl font-bold text-red-700 dark:text-red-200">
@@ -2205,7 +2322,6 @@ const Remediation: React.FC = () => {
           </div>
 
         </section>
-
       )}
 
       {/* ==================================================
@@ -2269,7 +2385,6 @@ const Remediation: React.FC = () => {
           )}
 
         </section>
-
       )}
 
       {/* ==================================================
@@ -2340,7 +2455,6 @@ const Remediation: React.FC = () => {
           )}
 
         </section>
-
       )}
 
       {/* ==================================================
@@ -2389,25 +2503,33 @@ const Remediation: React.FC = () => {
           ) : currentStep === 0 ? (
 
             <span>
+
               Résultats de l'évaluation
+
             </span>
 
           ) : isResumeStep ? (
 
             <span>
+
               Résumé de l'évaluation
+
             </span>
 
           ) : isNotionsStep ? (
 
             <span>
+
               Notions à revoir
+
             </span>
 
           ) : (
 
             <span>
+
               Fin de l'analyse
+
             </span>
 
           )}
@@ -2437,9 +2559,12 @@ const Remediation: React.FC = () => {
             onClick={
               handleStartRemediation
             }
-            disabled={!niveau}
+            disabled={
+              !niveau ||
+              !matiere
+            }
             className={`w-full sm:w-auto text-white font-bold py-3 px-8 rounded-xl shadow-lg transition ${
-              niveau
+              niveau && matiere
                 ? "bg-green-600 hover:bg-green-700"
                 : "bg-gray-400 cursor-not-allowed"
             }`}

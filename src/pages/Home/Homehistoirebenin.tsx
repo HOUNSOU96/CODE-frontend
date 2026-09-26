@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { GraduationCap, ListChecks } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from "../../hooks/useAuth";
+
 const generalLevels = ['6e', '5e', '4e', '3e'] as const;
 const lyceeLevels = ['2nde', '1ère', 'Terminale'] as const;
 const series = ['A', 'B', 'C', 'D', 'E', 'F', 'G'] as const;
@@ -19,12 +20,14 @@ type Serie = (typeof series)[number];
 export default function Homehistoirebenin() {
   const { loading } = useAuth();
 
-
   const navigate = useNavigate();
   const [selectedLevel, setSelectedLevel] = useState<Level | null>(null);
   const [showSeries, setShowSeries] = useState(false);
   const [selectedSerie, setSelectedSerie] = useState<Serie | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
+
+  // Matière utilisée par la route générique du diagnostic
+  const matiere = "histoirebenin";
 
   // Simulation de l’état de progression
   const studentProgress = {
@@ -54,11 +57,14 @@ export default function Homehistoirebenin() {
 
   /* ---------------------------------
      Navigation vers la route dynamique
-     /maths/test/questions/:classe/:serie
+     /test/questions/:matiere/:niveau/:serie
   ---------------------------------- */
   const goToTest = (classe: string, serie?: string) => {
     const serieSlug = serie ? serie.toLowerCase() : 'none';
-    const target = `/histoirebenin/test/questions/${niveauToUrlPart(classe)}/${serieSlug}`;
+
+    const target =
+      `/test/questions/${matiere}/${niveauToUrlPart(classe)}/${serieSlug}`;
+
     navigate(target);
   };
 
@@ -91,7 +97,6 @@ export default function Homehistoirebenin() {
     }
   };
 
-
   if (loading) return <div>Chargement...</div>;
 
   return (
@@ -102,7 +107,10 @@ export default function Homehistoirebenin() {
       transition={{ duration: 0.4 }}
     >
       <div className="min-h-screen flex flex-col items-center justify-center px-6 py-8 text-white z-20">
-        <h1 className="text-3xl font-extrabold mb-6">🎓 BIENVENUE SUR CODE</h1>
+        <h1 className="text-3xl font-extrabold mb-6">
+          🎓 BIENVENUE SUR CODE
+        </h1>
+
         <p className="mb-6 text-lg text-white/90">
           Choisissez votre classe pour commencer le test en HISTOIRE DU BÉNIN :
         </p>
@@ -125,6 +133,7 @@ export default function Homehistoirebenin() {
             <p className="mb-4 font-semibold text-white">
               Vous êtes en {selectedLevel} ? Choisissez votre série :
             </p>
+
             <div className="flex flex-wrap justify-center gap-3">
               {series.map((serie) => (
                 <button
@@ -145,6 +154,7 @@ export default function Homehistoirebenin() {
             <p className="mb-4 font-semibold text-white">
               Vous avez choisi la série {selectedSerie}. Sélectionnez votre sous-série :
             </p>
+
             <div className="flex flex-wrap justify-center gap-3">
               {subSeriesMap[selectedSerie].map((sub) => (
                 <button
