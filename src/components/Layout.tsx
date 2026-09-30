@@ -27,6 +27,10 @@ import {
   Languages,
   RotateCcw,
   Loader2,
+  School,
+  X,
+  CheckCircle2,
+  Clock3,
 } from "lucide-react";
 
 import api from "@/utils/axios";
@@ -111,12 +115,47 @@ interface TexteTraduit {
 }
 
 // ============================================================
+// 🏫 TYPES ECOLE
+// ============================================================
+
+interface SchoolItem {
+  id: number;
+  nom: string;
+  adresse?: string | null;
+  ville?: string | null;
+  pays?: string | null;
+  email?: string | null;
+  telephone?: string | null;
+  is_active?: boolean;
+}
+
+interface SchoolMembership {
+  membership_id: number;
+  school_id: number;
+  school_name: string;
+  role: "teacher" | "student";
+  status: "pending" | "approved" | "rejected";
+  academic_year: string;
+  requested_at?: string | null;
+  approved_at?: string | null;
+}
+
+interface MySchoolResponse {
+  role: "teacher" | "student";
+  academic_year: string;
+  can_choose_school: boolean;
+  is_director?: boolean;
+  memberships: SchoolMembership[];
+}
+
+// ============================================================
 // COMPONENT
 // ============================================================
 
 const Layout: React.FC<LayoutProps> = ({
   children,
 }) => {
+
   // ==========================================================
   // 🌆 DIAPORAMA
   // ==========================================================
@@ -234,8 +273,62 @@ const Layout: React.FC<LayoutProps> = ({
     useRef(false);
 
   // ==========================================================
-  // ROUTER
+  // 🏫 ÉTAT ECOLE
   // ==========================================================
+
+  const [
+    schoolModalOpen,
+    setSchoolModalOpen,
+  ] = useState(false);
+
+  const [
+    schools,
+    setSchools,
+  ] = useState<SchoolItem[]>([]);
+
+  const [
+    schoolMemberships,
+    setSchoolMemberships,
+  ] = useState<SchoolMembership[]>([]);
+
+  const [
+    schoolLoading,
+    setSchoolLoading,
+  ] = useState(false);
+
+  const [
+    schoolSubmitting,
+    setSchoolSubmitting,
+  ] = useState<number | null>(null);
+
+  const [
+    schoolError,
+    setSchoolError,
+  ] = useState("");
+
+  const [
+    schoolSuccess,
+    setSchoolSuccess,
+  ] = useState("");
+
+  const [
+    schoolCanChoose,
+    setSchoolCanChoose,
+  ] = useState(false);
+
+  const [
+    schoolIsDirector,
+    setSchoolIsDirector,
+  ] = useState(false);
+
+  const [
+    schoolAcademicYear,
+    setSchoolAcademicYear,
+  ] = useState("");
+
+  // ============================================================
+  // ROUTER
+  // ============================================================
 
   const location =
     useLocation();
@@ -243,18 +336,18 @@ const Layout: React.FC<LayoutProps> = ({
   const navigate =
     useNavigate();
 
-  // ==========================================================
+  // ============================================================
   // AUTHENTIFICATION
-  // ==========================================================
+  // ============================================================
 
   const {
     user,
     logout,
   } = useAuth();
 
-  // ==========================================================
+  // ============================================================
   // 🔔 NOTIFICATIONS CONNEXION / DÉCONNEXION
-  // ==========================================================
+  // ============================================================
 
   useExitNotifier({
     eventType: "connect",
@@ -513,17 +606,9 @@ const Layout: React.FC<LayoutProps> = ({
     const texteNettoye =
       texte.trim();
 
-    // ----------------------------------------------------------
-    // Texte vide
-    // ----------------------------------------------------------
-
     if (!texteNettoye) {
       return false;
     }
-
-    // ----------------------------------------------------------
-    // Éléments techniques
-    // ----------------------------------------------------------
 
     let element:
       | HTMLElement
@@ -550,10 +635,6 @@ const Layout: React.FC<LayoutProps> = ({
         return false;
       }
 
-      // --------------------------------------------------------
-      // Éléments explicitement exclus
-      // --------------------------------------------------------
-
       if (
         element.hasAttribute(
           "data-no-translate"
@@ -574,10 +655,6 @@ const Layout: React.FC<LayoutProps> = ({
         element.parentElement;
     }
 
-    // ----------------------------------------------------------
-    // Texte purement numérique / symbolique
-    // ----------------------------------------------------------
-
     if (
       /^[\d\s.,:%/+−\-×÷=<>()[\]{}]+$/.test(
         texteNettoye
@@ -585,10 +662,6 @@ const Layout: React.FC<LayoutProps> = ({
     ) {
       return false;
     }
-
-    // ----------------------------------------------------------
-    // Caractère isolé
-    // ----------------------------------------------------------
 
     if (
       texteNettoye.length === 1 &&
@@ -661,10 +734,6 @@ const Layout: React.FC<LayoutProps> = ({
       const resultat: Text[] =
         [];
 
-      // --------------------------------------------------------
-      // Text node
-      // --------------------------------------------------------
-
       if (
         node.nodeType ===
         Node.TEXT_NODE
@@ -684,10 +753,6 @@ const Layout: React.FC<LayoutProps> = ({
 
         return resultat;
       }
-
-      // --------------------------------------------------------
-      // Élément HTML
-      // --------------------------------------------------------
 
       if (
         node.nodeType !==
@@ -763,11 +828,6 @@ const Layout: React.FC<LayoutProps> = ({
       const texteActuel =
         node.textContent ?? "";
 
-      // --------------------------------------------------------
-      // Si c'est exactement notre dernière traduction,
-      // ne pas retraduire.
-      // --------------------------------------------------------
-
       const derniereTraduction =
         derniereTraductionRef.current.get(
           node
@@ -782,10 +842,6 @@ const Layout: React.FC<LayoutProps> = ({
         return;
       }
 
-      // --------------------------------------------------------
-      // Éviter les doublons
-      // --------------------------------------------------------
-
       if (
         mutationQueueRef.current.includes(
           node
@@ -797,10 +853,6 @@ const Layout: React.FC<LayoutProps> = ({
       mutationQueueRef.current.push(
         node
       );
-
-      // --------------------------------------------------------
-      // Lancer le traitement groupé
-      // --------------------------------------------------------
 
       if (
         mutationTimerRef.current ===
@@ -840,10 +892,6 @@ const Layout: React.FC<LayoutProps> = ({
       return;
     }
 
-    // ----------------------------------------------------------
-    // Séparer les textes déjà présents dans le cache
-    // ----------------------------------------------------------
-
     const textesSansCache:
       TexteTraduit[] = [];
 
@@ -853,10 +901,6 @@ const Layout: React.FC<LayoutProps> = ({
           cacheTraductionsRef.current.get(
             item.original
           );
-
-        // ------------------------------------------------------
-        // TRADUCTION DÉJÀ EN CACHE
-        // ------------------------------------------------------
 
         if (
           traductionEnCache !==
@@ -900,19 +944,11 @@ const Layout: React.FC<LayoutProps> = ({
       }
     );
 
-    // ----------------------------------------------------------
-    // Tout était déjà dans le cache
-    // ----------------------------------------------------------
-
     if (
       !textesSansCache.length
     ) {
       return;
     }
-
-    // ----------------------------------------------------------
-    // TEXTES À ENVOYER À ARGOS
-    // ----------------------------------------------------------
 
     const textesOriginaux =
       textesSansCache.map(
@@ -955,10 +991,6 @@ const Layout: React.FC<LayoutProps> = ({
     traductionMutationLockRef.current =
       true;
 
-    // ----------------------------------------------------------
-    // APPLIQUER LES NOUVELLES TRADUCTIONS
-    // ----------------------------------------------------------
-
     for (
       let index = 0;
       index <
@@ -984,10 +1016,6 @@ const Layout: React.FC<LayoutProps> = ({
         continue;
       }
 
-      // --------------------------------------------------------
-      // Sauvegarder le texte français
-      // --------------------------------------------------------
-
       const existeDeja =
         textesTraduitsRef.current.some(
           (ancien) =>
@@ -1005,35 +1033,19 @@ const Layout: React.FC<LayoutProps> = ({
         );
       }
 
-      // --------------------------------------------------------
-      // Mémoriser la traduction du noeud
-      // --------------------------------------------------------
-
       derniereTraductionRef.current.set(
         item.node,
         traduction
       );
-
-      // --------------------------------------------------------
-      // 💾 Ajouter au cache global
-      // --------------------------------------------------------
 
       cacheTraductionsRef.current.set(
         item.original,
         traduction
       );
 
-      // --------------------------------------------------------
-      // Remplacer dans le DOM
-      // --------------------------------------------------------
-
       item.node.textContent =
         traduction;
     }
-
-    // ----------------------------------------------------------
-    // 💾 Sauvegarder le cache
-    // ----------------------------------------------------------
 
     try {
       localStorage.setItem(
@@ -1050,10 +1062,6 @@ const Layout: React.FC<LayoutProps> = ({
         error
       );
     }
-
-    // ----------------------------------------------------------
-    // Laisser MutationObserver absorber les mutations
-    // ----------------------------------------------------------
 
     setTimeout(() => {
       traductionMutationLockRef.current =
@@ -1140,11 +1148,6 @@ const Layout: React.FC<LayoutProps> = ({
         );
       }
 
-      // --------------------------------------------------------
-      // Des mutations peuvent être arrivées pendant
-      // la traduction.
-      // --------------------------------------------------------
-
       if (
         traductionActiveRef.current &&
         mutationQueueRef.current
@@ -1179,11 +1182,6 @@ const Layout: React.FC<LayoutProps> = ({
         return;
       }
 
-      // --------------------------------------------------------
-      // Si une traduction est en train de modifier le DOM,
-      // on laisse cette opération se terminer.
-      // --------------------------------------------------------
-
       if (
         traductionMutationLockRef.current
       ) {
@@ -1193,10 +1191,6 @@ const Layout: React.FC<LayoutProps> = ({
       for (
         const mutation of mutations
       ) {
-        // ======================================================
-        // NOUVEAUX ÉLÉMENTS
-        // ======================================================
-
         if (
           mutation.type ===
           "childList"
@@ -1219,10 +1213,6 @@ const Layout: React.FC<LayoutProps> = ({
           );
         }
 
-        // ======================================================
-        // TEXTE MODIFIÉ
-        // ======================================================
-
         if (
           mutation.type ===
           "characterData"
@@ -1244,10 +1234,6 @@ const Layout: React.FC<LayoutProps> = ({
               node
             );
 
-          // ----------------------------------------------------
-          // Mutation créée par notre traduction
-          // ----------------------------------------------------
-
           if (
             derniereTraduction !==
               undefined &&
@@ -1256,10 +1242,6 @@ const Layout: React.FC<LayoutProps> = ({
           ) {
             continue;
           }
-
-          // ----------------------------------------------------
-          // Nouveau texte
-          // ----------------------------------------------------
 
           ajouterNoeudAFile(
             node
@@ -1360,18 +1342,9 @@ const Layout: React.FC<LayoutProps> = ({
           true
         );
 
-        // ------------------------------------------------------
-        // IMPORTANT :
-        // traduireLot utilise maintenant le cache.
-        // ------------------------------------------------------
-
         await traduireLot(
           textes
         );
-
-        // ------------------------------------------------------
-        // ACTIVER LE MODE ANGLAIS
-        // ------------------------------------------------------
 
         traductionActiveRef.current =
           true;
@@ -1380,19 +1353,10 @@ const Layout: React.FC<LayoutProps> = ({
           true
         );
 
-        // ------------------------------------------------------
-        // 💾 MÉMORISER LE CHOIX DE L'UTILISATEUR
-        // ------------------------------------------------------
-
         localStorage.setItem(
           CLE_LANGUE_TRADUCTION,
           "en"
         );
-
-        // ------------------------------------------------------
-        // Traiter les textes éventuellement apparus
-        // pendant la traduction initiale.
-        // ------------------------------------------------------
 
         setTimeout(() => {
           traductionMutationLockRef.current =
@@ -1424,10 +1388,6 @@ const Layout: React.FC<LayoutProps> = ({
           "Erreur traduction de la page :",
           error
         );
-
-        // ------------------------------------------------------
-        // RESTAURATION EN CAS D'ERREUR
-        // ------------------------------------------------------
 
         textesTraduitsRef.current.forEach(
           (item) => {
@@ -1480,18 +1440,10 @@ const Layout: React.FC<LayoutProps> = ({
 
   const restaurerFrancais =
     () => {
-      // --------------------------------------------------------
-      // 💾 Mémoriser le choix français
-      // --------------------------------------------------------
-
       localStorage.setItem(
         CLE_LANGUE_TRADUCTION,
         "fr"
       );
-
-      // --------------------------------------------------------
-      // Désactiver le système
-      // --------------------------------------------------------
 
       traductionActiveRef.current =
         false;
@@ -1500,18 +1452,10 @@ const Layout: React.FC<LayoutProps> = ({
         false
       );
 
-      // --------------------------------------------------------
-      // Arrêter l'observer
-      // --------------------------------------------------------
-
       observerRef.current?.disconnect();
 
       observerRef.current =
         null;
-
-      // --------------------------------------------------------
-      // Annuler le timer
-      // --------------------------------------------------------
 
       if (
         mutationTimerRef.current !==
@@ -1525,16 +1469,8 @@ const Layout: React.FC<LayoutProps> = ({
           null;
       }
 
-      // --------------------------------------------------------
-      // Vider la file
-      // --------------------------------------------------------
-
       mutationQueueRef.current =
         [];
-
-      // --------------------------------------------------------
-      // Restaurer les textes français
-      // --------------------------------------------------------
 
       traductionMutationLockRef.current =
         true;
@@ -1573,17 +1509,6 @@ const Layout: React.FC<LayoutProps> = ({
   // ============================================================
 
   useEffect(() => {
-    /**
-     * IMPORTANT :
-     *
-     * On ne restaure PLUS automatiquement le français
-     * lors d'un changement de route.
-     *
-     * Si l'utilisateur a choisi English, le mode anglais
-     * reste actif et le nouveau contenu de la page sera
-     * automatiquement détecté.
-     */
-
     if (
       !traductionActiveRef.current
     ) {
@@ -1645,6 +1570,350 @@ const Layout: React.FC<LayoutProps> = ({
         [];
     };
   }, []);
+
+  // ============================================================
+  // 🏫 LOGIQUE ECOLE
+  // ============================================================
+
+  /*
+   * Un apprenant simple est un utilisateur :
+   * - qui n'est pas admin ;
+   * - qui n'est pas enseignant.
+   *
+   * Le directeur est ensuite exclu avec schoolIsDirector.
+   */
+
+  const isSimpleLearner =
+    !!user &&
+    user.is_admin !== true &&
+    user.enseignant !== true;
+
+  // ============================================================
+  // 🏫 ACTUALISER L'ÉTAT DE L'ÉCOLE
+  // ============================================================
+
+  const refreshLearnerSchoolStatus =
+    async () => {
+      if (!isSimpleLearner) {
+        setSchoolCanChoose(false);
+        setSchoolIsDirector(false);
+        setSchoolMemberships([]);
+        return;
+      }
+
+      try {
+        const response =
+          await api.get<MySchoolResponse>(
+            "/api/schools/me"
+          );
+
+        const data =
+          response.data;
+
+        setSchoolCanChoose(
+          data?.can_choose_school ===
+            true
+        );
+
+        setSchoolIsDirector(
+          data?.is_director ===
+            true
+        );
+
+        setSchoolAcademicYear(
+          data?.academic_year ||
+            ""
+        );
+
+        setSchoolMemberships(
+          data?.memberships ||
+            []
+        );
+      } catch (error) {
+        console.error(
+          "Erreur récupération état école :",
+          error
+        );
+
+        setSchoolCanChoose(false);
+        setSchoolIsDirector(false);
+      }
+    };
+
+  // ============================================================
+  // 🏫 CHARGEMENT AUTOMATIQUE DE L'ÉTAT ECOLE
+  // ============================================================
+
+  useEffect(() => {
+    if (!user) {
+      setSchoolCanChoose(false);
+      setSchoolIsDirector(false);
+      setSchoolMemberships([]);
+      return;
+    }
+
+    void refreshLearnerSchoolStatus();
+  }, [
+    user?.id,
+    user?.is_admin,
+    user?.enseignant,
+    location.pathname,
+  ]);
+
+  // ============================================================
+  // 🏫 RAFRAÎCHISSEMENT PÉRIODIQUE
+  // ============================================================
+
+  /*
+   * Toutes les heures, on vérifie auprès du backend.
+   *
+   * Cela permet notamment de détecter le changement
+   * d'année scolaire même si l'apprenant garde
+   * CODE ouvert.
+   *
+   * Le backend reste la source de vérité pour
+   * le 1er septembre.
+   */
+
+  useEffect(() => {
+    if (!isSimpleLearner) {
+      return;
+    }
+
+    const interval =
+      setInterval(() => {
+        void refreshLearnerSchoolStatus();
+      }, 60 * 60 * 1000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [
+    user?.id,
+    user?.is_admin,
+    user?.enseignant,
+  ]);
+
+  // ============================================================
+  // 🏫 CHARGER LES ÉCOLES
+  // ============================================================
+
+  const loadSchoolData =
+    async () => {
+      if (!isSimpleLearner) {
+        return;
+      }
+
+      setSchoolLoading(true);
+      setSchoolError("");
+      setSchoolSuccess("");
+
+      try {
+        const [
+          schoolsResponse,
+          meResponse,
+        ] = await Promise.all([
+          api.get<
+            | SchoolItem[]
+            | {
+                schools?: SchoolItem[];
+              }
+          >(
+            "/api/schools"
+          ),
+          api.get<MySchoolResponse>(
+            "/api/schools/me"
+          ),
+        ]);
+
+        const schoolsData =
+          schoolsResponse.data;
+
+        const availableSchools =
+          Array.isArray(
+            schoolsData
+          )
+            ? schoolsData
+            : schoolsData?.schools ||
+              [];
+
+        setSchools(
+          availableSchools.filter(
+            (school) =>
+              school.is_active !== false
+          )
+        );
+
+        setSchoolMemberships(
+          meResponse.data
+            ?.memberships || []
+        );
+
+        setSchoolCanChoose(
+          meResponse.data
+            ?.can_choose_school ===
+            true
+        );
+
+        setSchoolIsDirector(
+          meResponse.data
+            ?.is_director ===
+            true
+        );
+
+        setSchoolAcademicYear(
+          meResponse.data
+            ?.academic_year || ""
+        );
+      } catch (error: any) {
+        console.error(
+          "Erreur chargement des écoles :",
+          error
+        );
+
+        setSchoolError(
+          error?.response?.data
+            ?.detail ||
+            "Impossible de charger les écoles."
+        );
+      } finally {
+        setSchoolLoading(false);
+      }
+    };
+
+  // ============================================================
+  // 🏫 OUVRIR MODALE ÉCOLE
+  // ============================================================
+
+  const handleOpenSchoolModal =
+    async () => {
+      setSchoolModalOpen(true);
+      setSchoolError("");
+      setSchoolSuccess("");
+
+      await loadSchoolData();
+    };
+
+  // ============================================================
+  // 🏫 FERMER MODALE ÉCOLE
+  // ============================================================
+
+  const handleCloseSchoolModal =
+    () => {
+      if (
+        schoolSubmitting !==
+        null
+      ) {
+        return;
+      }
+
+      setSchoolModalOpen(false);
+      setSchoolError("");
+      setSchoolSuccess("");
+    };
+
+  // ============================================================
+  // 🏫 DEMANDER UNE ÉCOLE
+  // ============================================================
+
+  const handleSchoolRequest =
+    async (
+      schoolId: number
+    ) => {
+      setSchoolSubmitting(
+        schoolId
+      );
+
+      setSchoolError("");
+      setSchoolSuccess("");
+
+      try {
+        await api.post(
+          "/api/schools/request",
+          {
+            school_id:
+              schoolId,
+          }
+        );
+
+        setSchoolSuccess(
+          "Votre demande a été envoyée. Elle doit maintenant être validée par le directeur de l'école."
+        );
+
+        /*
+         * Actualiser immédiatement la liste
+         * et surtout can_choose_school.
+         */
+
+        await loadSchoolData();
+
+        await refreshLearnerSchoolStatus();
+      } catch (error: any) {
+        console.error(
+          "Erreur demande école :",
+          error
+        );
+
+        setSchoolError(
+          error?.response?.data
+            ?.detail ||
+            "Impossible d'envoyer votre demande."
+        );
+      } finally {
+        setSchoolSubmitting(
+          null
+        );
+      }
+    };
+
+  // ============================================================
+  // 🏫 BOUTON CHOIX ECOLE
+  // ============================================================
+
+  /*
+   * Le backend décide si l'apprenant peut choisir.
+   *
+   * Donc :
+   *
+   * admin       => false
+   * enseignant  => false
+   * directeur   => false
+   * pending     => false
+   * approved    => false
+   * rejected    => true
+   * nouvelle année => true si aucune école
+   */
+
+  const showSchoolChoiceButton =
+    isSimpleLearner &&
+    !schoolIsDirector &&
+    schoolCanChoose;
+
+  // ============================================================
+  // 🏫 ÉCOLE EN ATTENTE
+  // ============================================================
+
+  const currentPendingSchool =
+    schoolMemberships.find(
+      (membership) =>
+        membership.role ===
+          "student" &&
+        membership.status ===
+          "pending"
+    );
+
+  // ============================================================
+  // 🏫 ÉCOLE VALIDÉE
+  // ============================================================
+
+  const currentApprovedSchool =
+    schoolMemberships.find(
+      (membership) =>
+        membership.role ===
+          "student" &&
+        membership.status ===
+          "approved"
+    );
 
   // ============================================================
   // 🔴 DÉCONNEXION
@@ -1728,6 +1997,7 @@ const Layout: React.FC<LayoutProps> = ({
         flex-col
       "
     >
+
       {/* ======================================================
           🌆 FOND DYNAMIQUE
           ====================================================== */}
@@ -1769,10 +2039,6 @@ const Layout: React.FC<LayoutProps> = ({
 
       {/* ======================================================
           🌐 BOUTON TRADUCTION
-          
-          IMPORTANT :
-          Ce bouton est TOUJOURS présent.
-          Il permet de passer de FR → EN puis EN → FR.
           ====================================================== */}
 
       <div
@@ -1861,10 +2127,6 @@ const Layout: React.FC<LayoutProps> = ({
             </span>
           </button>
 
-          {/* --------------------------------------------------
-              INFO AU SURVOL
-              -------------------------------------------------- */}
-
           <span
             className="
               absolute
@@ -1928,8 +2190,9 @@ const Layout: React.FC<LayoutProps> = ({
 
       {user && (
         <>
+
           {/* ==================================================
-              🖥️ DESKTOP
+              🖥️ DESKTOP — DÉCONNEXION
               ================================================== */}
 
           <div
@@ -1946,10 +2209,6 @@ const Layout: React.FC<LayoutProps> = ({
               gap-3
             "
           >
-            {/* =================================================
-                🔴 DÉCONNEXION
-                ================================================= */}
-
             <div
               className="
                 group
@@ -2009,7 +2268,7 @@ const Layout: React.FC<LayoutProps> = ({
 
           {/* ==================================================
               🖥️ DESKTOP
-              BOUTONS QUESTIONS / ENSEIGNANT / FILLEULS
+              BOUTONS ECOLE / QUESTIONS / ENSEIGNANT / FILLEULS
               ================================================== */}
 
           <div
@@ -2026,6 +2285,69 @@ const Layout: React.FC<LayoutProps> = ({
               gap-3
             "
           >
+
+            {/* =================================================
+                🏫 CHOISIR MON ÉCOLE
+                ================================================= */}
+
+            {showSchoolChoiceButton && (
+              <div
+                className="
+                  group
+                  relative
+                "
+              >
+                <button
+                  onClick={
+                    handleOpenSchoolModal
+                  }
+                  className="
+                    bg-blue-600
+                    hover:bg-blue-700
+                    text-white
+                    p-3
+                    rounded-full
+                    shadow-lg
+                    transition-all
+                    duration-300
+                    transform
+                    hover:scale-110
+                    focus:outline-none
+                    focus:ring-2
+                    focus:ring-blue-500
+                  "
+                  aria-label="Choisir mon école"
+                >
+                  <School
+                    size={22}
+                  />
+                </button>
+
+                <span
+                  className="
+                    absolute
+                    right-14
+                    top-1/2
+                    -translate-y-1/2
+                    opacity-0
+                    group-hover:opacity-100
+                    bg-black/80
+                    text-white
+                    text-xs
+                    rounded-md
+                    px-2
+                    py-1
+                    whitespace-nowrap
+                    transition-opacity
+                    duration-300
+                    pointer-events-none
+                  "
+                >
+                  Choisir mon école
+                </span>
+              </div>
+            )}
+
             {/* =================================================
                 💬 QUESTIONS
                 ================================================= */}
@@ -2238,6 +2560,40 @@ const Layout: React.FC<LayoutProps> = ({
               gap-3
             "
           >
+
+            {/* =================================================
+                🏫 ECOLE
+                ================================================= */}
+
+            {showSchoolChoiceButton && (
+              <button
+                onClick={
+                  handleOpenSchoolModal
+                }
+                className="
+                  bg-blue-600
+                  hover:bg-blue-700
+                  text-white
+                  p-4
+                  rounded-full
+                  shadow-xl
+                  transition-all
+                  duration-300
+                  transform
+                  hover:scale-110
+                  focus:outline-none
+                  focus:ring-2
+                  focus:ring-blue-500
+                "
+                aria-label="Choisir mon école"
+                title="Choisir mon école"
+              >
+                <School
+                  size={24}
+                />
+              </button>
+            )}
+
             {/* =================================================
                 🔴 DÉCONNEXION
                 ================================================= */}
@@ -2402,12 +2758,6 @@ const Layout: React.FC<LayoutProps> = ({
 
       {/* ======================================================
           🇧🇯 FOOTER
-
-          ⚠️ IMPORTANT :
-          Il n'y a volontairement PAS de
-          data-no-translate ici.
-
-          Le footer sera donc traduit lui aussi.
           ====================================================== */}
 
       {!hideFooter && (
@@ -2525,7 +2875,6 @@ const Layout: React.FC<LayoutProps> = ({
                 text-shadow:
                   0 0 4px
                   rgba(0,0,0,0.6);
-
                 color:
                   black;
               }
@@ -2534,7 +2883,6 @@ const Layout: React.FC<LayoutProps> = ({
                 text-shadow:
                   0 0 10px
                   rgba(255,255,0,0.8);
-
                 color:
                   #222200;
               }
@@ -2548,6 +2896,733 @@ const Layout: React.FC<LayoutProps> = ({
           `}</style>
         </footer>
       )}
+
+      {/* ======================================================
+          🏫 MODALE — CHOIX DE L'ÉCOLE
+          ====================================================== */}
+
+      {schoolModalOpen && (
+        <div
+          data-no-translate
+          className="
+            fixed
+            inset-0
+            z-[100]
+            flex
+            items-center
+            justify-center
+            bg-black/60
+            p-4
+          "
+          onClick={
+            handleCloseSchoolModal
+          }
+        >
+          <div
+            className="
+              relative
+              w-full
+              max-w-2xl
+              max-h-[90vh]
+              overflow-hidden
+              rounded-2xl
+              bg-white
+              shadow-2xl
+            "
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+          >
+
+            {/* ==================================================
+                HEADER MODALE
+                ================================================== */}
+
+            <div
+              className="
+                flex
+                items-center
+                justify-between
+                border-b
+                border-gray-200
+                px-5
+                py-4
+              "
+            >
+              <div>
+                <h2
+                  className="
+                    text-xl
+                    font-bold
+                    text-gray-900
+                  "
+                >
+                  Choisir mon école
+                </h2>
+
+                {schoolAcademicYear && (
+                  <p
+                    className="
+                      mt-1
+                      text-sm
+                      text-gray-500
+                    "
+                  >
+                    Année scolaire{" "}
+                    {schoolAcademicYear}
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={
+                  handleCloseSchoolModal
+                }
+                disabled={
+                  schoolSubmitting !==
+                  null
+                }
+                className="
+                  rounded-full
+                  p-2
+                  text-gray-500
+                  hover:bg-gray-100
+                  hover:text-gray-800
+                  transition
+                "
+                aria-label="Fermer"
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            {/* ==================================================
+                CONTENU
+                ================================================== */}
+
+            <div
+              className="
+                max-h-[calc(90vh-80px)]
+                overflow-y-auto
+                p-5
+              "
+            >
+
+              {/* ==================================================
+                  SUCCÈS
+                  ================================================== */}
+
+              {schoolSuccess && (
+                <div
+                  className="
+                    mb-4
+                    flex
+                    items-start
+                    gap-3
+                    rounded-xl
+                    border
+                    border-green-200
+                    bg-green-50
+                    p-4
+                    text-green-800
+                  "
+                >
+                  <CheckCircle2
+                    size={20}
+                    className="
+                      mt-0.5
+                      shrink-0
+                    "
+                  />
+
+                  <p className="text-sm">
+                    {schoolSuccess}
+                  </p>
+                </div>
+              )}
+
+              {/* ==================================================
+                  ERREUR
+                  ================================================== */}
+
+              {schoolError && (
+                <div
+                  className="
+                    mb-4
+                    rounded-xl
+                    border
+                    border-red-200
+                    bg-red-50
+                    p-4
+                    text-sm
+                    text-red-700
+                  "
+                >
+                  {schoolError}
+                </div>
+              )}
+
+              {/* ==================================================
+                  DEMANDE EN ATTENTE
+                  ================================================== */}
+
+              {currentPendingSchool && (
+                <div
+                  className="
+                    mb-5
+                    flex
+                    items-start
+                    gap-3
+                    rounded-xl
+                    border
+                    border-yellow-200
+                    bg-yellow-50
+                    p-4
+                  "
+                >
+                  <Clock3
+                    size={21}
+                    className="
+                      mt-0.5
+                      shrink-0
+                      text-yellow-600
+                    "
+                  />
+
+                  <div>
+                    <p
+                      className="
+                        font-semibold
+                        text-yellow-900
+                      "
+                    >
+                      Demande en attente
+                    </p>
+
+                    <p
+                      className="
+                        mt-1
+                        text-sm
+                        text-yellow-800
+                      "
+                    >
+                      Votre demande pour{" "}
+                      <strong>
+                        {
+                          currentPendingSchool.school_name
+                        }
+                      </strong>{" "}
+                      est en attente de validation
+                      par le directeur.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* ==================================================
+                  ÉCOLE VALIDÉE
+                  ================================================== */}
+
+              {currentApprovedSchool && (
+                <div
+                  className="
+                    mb-5
+                    flex
+                    items-start
+                    gap-3
+                    rounded-xl
+                    border
+                    border-green-200
+                    bg-green-50
+                    p-4
+                  "
+                >
+                  <CheckCircle2
+                    size={21}
+                    className="
+                      mt-0.5
+                      shrink-0
+                      text-green-600
+                    "
+                  />
+
+                  <div>
+                    <p
+                      className="
+                        font-semibold
+                        text-green-900
+                      "
+                    >
+                      École actuelle
+                    </p>
+
+                    <p
+                      className="
+                        mt-1
+                        text-sm
+                        text-green-800
+                      "
+                    >
+                      Vous êtes inscrit à{" "}
+                      <strong>
+                        {
+                          currentApprovedSchool.school_name
+                        }
+                      </strong>
+                      .
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* ==================================================
+                  CHARGEMENT
+                  ================================================== */}
+
+              {schoolLoading ? (
+                <div
+                  className="
+                    flex
+                    min-h-[200px]
+                    items-center
+                    justify-center
+                  "
+                >
+                  <div
+                    className="
+                      flex
+                      items-center
+                      gap-3
+                      text-gray-600
+                    "
+                  >
+                    <Loader2
+                      size={24}
+                      className="
+                        animate-spin
+                      "
+                    />
+
+                    <span>
+                      Chargement des écoles...
+                    </span>
+                  </div>
+                </div>
+              ) : schools.length === 0 ? (
+
+                /* ==================================================
+                   AUCUNE ECOLE
+                   ================================================== */
+
+                <div
+                  className="
+                    rounded-xl
+                    bg-gray-50
+                    p-6
+                    text-center
+                    text-gray-600
+                  "
+                >
+                  Aucune école disponible
+                  actuellement.
+                </div>
+
+              ) : (
+
+                /* ==================================================
+                   LISTE DES ECOLES
+                   ================================================== */
+
+                <div
+                  className="
+                    space-y-3
+                  "
+                >
+                  {schools.map(
+                    (school) => {
+                      const membership =
+                        schoolMemberships.find(
+                          (item) =>
+                            item.school_id ===
+                            school.id
+                        );
+
+                      const isPending =
+                        membership?.status ===
+                        "pending";
+
+                      const isApproved =
+                        membership?.status ===
+                        "approved";
+
+                      const isRejected =
+                        membership?.status ===
+                        "rejected";
+
+                      const isSubmitting =
+                        schoolSubmitting ===
+                        school.id;
+
+                      return (
+                        <div
+                          key={school.id}
+                          className="
+                            rounded-xl
+                            border
+                            border-gray-200
+                            p-4
+                            transition
+                            hover:border-blue-300
+                            hover:shadow-sm
+                          "
+                        >
+                          <div
+                            className="
+                              flex
+                              flex-col
+                              gap-4
+                              sm:flex-row
+                              sm:items-center
+                              sm:justify-between
+                            "
+                          >
+
+                            {/* ==================================
+                                INFORMATIONS ECOLE
+                                ================================== */}
+
+                            <div
+                              className="
+                                min-w-0
+                              "
+                            >
+                              <div
+                                className="
+                                  flex
+                                  items-center
+                                  gap-2
+                                "
+                              >
+                                <School
+                                  size={20}
+                                  className="
+                                    shrink-0
+                                    text-blue-600
+                                  "
+                                />
+
+                                <h3
+                                  className="
+                                    font-semibold
+                                    text-gray-900
+                                  "
+                                >
+                                  {school.nom}
+                                </h3>
+                              </div>
+
+                              {(school.ville ||
+                                school.adresse) && (
+                                <p
+                                  className="
+                                    mt-1
+                                    text-sm
+                                    text-gray-500
+                                  "
+                                >
+                                  {school.ville &&
+                                    school.ville}
+
+                                  {school.ville &&
+                                    school.adresse &&
+                                    " — "}
+
+                                  {school.adresse &&
+                                    school.adresse}
+                                </p>
+                              )}
+
+                              {school.pays && (
+                                <p
+                                  className="
+                                    mt-1
+                                    text-xs
+                                    text-gray-400
+                                  "
+                                >
+                                  {school.pays}
+                                </p>
+                              )}
+
+                              {/* ================================
+                                  STATUT
+                                  ================================ */}
+
+                              {membership && (
+                                <div
+                                  className="
+                                    mt-2
+                                  "
+                                >
+                                  {isPending && (
+                                    <span
+                                      className="
+                                        inline-flex
+                                        items-center
+                                        gap-1.5
+                                        rounded-full
+                                        bg-yellow-100
+                                        px-3
+                                        py-1
+                                        text-xs
+                                        font-medium
+                                        text-yellow-800
+                                      "
+                                    >
+                                      <Clock3
+                                        size={14}
+                                      />
+
+                                      Demande en attente
+                                    </span>
+                                  )}
+
+                                  {isApproved && (
+                                    <span
+                                      className="
+                                        inline-flex
+                                        items-center
+                                        gap-1.5
+                                        rounded-full
+                                        bg-green-100
+                                        px-3
+                                        py-1
+                                        text-xs
+                                        font-medium
+                                        text-green-800
+                                      "
+                                    >
+                                      <CheckCircle2
+                                        size={14}
+                                      />
+
+                                      École validée
+                                    </span>
+                                  )}
+
+                                  {isRejected && (
+                                    <span
+                                      className="
+                                        inline-flex
+                                        items-center
+                                        gap-1.5
+                                        rounded-full
+                                        bg-red-100
+                                        px-3
+                                        py-1
+                                        text-xs
+                                        font-medium
+                                        text-red-800
+                                      "
+                                    >
+                                      Demande rejetée
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* ==================================
+                                BOUTON
+                                ================================== */}
+
+                            <div
+                              className="
+                                shrink-0
+                              "
+                            >
+
+                              {isApproved ? (
+
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="
+                                    flex
+                                    w-full
+                                    items-center
+                                    justify-center
+                                    gap-2
+                                    rounded-lg
+                                    bg-green-100
+                                    px-4
+                                    py-2.5
+                                    text-sm
+                                    font-semibold
+                                    text-green-700
+                                    sm:w-auto
+                                  "
+                                >
+                                  <CheckCircle2
+                                    size={17}
+                                  />
+
+                                  Validée
+                                </button>
+
+                              ) : isPending ? (
+
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="
+                                    flex
+                                    w-full
+                                    items-center
+                                    justify-center
+                                    gap-2
+                                    rounded-lg
+                                    bg-yellow-100
+                                    px-4
+                                    py-2.5
+                                    text-sm
+                                    font-semibold
+                                    text-yellow-700
+                                    sm:w-auto
+                                  "
+                                >
+                                  <Clock3
+                                    size={17}
+                                  />
+
+                                  En attente
+                                </button>
+
+                              ) : (
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleSchoolRequest(
+                                      school.id
+                                    )
+                                  }
+                                  disabled={
+                                    isSubmitting ||
+                                    !schoolCanChoose
+                                  }
+                                  className="
+                                    flex
+                                    w-full
+                                    items-center
+                                    justify-center
+                                    gap-2
+                                    rounded-lg
+                                    bg-blue-600
+                                    px-4
+                                    py-2.5
+                                    text-sm
+                                    font-semibold
+                                    text-white
+                                    hover:bg-blue-700
+                                    disabled:cursor-not-allowed
+                                    disabled:opacity-60
+                                    sm:w-auto
+                                  "
+                                >
+                                  {isSubmitting ? (
+                                    <>
+                                      <Loader2
+                                        size={17}
+                                        className="
+                                          animate-spin
+                                        "
+                                      />
+
+                                      Envoi...
+                                    </>
+                                  ) : isRejected ? (
+                                    "Demander à nouveau"
+                                  ) : (
+                                    "Choisir cette école"
+                                  )}
+                                </button>
+                              )}
+
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
+              )}
+
+              {/* ==================================================
+                  INFORMATIONS
+                  ================================================== */}
+
+              <div
+                className="
+                  mt-5
+                  rounded-xl
+                  border
+                  border-blue-100
+                  bg-blue-50
+                  p-4
+                  text-sm
+                  text-blue-800
+                "
+              >
+                <p
+                  className="
+                    font-semibold
+                  "
+                >
+                  Fonctionnement
+                </p>
+
+                <ul
+                  className="
+                    mt-2
+                    list-disc
+                    space-y-1
+                    pl-5
+                  "
+                >
+                  <li>
+                    Vous choisissez une école
+                    pour l'année scolaire en cours.
+                  </li>
+
+                  <li>
+                    Votre demande doit être validée
+                    par le directeur de l'école.
+                  </li>
+
+                  <li>
+                    En tant qu'apprenant, vous ne
+                    pouvez avoir qu'une seule école
+                    active pour l'année scolaire.
+                  </li>
+
+                  <li>
+                    Une nouvelle sélection est
+                    possible à partir du{" "}
+                    <strong>
+                      1er septembre
+                    </strong>{" "}
+                    de la nouvelle année scolaire.
+                  </li>
+                </ul>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

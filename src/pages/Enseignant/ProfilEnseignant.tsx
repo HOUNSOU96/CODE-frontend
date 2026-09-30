@@ -22,6 +22,11 @@ import {
   CircleCheck,
   ImagePlus,
   ChevronRight,
+  Building2,
+  X,
+  Search,
+  Clock3,
+  Plus,
 } from "lucide-react";
 
 import api from "@/utils/axios";
@@ -42,6 +47,35 @@ type TeacherProfile = {
   teacher_profile_validated: boolean;
   enseignant: boolean;
   enseignant_actif: boolean;
+};
+
+type School = {
+  id: number;
+  nom: string;
+  adresse: string | null;
+  ville: string | null;
+  pays: string | null;
+  email: string | null;
+  telephone: string | null;
+  is_active?: boolean;
+};
+
+type SchoolMembership = {
+  membership_id: number;
+  school_id: number;
+  school_name: string;
+  role: string;
+  status: "pending" | "approved" | "rejected";
+  academic_year: string;
+  requested_at: string | null;
+  approved_at: string | null;
+};
+
+type MySchoolInformation = {
+  role: "teacher" | "student";
+  academic_year: string;
+  can_choose_school: boolean;
+  memberships: SchoolMembership[];
 };
 
 // ============================================================
@@ -71,6 +105,34 @@ const ProfilEnseignant: React.FC = () => {
 
   const [success, setSuccess] =
     useState("");
+
+  // ==========================================================
+  // ÉCOLES
+  // ==========================================================
+
+  const [schoolModalOpen, setSchoolModalOpen] =
+    useState(false);
+
+  const [schools, setSchools] =
+    useState<School[]>([]);
+
+  const [mySchoolInformation, setMySchoolInformation] =
+    useState<MySchoolInformation | null>(null);
+
+  const [schoolsLoading, setSchoolsLoading] =
+    useState(false);
+
+  const [schoolError, setSchoolError] =
+    useState("");
+
+  const [schoolSuccess, setSchoolSuccess] =
+    useState("");
+
+  const [schoolSearch, setSchoolSearch] =
+    useState("");
+
+  const [requestingSchoolId, setRequestingSchoolId] =
+    useState<number | null>(null);
 
   // ==========================================================
   // CHARGEMENT DU PROFIL
@@ -133,6 +195,186 @@ const ProfilEnseignant: React.FC = () => {
       }
     };
   }, [preview]);
+
+  // ==========================================================
+  // CHARGER LES INFORMATIONS DES ÉCOLES
+  // ==========================================================
+
+  const loadSchoolInformation = async () => {
+    try {
+      setSchoolsLoading(true);
+      setSchoolError("");
+      setSchoolSuccess("");
+
+      const [schoolsResponse, mySchoolResponse] =
+        await Promise.all([
+          api.get<
+            | School[]
+            | {
+                schools: School[];
+              }
+          >("/api/schools"),
+
+          api.get<MySchoolInformation>(
+            "/api/schools/me"
+          ),
+        ]);
+
+      // --------------------------------------------------------
+      // LISTE DES ÉCOLES PRÉSENTES DANS LA BASE DE DONNÉES
+      // --------------------------------------------------------
+
+      const rawSchools = Array.isArray(
+        schoolsResponse.data
+      )
+        ? schoolsResponse.data
+        : schoolsResponse.data?.schools || [];
+
+      // --------------------------------------------------------
+      // NE PROPOSER QUE LES ÉCOLES ACTIVES
+      // --------------------------------------------------------
+
+      const activeSchools = rawSchools.filter(
+        (school) =>
+          school.is_active !== false
+      );
+
+      setSchools(activeSchools);
+
+      setMySchoolInformation(
+        mySchoolResponse.data
+      );
+    } catch (err: any) {
+      console.error(
+        "Erreur récupération des écoles :",
+        err
+      );
+
+      const message =
+        err?.response?.data?.detail ||
+        "Impossible de récupérer les écoles.";
+
+      setSchoolError(message);
+    } finally {
+      setSchoolsLoading(false);
+    }
+  };
+
+  // ==========================================================
+  // OUVRIR LA FENÊTRE DES ÉCOLES
+  // ==========================================================
+
+  const handleOpenSchoolModal = async () => {
+    setSchoolModalOpen(true);
+    setSchoolSearch("");
+    setSchoolError("");
+    setSchoolSuccess("");
+
+    await loadSchoolInformation();
+  };
+
+  // ==========================================================
+  // FERMER LA FENÊTRE
+  // ==========================================================
+
+  const handleCloseSchoolModal = () => {
+    if (requestingSchoolId !== null) {
+      return;
+    }
+
+    setSchoolModalOpen(false);
+    setSchoolSearch("");
+    setSchoolError("");
+    setSchoolSuccess("");
+  };
+
+  // ==========================================================
+  // DEMANDER UNE ÉCOLE
+  // ==========================================================
+
+  const handleRequestSchool = async (
+    school: School
+  ) => {
+    try {
+      setRequestingSchoolId(school.id);
+      setSchoolError("");
+      setSchoolSuccess("");
+
+      const response =
+        await api.post(
+          "/api/schools/request",
+          {
+            school_id: school.id,
+          }
+        );
+
+      setSchoolSuccess(
+        response.data?.message ||
+          "Votre demande a été envoyée au directeur de l'école."
+      );
+
+      // Recharger immédiatement les états
+      // pour afficher "En attente".
+      await loadSchoolInformation();
+
+    } catch (err: any) {
+      console.error(
+        "Erreur demande d'école :",
+        err
+      );
+
+      const message =
+        err?.response?.data?.detail ||
+        "Impossible d'envoyer votre demande d'école.";
+
+      setSchoolError(message);
+    } finally {
+      setRequestingSchoolId(null);
+    }
+  };
+
+  // ==========================================================
+  // VÉRIFIER LE STATUT D'UNE ÉCOLE
+  // ==========================================================
+
+  const getSchoolMembership = (
+    schoolId: number
+  ): SchoolMembership | undefined => {
+    return mySchoolInformation?.memberships?.find(
+      (membership) =>
+        membership.school_id === schoolId
+    );
+  };
+
+  // ==========================================================
+  // FILTRER LES ÉCOLES
+  // ==========================================================
+
+  const filteredSchools = schools.filter(
+    (school) => {
+      const search =
+        schoolSearch.trim().toLowerCase();
+
+      if (!search) {
+        return true;
+      }
+
+      return (
+        school.nom
+          ?.toLowerCase()
+          .includes(search) ||
+        school.ville
+          ?.toLowerCase()
+          .includes(search) ||
+        school.pays
+          ?.toLowerCase()
+          .includes(search) ||
+        school.adresse
+          ?.toLowerCase()
+          .includes(search)
+      );
+    }
+  );
 
   // ==========================================================
   // CHOIX DE LA PHOTO
@@ -420,16 +662,36 @@ const ProfilEnseignant: React.FC = () => {
 
           </div>
 
-          {profile.teacher_profile_validated && (
+          <div className="flex flex-col gap-2 sm:flex-row">
+
+            {/* =================================================
+                BOUTON MES ÉCOLES
+            ================================================== */}
+
             <button
               type="button"
-              onClick={handleContinue}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-700 dark:hover:bg-slate-800 dark:hover:text-blue-300"
+              onClick={handleOpenSchoolModal}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-100 hover:text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:border-blue-700 dark:hover:bg-blue-900/50"
             >
-              <ArrowRight className="h-4 w-4" />
-              Mon espace enseignant
+              <Building2 className="h-4 w-4" />
+
+              Mes écoles
+
+              <ChevronRight className="h-4 w-4" />
             </button>
-          )}
+
+            {profile.teacher_profile_validated && (
+              <button
+                type="button"
+                onClick={handleContinue}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-700 dark:hover:bg-slate-800 dark:hover:text-blue-300"
+              >
+                <ArrowRight className="h-4 w-4" />
+                Mon espace enseignant
+              </button>
+            )}
+
+          </div>
 
         </div>
 
@@ -1109,7 +1371,7 @@ const ProfilEnseignant: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleContinue}
-                      className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-emerald-500/20 transition hover:-translate-y-0.5 hover:from-emerald-700 hover:to-teal-700 hover:shadow-xl"
+                      className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-emerald-500/20 transition hover:-translate-y-0.5 hover:from-emerald-700 hover:to-emerald-700 hover:shadow-xl"
                     >
 
                       Continuer vers mon espace enseignant
@@ -1160,6 +1422,463 @@ const ProfilEnseignant: React.FC = () => {
         </div>
 
       </div>
+
+      {/* =======================================================
+          MODALE — CHOIX / GESTION DES ÉCOLES
+      ======================================================== */}
+
+      {schoolModalOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (
+              event.target === event.currentTarget &&
+              requestingSchoolId === null
+            ) {
+              handleCloseSchoolModal();
+            }
+          }}
+        >
+
+          <div
+            className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="school-modal-title"
+          >
+
+            {/* =================================================
+                EN-TÊTE
+            ================================================== */}
+
+            <div className="shrink-0 border-b border-slate-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50 px-5 py-5 dark:border-slate-800 dark:from-blue-950/60 dark:via-slate-950 dark:to-indigo-950/60 sm:px-7">
+
+              <div className="flex items-start justify-between gap-4">
+
+                <div className="flex items-start gap-3">
+
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">
+
+                    <Building2
+                      size={23}
+                    />
+
+                  </div>
+
+                  <div>
+
+                    <h2
+                      id="school-modal-title"
+                      className="text-xl font-black text-slate-900 dark:text-white"
+                    >
+                      Mes écoles
+                    </h2>
+
+                    <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                      Ajoutez les établissements dans lesquels
+                      vous enseignez.
+                    </p>
+
+                    {mySchoolInformation && (
+                      <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/50 dark:text-blue-300">
+
+                        <span>
+                          Année scolaire :
+                        </span>
+
+                        <span>
+                          {mySchoolInformation.academic_year}
+                        </span>
+
+                      </div>
+                    )}
+
+                  </div>
+
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCloseSchoolModal}
+                  disabled={
+                    requestingSchoolId !== null
+                  }
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-red-900/60 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+                  aria-label="Fermer"
+                >
+                  <X size={20} />
+                </button>
+
+              </div>
+
+              {/* =================================================
+                  RECHERCHE
+              ================================================== */}
+
+              <div className="relative mt-5">
+
+                <Search
+                  size={18}
+                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+
+                <input
+                  type="text"
+                  value={schoolSearch}
+                  onChange={(event) =>
+                    setSchoolSearch(
+                      event.target.value
+                    )
+                  }
+                  placeholder="Rechercher une école, une ville..."
+                  className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 dark:border-slate-800 dark:bg-slate-900 dark:text-white dark:focus:border-blue-700"
+                />
+
+              </div>
+
+            </div>
+
+            {/* =================================================
+                CONTENU
+            ================================================== */}
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-7">
+
+              {/* ERREUR */}
+
+              {schoolError && (
+                <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/25">
+
+                  <div className="flex items-start gap-3">
+
+                    <AlertCircle
+                      size={19}
+                      className="mt-0.5 shrink-0 text-red-600 dark:text-red-400"
+                    />
+
+                    <p className="text-sm font-semibold leading-6 text-red-700 dark:text-red-300">
+                      {schoolError}
+                    </p>
+
+                  </div>
+
+                </div>
+              )}
+
+              {/* SUCCÈS */}
+
+              {schoolSuccess && (
+                <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/25">
+
+                  <div className="flex items-start gap-3">
+
+                    <CheckCircle
+                      size={19}
+                      className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"
+                    />
+
+                    <p className="text-sm font-semibold leading-6 text-emerald-700 dark:text-emerald-300">
+                      {schoolSuccess}
+                    </p>
+
+                  </div>
+
+                </div>
+              )}
+
+              {/* CHARGEMENT */}
+
+              {schoolsLoading ? (
+                <div className="flex min-h-[280px] flex-col items-center justify-center">
+
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 dark:bg-blue-950/60">
+
+                    <Loader2
+                      size={27}
+                      className="animate-spin text-blue-600 dark:text-blue-400"
+                    />
+
+                  </div>
+
+                  <p className="mt-4 text-sm font-bold text-slate-700 dark:text-slate-200">
+                    Chargement des écoles...
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                    Veuillez patienter
+                  </p>
+
+                </div>
+              ) : filteredSchools.length === 0 ? (
+
+                <div className="flex min-h-[280px] flex-col items-center justify-center text-center">
+
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-900">
+
+                    <Building2
+                      size={29}
+                      className="text-slate-400 dark:text-slate-500"
+                    />
+
+                  </div>
+
+                  <h3 className="mt-5 text-lg font-black text-slate-900 dark:text-white">
+                    Aucune école trouvée
+                  </h3>
+
+                  <p className="mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">
+                    {schoolSearch
+                      ? "Aucune école ne correspond à votre recherche."
+                      : "Aucune école active n'est actuellement disponible."}
+                  </p>
+
+                </div>
+              ) : (
+
+                <div className="grid gap-4">
+
+                  {filteredSchools.map(
+                    (school) => {
+
+                      const membership =
+                        getSchoolMembership(
+                          school.id
+                        );
+
+                      const isPending =
+                        membership?.status ===
+                        "pending";
+
+                      const isApproved =
+                        membership?.status ===
+                        "approved";
+
+                      const isRejected =
+                        membership?.status ===
+                        "rejected";
+
+                      const isRequesting =
+                        requestingSchoolId ===
+                        school.id;
+
+                      return (
+                        <div
+                          key={school.id}
+                          className="group rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-blue-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-900/60"
+                        >
+
+                          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+                            {/* INFORMATIONS ÉCOLE */}
+
+                            <div className="flex min-w-0 items-start gap-4">
+
+                              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
+
+                                <Building2
+                                  size={22}
+                                />
+
+                              </div>
+
+                              <div className="min-w-0">
+
+                                <h3 className="truncate text-base font-black text-slate-900 dark:text-white">
+                                  {school.nom}
+                                </h3>
+
+                                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+
+                                  {school.ville && (
+                                    <span className="inline-flex items-center gap-1">
+
+                                      <MapPin
+                                        size={13}
+                                      />
+
+                                      {school.ville}
+
+                                    </span>
+                                  )}
+
+                                  {school.pays && (
+                                    <span>
+                                      {school.pays}
+                                    </span>
+                                  )}
+
+                                </div>
+
+                                {school.adresse && (
+                                  <p className="mt-1 truncate text-xs text-slate-400 dark:text-slate-500">
+                                    {school.adresse}
+                                  </p>
+                                )}
+
+                              </div>
+
+                            </div>
+
+                            {/* ACTION / STATUT */}
+
+                            <div className="shrink-0">
+
+                              {isApproved ? (
+
+                                <div className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-black text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
+
+                                  <CheckCircle
+                                    size={16}
+                                  />
+
+                                  École validée
+
+                                </div>
+
+                              ) : isPending ? (
+
+                                <div className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-black text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+
+                                  <Clock3
+                                    size={16}
+                                  />
+
+                                  En attente
+
+                                </div>
+
+                              ) : isRejected ? (
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleRequestSchool(
+                                      school
+                                    )
+                                  }
+                                  disabled={
+                                    requestingSchoolId !==
+                                    null
+                                  }
+                                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white shadow-md transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+
+                                  {isRequesting ? (
+                                    <>
+                                      <Loader2
+                                        size={16}
+                                        className="animate-spin"
+                                      />
+
+                                      Envoi...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Plus
+                                        size={16}
+                                      />
+
+                                      Demander à nouveau
+                                    </>
+                                  )}
+
+                                </button>
+
+                              ) : (
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleRequestSchool(
+                                      school
+                                    )
+                                  }
+                                  disabled={
+                                    requestingSchoolId !==
+                                    null
+                                  }
+                                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white shadow-md transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                                >
+
+                                  {isRequesting ? (
+                                    <>
+                                      <Loader2
+                                        size={16}
+                                        className="animate-spin"
+                                      />
+
+                                      Envoi...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Plus
+                                        size={16}
+                                      />
+
+                                      Ajouter cette école
+                                    </>
+                                  )}
+
+                                </button>
+
+                              )}
+
+                            </div>
+
+                          </div>
+
+                        </div>
+                      );
+                    }
+                  )}
+
+                </div>
+
+              )}
+
+            </div>
+
+            {/* =================================================
+                PIED DE LA MODALE
+            ================================================== */}
+
+            <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/70 sm:px-7">
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+                <div className="flex items-start gap-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+
+                  <ShieldCheck
+                    size={16}
+                    className="mt-0.5 shrink-0 text-blue-500"
+                  />
+
+                  <span>
+                    Chaque demande doit être validée par le
+                    directeur de l'établissement.
+                  </span>
+
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCloseSchoolModal}
+                  disabled={
+                    requestingSchoolId !== null
+                  }
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:border-slate-300 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  Fermer
+                </button>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+      )}
 
     </div>
   );

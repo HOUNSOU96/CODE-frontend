@@ -1,3 +1,4 @@
+
 // 📁 src/AnimatedRoutes.tsx
 
 import React from "react";
@@ -41,6 +42,8 @@ import AdminProjets from "./pages/admin/AdminProjets";
 
 import ExplicationQuestion from "./pages/ExplicationQuestion";
 
+
+import Directeur from "./pages/Directeur";
 // ==========================================================
 // PAGES PUBLIQUES
 // ==========================================================
@@ -807,6 +810,21 @@ const AnimatedRoutes: React.FC = () => {
           path="/admin/codes-activation"
           element={<Layout><AdminActivationCodes /></Layout>}
         />
+
+        {/* ==================================================
+    ESPACE DIRECTEUR
+    ================================================== */}
+
+<Route
+  path="/directeur"
+  element={
+    <RequireAuth>
+      <Layout>
+        <Directeur />
+      </Layout>
+    </RequireAuth>
+  }
+/>
 
         {/* ==================================================
             ROUTES PROTÉGÉES
@@ -2380,18 +2398,16 @@ const AnimatedRoutes: React.FC = () => {
             REMÉDIATION VIDÉO
             ================================================== */}
 
-
         <Route
-  path="/test/remediationvideo/:matiere/:niveau/:serie"
-  element={
-    <RequireAuth>
-      <Layout>
-        <RemediationVideo />
-      </Layout>
-    </RequireAuth>
-  }
-/>
-
+          path="/test/remediationvideo/:matiere/:niveau/:serie"
+          element={
+            <RequireAuth>
+              <Layout>
+                <RemediationVideo />
+              </Layout>
+            </RequireAuth>
+          }
+        />
 
         <Route
           path="/remediationvideo/:matiere/:niveau/:serie?"
