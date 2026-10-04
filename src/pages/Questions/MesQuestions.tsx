@@ -1,5 +1,9 @@
-
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MessageCircle,
@@ -19,9 +23,16 @@ import {
   CircleDot,
   CalendarDays,
   MessageSquareText,
+  WifiOff,
 } from "lucide-react";
 
 import api from "../../utils/axios";
+
+import {
+  getOfflineData,
+  saveOfflineData,
+  STORES,
+} from "@/offline/offlineDB";
 
 // ============================================================
 // TYPES
@@ -66,6 +77,12 @@ type Question = {
   messages?: QuestionMessage[];
 };
 
+type CachedQuestions = {
+  id: string;
+  questions: Question[];
+  cachedAt: number;
+};
+
 // ============================================================
 // COMPOSANT
 // ============================================================
@@ -77,13 +94,140 @@ const MesQuestions: React.FC = () => {
   // ÉTATS
   // ----------------------------------------------------------
 
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] =
+    useState<Question[]>([]);
 
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] =
+    useState<boolean>(true);
 
-  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [refreshing, setRefreshing] =
+    useState<boolean>(false);
 
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] =
+    useState<string | null>(null);
+
+  const [isOffline, setIsOffline] =
+    useState<boolean>(() => {
+      if (
+        typeof navigator === "undefined"
+      ) {
+        return false;
+      }
+
+      return !navigator.onLine;
+    });
+
+  const [usingOfflineCache, setUsingOfflineCache] =
+    useState<boolean>(false);
+
+  // ==========================================================
+  // CLÉ DU CACHE
+  // ==========================================================
+
+  const QUESTIONS_CACHE_ID =
+    "mes-questions";
+
+  // ==========================================================
+  // SURVEILLANCE DE LA CONNEXION
+  // ==========================================================
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+    };
+
+    const handleOffline = () => {
+      setIsOffline(true);
+    };
+
+    window.addEventListener(
+      "online",
+      handleOnline
+    );
+
+    window.addEventListener(
+      "offline",
+      handleOffline
+    );
+
+    return () => {
+      window.removeEventListener(
+        "online",
+        handleOnline
+      );
+
+      window.removeEventListener(
+        "offline",
+        handleOffline
+      );
+    };
+  }, []);
+
+  // ==========================================================
+  // SAUVEGARDE LOCALE
+  // ==========================================================
+
+  const sauvegarderQuestions =
+    useCallback(
+      async (
+        questionsData: Question[]
+      ) => {
+        try {
+          const cache: CachedQuestions = {
+            id: QUESTIONS_CACHE_ID,
+            questions: questionsData,
+            cachedAt: Date.now(),
+          };
+
+          await saveOfflineData(
+            STORES.documents,
+            cache
+          );
+        } catch (cacheError) {
+          console.warn(
+            "⚠️ Impossible de sauvegarder les questions hors ligne :",
+            cacheError
+          );
+        }
+      },
+      []
+    );
+
+  // ==========================================================
+  // CHARGEMENT DEPUIS LE CACHE
+  // ==========================================================
+
+  const chargerQuestionsDepuisLeCache =
+    useCallback(
+      async (): Promise<Question[] | null> => {
+        try {
+          const cached =
+            await getOfflineData<CachedQuestions>(
+              STORES.documents,
+              QUESTIONS_CACHE_ID
+            );
+
+          if (
+            cached &&
+            Array.isArray(
+              cached.questions
+            )
+          ) {
+            return cached.questions;
+          }
+
+          return null;
+        } catch (cacheError) {
+          console.warn(
+            "⚠️ Impossible de lire les questions hors ligne :",
+            cacheError
+          );
+
+          return null;
+        }
+      },
+      []
+    );
 
   // ==========================================================
   // RETOUR À LA PAGE PRÉCÉDENTE
@@ -112,6 +256,40 @@ const MesQuestions: React.FC = () => {
 
         setError(null);
 
+        // ------------------------------------------------------
+        // MODE HORS LIGNE
+        // ------------------------------------------------------
+
+        if (
+          typeof navigator !==
+            "undefined" &&
+          !navigator.onLine
+        ) {
+          const cachedQuestions =
+            await chargerQuestionsDepuisLeCache();
+
+          if (cachedQuestions) {
+            setQuestions(
+              cachedQuestions
+            );
+
+            setUsingOfflineCache(true);
+            setIsOffline(true);
+
+            return;
+          }
+
+          setQuestions([]);
+          setUsingOfflineCache(false);
+          setIsOffline(true);
+
+          setError(
+            "Aucune version locale de vos questions n'est disponible. Ouvrez cette page une première fois avec une connexion Internet."
+          );
+
+          return;
+        }
+
         console.log(
           "📨 Chargement des questions de l'utilisateur..."
         );
@@ -125,9 +303,10 @@ const MesQuestions: React.FC = () => {
         // ../../utils/axios.ts
         // ------------------------------------------------------
 
-        const response = await api.get<Question[]>(
-          "/api/questions/my"
-        );
+        const response =
+          await api.get<Question[]>(
+            "/api/questions/my"
+          );
 
         console.log(
           "✅ Questions reçues du backend :",
@@ -139,13 +318,54 @@ const MesQuestions: React.FC = () => {
         // un tableau
         // ------------------------------------------------------
 
-        if (Array.isArray(response.data)) {
-          setQuestions(response.data);
+        if (
+          Array.isArray(
+            response.data
+          )
+        ) {
+          setQuestions(
+            response.data
+          );
+
+          setUsingOfflineCache(
+            false
+          );
+
+          // ----------------------------------------------------
+          // CACHE LOCAL
+          // ----------------------------------------------------
+
+          await sauvegarderQuestions(
+            response.data
+          );
         } else {
           console.error(
             "⚠️ Réponse inattendue du backend :",
             response.data
           );
+
+          // ----------------------------------------------------
+          // Tentative de récupération du cache
+          // ----------------------------------------------------
+
+          const cachedQuestions =
+            await chargerQuestionsDepuisLeCache();
+
+          if (cachedQuestions) {
+            setQuestions(
+              cachedQuestions
+            );
+
+            setUsingOfflineCache(
+              true
+            );
+
+            setError(
+              "Le serveur a retourné des données inattendues. La dernière version enregistrée sur cet appareil est affichée."
+            );
+
+            return;
+          }
 
           setQuestions([]);
 
@@ -160,10 +380,38 @@ const MesQuestions: React.FC = () => {
         );
 
         // ------------------------------------------------------
+        // Récupération du cache local
+        // ------------------------------------------------------
+
+        const cachedQuestions =
+          await chargerQuestionsDepuisLeCache();
+
+        if (cachedQuestions) {
+          setQuestions(
+            cachedQuestions
+          );
+
+          setUsingOfflineCache(
+            true
+          );
+
+          setIsOffline(
+            !navigator.onLine
+          );
+
+          setError(
+            "Le serveur est temporairement inaccessible. La dernière version enregistrée sur cet appareil est affichée."
+          );
+
+          return;
+        }
+
+        // ------------------------------------------------------
         // Récupération du message FastAPI
         // ------------------------------------------------------
 
-        const statusCode = err?.response?.status;
+        const statusCode =
+          err?.response?.status;
 
         const backendMessage =
           err?.response?.data?.detail;
@@ -172,27 +420,44 @@ const MesQuestions: React.FC = () => {
         // Messages adaptés aux différents cas
         // ------------------------------------------------------
 
-        if (statusCode === 401) {
+        if (
+          statusCode === 401
+        ) {
           setError(
             "Votre session a expiré ou vous n'êtes pas authentifié."
           );
-        } else if (statusCode === 403) {
+        } else if (
+          statusCode === 403
+        ) {
           setError(
             "Vous n'avez pas l'autorisation d'accéder à vos questions."
           );
-        } else if (statusCode === 404) {
+        } else if (
+          statusCode === 404
+        ) {
           setError(
             "Le service des questions est introuvable."
           );
-        } else if (statusCode === 500) {
+        } else if (
+          statusCode === 500
+        ) {
           setError(
             "Une erreur interne est survenue sur le serveur."
           );
-        } else if (backendMessage) {
-          setError(backendMessage);
-        } else if (err?.request) {
+        } else if (
+          backendMessage
+        ) {
           setError(
-            "Impossible de contacter le serveur. Vérifiez que le backend CODE est bien démarré."
+            backendMessage
+          );
+        } else if (
+          err?.request ||
+          !navigator.onLine
+        ) {
+          setIsOffline(true);
+
+          setError(
+            "Impossible de contacter le serveur et aucune version locale de vos questions n'est disponible."
           );
         } else {
           setError(
@@ -201,12 +466,16 @@ const MesQuestions: React.FC = () => {
         }
 
         setQuestions([]);
+        setUsingOfflineCache(false);
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    []
+    [
+      chargerQuestionsDepuisLeCache,
+      sauvegarderQuestions,
+    ]
   );
 
   // ==========================================================
@@ -221,21 +490,31 @@ const MesQuestions: React.FC = () => {
   // FORMATAGE DES DATES
   // ==========================================================
 
-  const formatDate = (date: string) => {
+  const formatDate = (
+    date: string
+  ) => {
     try {
-      const parsedDate = new Date(date);
+      const parsedDate =
+        new Date(date);
 
-      if (Number.isNaN(parsedDate.getTime())) {
+      if (
+        Number.isNaN(
+          parsedDate.getTime()
+        )
+      ) {
         return date;
       }
 
-      return new Intl.DateTimeFormat("fr-FR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }).format(parsedDate);
+      return new Intl.DateTimeFormat(
+        "fr-FR",
+        {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }
+      ).format(parsedDate);
     } catch {
       return date;
     }
@@ -245,7 +524,9 @@ const MesQuestions: React.FC = () => {
   // INFORMATIONS SUR LE STATUT
   // ==========================================================
 
-  const getStatusInfo = (status: QuestionStatus) => {
+  const getStatusInfo = (
+    status: QuestionStatus
+  ) => {
     switch (status) {
       case "waiting":
         return {
@@ -293,8 +574,13 @@ const MesQuestions: React.FC = () => {
   // INFORMATIONS SUR LE DESTINATAIRE
   // ==========================================================
 
-  const getRecipientInfo = (question: Question) => {
-    if (question.recipient_type === "admin") {
+  const getRecipientInfo = (
+    question: Question
+  ) => {
+    if (
+      question.recipient_type ===
+      "admin"
+    ) {
       return {
         label: "Administrateur CODE",
         icon: ShieldCheck,
@@ -302,7 +588,9 @@ const MesQuestions: React.FC = () => {
     }
 
     return {
-      label: question.subject || "Matière",
+      label:
+        question.subject ||
+        "Matière",
       icon: BookOpen,
     };
   };
@@ -317,23 +605,30 @@ const MesQuestions: React.FC = () => {
 
       waiting: questions.filter(
         (question) =>
-          question.status === "waiting"
+          question.status ===
+          "waiting"
       ).length,
 
-      inProgress: questions.filter(
-        (question) =>
-          question.status === "in_progress"
-      ).length,
+      inProgress:
+        questions.filter(
+          (question) =>
+            question.status ===
+            "in_progress"
+        ).length,
 
-      answered: questions.filter(
-        (question) =>
-          question.status === "answered"
-      ).length,
+      answered:
+        questions.filter(
+          (question) =>
+            question.status ===
+            "answered"
+        ).length,
 
-      expired: questions.filter(
-        (question) =>
-          question.status === "expired"
-      ).length,
+      expired:
+        questions.filter(
+          (question) =>
+            question.status ===
+            "expired"
+        ).length,
     };
   }, [questions]);
 
@@ -341,13 +636,17 @@ const MesQuestions: React.FC = () => {
   // OUVRIR UNE CONVERSATION
   // ==========================================================
 
-  const ouvrirQuestion = (questionId: number) => {
+  const ouvrirQuestion = (
+    questionId: number
+  ) => {
     console.log(
       "➡️ Ouverture de la question :",
       questionId
     );
 
-    navigate(`/questions/${questionId}`);
+    navigate(
+      `/questions/${questionId}`
+    );
   };
 
   // ==========================================================
@@ -359,7 +658,9 @@ const MesQuestions: React.FC = () => {
       "➡️ Navigation vers la création d'une question"
     );
 
-    navigate("/questions/nouvelle");
+    navigate(
+      "/questions/nouvelle"
+    );
   };
 
   // ==========================================================
@@ -387,7 +688,9 @@ const MesQuestions: React.FC = () => {
 
         <button
           type="button"
-          onClick={retourPagePrecedente}
+          onClick={
+            retourPagePrecedente
+          }
           className="group mb-6 inline-flex items-center gap-2 rounded-xl border border-transparent px-2 py-2 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-blue-600 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-blue-400"
         >
           <ArrowLeft
@@ -397,6 +700,78 @@ const MesQuestions: React.FC = () => {
 
           Retour
         </button>
+
+        {/* ==================================================
+            INDICATEUR HORS LIGNE
+            ================================================== */}
+
+        {(isOffline ||
+          usingOfflineCache) && (
+          <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 shadow-sm dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-200 sm:flex-row sm:items-center sm:justify-between">
+
+            <div className="flex items-start gap-3">
+
+              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-500/15">
+
+                <WifiOff
+                  size={18}
+                  className="text-amber-600 dark:text-amber-300"
+                />
+
+              </div>
+
+              <div>
+
+                <p className="text-sm font-bold">
+                  {isOffline
+                    ? "Mode hors ligne"
+                    : "Données locales"}
+                </p>
+
+                <p className="mt-0.5 text-xs leading-5 opacity-80">
+
+                  {usingOfflineCache
+                    ? "Vos questions affichées proviennent de la dernière version enregistrée sur cet appareil."
+                    : "La connexion Internet est momentanément indisponible."}
+
+                </p>
+
+              </div>
+
+            </div>
+
+            {!isOffline && (
+              <button
+                type="button"
+                onClick={() =>
+                  chargerQuestions(
+                    true
+                  )
+                }
+                disabled={
+                  refreshing
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-400/20 dark:bg-slate-900 dark:text-amber-200 dark:hover:bg-slate-800"
+              >
+
+                {refreshing ? (
+                  <Loader2
+                    size={14}
+                    className="animate-spin"
+                  />
+                ) : (
+                  <RefreshCw
+                    size={14}
+                  />
+                )}
+
+                Actualiser
+
+              </button>
+            )}
+
+          </div>
+        )}
 
         {/* ==================================================
             EN-TÊTE
@@ -418,7 +793,9 @@ const MesQuestions: React.FC = () => {
 
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/20 dark:bg-blue-500">
 
-                <MessageCircle size={27} />
+                <MessageCircle
+                  size={27}
+                />
 
               </div>
 
@@ -446,8 +823,15 @@ const MesQuestions: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => chargerQuestions(true)}
-              disabled={refreshing || loading}
+              onClick={() =>
+                chargerQuestions(
+                  true
+                )
+              }
+              disabled={
+                refreshing ||
+                loading
+              }
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-700 dark:hover:bg-slate-800"
             >
 
@@ -457,7 +841,9 @@ const MesQuestions: React.FC = () => {
                   className="animate-spin"
                 />
               ) : (
-                <RefreshCw size={18} />
+                <RefreshCw
+                  size={18}
+                />
               )}
 
               Actualiser
@@ -466,7 +852,9 @@ const MesQuestions: React.FC = () => {
 
             <button
               type="button"
-              onClick={nouvelleQuestion}
+              onClick={
+                nouvelleQuestion
+              }
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 hover:shadow-blue-600/30 dark:bg-blue-500 dark:hover:bg-blue-600"
             >
 
@@ -484,146 +872,153 @@ const MesQuestions: React.FC = () => {
             STATISTIQUES
             ================================================== */}
 
-        {!loading && questions.length > 0 && (
-          <div className="mb-7 grid grid-cols-2 gap-3 md:grid-cols-5">
+        {!loading &&
+          questions.length > 0 && (
+            <div className="mb-7 grid grid-cols-2 gap-3 md:grid-cols-5">
 
-            {/* TOTAL */}
+              {/* TOTAL */}
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
-              <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between">
 
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-500/10">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-500/10">
 
-                  <Inbox
-                    size={17}
-                    className="text-blue-600 dark:text-blue-400"
-                  />
+                    <Inbox
+                      size={17}
+                      className="text-blue-600 dark:text-blue-400"
+                    />
 
-                </div>
+                  </div>
 
-                <span className="text-2xl font-bold text-slate-900 dark:text-white">
-                  {statistiques.total}
-                </span>
-
-              </div>
-
-              <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                Total
-              </p>
-
-            </div>
-
-            {/* EN ATTENTE */}
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-
-              <div className="flex items-center justify-between">
-
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-500/10">
-
-                  <Clock
-                    size={17}
-                    className="text-amber-600 dark:text-amber-400"
-                  />
+                  <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                    {statistiques.total}
+                  </span>
 
                 </div>
 
-                <span className="text-2xl font-bold text-slate-900 dark:text-white">
-                  {statistiques.waiting}
-                </span>
+                <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  Total
+                </p>
 
               </div>
 
-              <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                En attente
-              </p>
+              {/* EN ATTENTE */}
 
-            </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
-            {/* EN COURS */}
+                <div className="flex items-center justify-between">
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-500/10">
 
-              <div className="flex items-center justify-between">
+                    <Clock
+                      size={17}
+                      className="text-amber-600 dark:text-amber-400"
+                    />
 
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-500/10">
+                  </div>
 
-                  <Activity
-                    size={17}
-                    className="text-blue-600 dark:text-blue-400"
-                  />
+                  <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                    {statistiques.waiting}
+                  </span>
 
                 </div>
 
-                <span className="text-2xl font-bold text-slate-900 dark:text-white">
-                  {statistiques.inProgress}
-                </span>
+                <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  En attente
+                </p>
 
               </div>
 
-              <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                En cours
-              </p>
+              {/* EN COURS */}
 
-            </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
-            {/* RÉPONDUES */}
+                <div className="flex items-center justify-between">
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-500/10">
 
-              <div className="flex items-center justify-between">
+                    <Activity
+                      size={17}
+                      className="text-blue-600 dark:text-blue-400"
+                    />
 
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-500/10">
+                  </div>
 
-                  <CheckCircle2
-                    size={17}
-                    className="text-emerald-600 dark:text-emerald-400"
-                  />
+                  <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                    {
+                      statistiques.inProgress
+                    }
+                  </span>
 
                 </div>
 
-                <span className="text-2xl font-bold text-slate-900 dark:text-white">
-                  {statistiques.answered}
-                </span>
+                <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  En cours
+                </p>
 
               </div>
 
-              <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                Répondues
-              </p>
+              {/* RÉPONDUES */}
 
-            </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
-            {/* EXPIRÉES */}
+                <div className="flex items-center justify-between">
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-500/10">
 
-              <div className="flex items-center justify-between">
+                    <CheckCircle2
+                      size={17}
+                      className="text-emerald-600 dark:text-emerald-400"
+                    />
 
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800">
+                  </div>
 
-                  <AlertCircle
-                    size={17}
-                    className="text-slate-500 dark:text-slate-400"
-                  />
+                  <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                    {
+                      statistiques.answered
+                    }
+                  </span>
 
                 </div>
 
-                <span className="text-2xl font-bold text-slate-900 dark:text-white">
-                  {statistiques.expired}
-                </span>
+                <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  Répondues
+                </p>
 
               </div>
 
-              <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                Expirées
-              </p>
+              {/* EXPIRÉES */}
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+
+                <div className="flex items-center justify-between">
+
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800">
+
+                    <AlertCircle
+                      size={17}
+                      className="text-slate-500 dark:text-slate-400"
+                    />
+
+                  </div>
+
+                  <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                    {
+                      statistiques.expired
+                    }
+                  </span>
+
+                </div>
+
+                <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  Expirées
+                </p>
+
+              </div>
 
             </div>
-
-          </div>
-        )}
+          )}
 
         {/* ==================================================
             ERREUR
@@ -655,12 +1050,18 @@ const MesQuestions: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => chargerQuestions()}
+                  onClick={() =>
+                    chargerQuestions()
+                  }
                   className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-red-700 underline underline-offset-2 dark:text-red-300"
                 >
-                  <RefreshCw size={14} />
+
+                  <RefreshCw
+                    size={14}
+                  />
 
                   Réessayer
+
                 </button>
 
               </div>
@@ -729,7 +1130,9 @@ const MesQuestions: React.FC = () => {
 
                 <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
 
-                  <CircleDot size={13} />
+                  <CircleDot
+                    size={13}
+                  />
 
                   Votre espace est prêt
 
@@ -747,7 +1150,9 @@ const MesQuestions: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={nouvelleQuestion}
+                  onClick={
+                    nouvelleQuestion
+                  }
                   className="mt-7 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
                 >
 
@@ -796,7 +1201,9 @@ const MesQuestions: React.FC = () => {
 
                 <div className="hidden items-center gap-2 text-xs text-slate-400 dark:text-slate-500 sm:flex">
 
-                  <MessageSquareText size={14} />
+                  <MessageSquareText
+                    size={14}
+                  />
 
                   Cliquez sur une conversation pour l'ouvrir
 
@@ -806,177 +1213,197 @@ const MesQuestions: React.FC = () => {
 
               <div className="space-y-4">
 
-                {questions.map((question) => {
+                {questions.map(
+                  (
+                    question
+                  ) => {
 
-                  const status =
-                    getStatusInfo(
-                      question.status
-                    );
+                    const status =
+                      getStatusInfo(
+                        question.status
+                      );
 
-                  const StatusIcon =
-                    status.icon;
+                    const StatusIcon =
+                      status.icon;
 
-                  const recipient =
-                    getRecipientInfo(
+                    const recipient =
+                      getRecipientInfo(
+                        question
+                      );
+
+                    const RecipientIcon =
+                      recipient.icon;
+
+                    const messageCount =
                       question
-                    );
+                        .messages
+                        ?.length ??
+                      0;
 
-                  const RecipientIcon =
-                    recipient.icon;
-
-                  const messageCount =
-                    question.messages
-                      ?.length ?? 0;
-
-                  return (
-                    <button
-                      key={question.id}
-                      type="button"
-                      onClick={() =>
-                        ouvrirQuestion(
+                    return (
+                      <button
+                        key={
                           question.id
-                        )
-                      }
-                      className="group w-full rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-xl hover:shadow-slate-200/40 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500/40 dark:hover:shadow-black/20 md:p-6"
-                    >
+                        }
+                        type="button"
+                        onClick={() =>
+                          ouvrirQuestion(
+                            question.id
+                          )
+                        }
+                        className="group w-full rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-xl hover:shadow-slate-200/40 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500/40 dark:hover:shadow-black/20 md:p-6"
+                      >
 
-                      <div className="flex gap-4 md:gap-5">
+                        <div className="flex gap-4 md:gap-5">
 
-                        {/* ----------------------------------
-                            ICÔNE
-                            ---------------------------------- */}
+                          {/* ----------------------------------
+                              ICÔNE
+                              ---------------------------------- */}
 
-                        <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 transition group-hover:bg-blue-600 group-hover:text-white sm:flex dark:bg-blue-500/10 dark:text-blue-400 dark:group-hover:bg-blue-500 dark:group-hover:text-white">
+                          <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 transition group-hover:bg-blue-600 group-hover:text-white sm:flex dark:bg-blue-500/10 dark:text-blue-400 dark:group-hover:bg-blue-500 dark:group-hover:text-white">
 
-                          <MessageCircle
-                            size={24}
-                          />
-
-                        </div>
-
-                        {/* ----------------------------------
-                            CONTENU
-                            ---------------------------------- */}
-
-                        <div className="min-w-0 flex-1">
-
-                          {/* DESTINATAIRE + STATUT */}
-
-                          <div className="mb-3 flex flex-wrap items-center gap-2">
-
-                            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-
-                              <RecipientIcon
-                                size={13}
-                              />
-
-                              {recipient.label}
-
-                            </span>
-
-                            <span
-                              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${status.className}`}
-                            >
-
-                              <StatusIcon
-                                size={13}
-                              />
-
-                              {status.label}
-
-                            </span>
-
-                            {question.is_learner &&
-                              question.learner_class && (
-                                <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-bold text-purple-700 dark:border-purple-400/20 dark:bg-purple-500/10 dark:text-purple-300">
-                                  {question.learner_class}
-                                </span>
-                              )}
+                            <MessageCircle
+                              size={24}
+                            />
 
                           </div>
 
-                          {/* TITRE */}
+                          {/* ----------------------------------
+                              CONTENU
+                              ---------------------------------- */}
 
-                          <h2 className="truncate text-lg font-bold text-slate-900 transition group-hover:text-blue-600 dark:text-white dark:group-hover:text-blue-400 md:text-xl">
-                            {question.title}
-                          </h2>
+                          <div className="min-w-0 flex-1">
 
-                          {/* CONTENU */}
+                            {/* DESTINATAIRE + STATUT */}
 
-                          <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                            {question.content}
-                          </p>
+                            <div className="mb-3 flex flex-wrap items-center gap-2">
 
-                          {/* INFORMATIONS */}
+                              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
 
-                          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-400 dark:text-slate-500">
-
-                            <span className="inline-flex items-center gap-1.5">
-
-                              <CalendarDays
-                                size={13}
-                              />
-
-                              {formatDate(
-                                question.created_at
-                              )}
-
-                            </span>
-
-                            {messageCount >
-                              0 && (
-                              <span className="inline-flex items-center gap-1.5">
-
-                                <MessageCircle
+                                <RecipientIcon
                                   size={13}
                                 />
 
-                                {messageCount}{" "}
-                                message
-                                {messageCount >
-                                1
-                                  ? "s"
-                                  : ""}
+                                {
+                                  recipient.label
+                                }
 
                               </span>
-                            )}
 
-                            {question.expires_at && (
-                              <span className="hidden items-center gap-1.5 sm:inline-flex">
+                              <span
+                                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${status.className}`}
+                              >
 
-                                <Clock
+                                <StatusIcon
                                   size={13}
                                 />
 
-                                Expire le{" "}
+                                {
+                                  status.label
+                                }
+
+                              </span>
+
+                              {question.is_learner &&
+                                question.learner_class && (
+                                  <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-bold text-purple-700 dark:border-purple-400/20 dark:bg-purple-500/10 dark:text-purple-300">
+                                    {
+                                      question.learner_class
+                                    }
+                                  </span>
+                                )}
+
+                            </div>
+
+                            {/* TITRE */}
+
+                            <h2 className="truncate text-lg font-bold text-slate-900 transition group-hover:text-blue-600 dark:text-white dark:group-hover:text-blue-400 md:text-xl">
+                              {
+                                question.title
+                              }
+                            </h2>
+
+                            {/* CONTENU */}
+
+                            <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                              {
+                                question.content
+                              }
+                            </p>
+
+                            {/* INFORMATIONS */}
+
+                            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-400 dark:text-slate-500">
+
+                              <span className="inline-flex items-center gap-1.5">
+
+                                <CalendarDays
+                                  size={13}
+                                />
+
                                 {formatDate(
-                                  question.expires_at
+                                  question.created_at
                                 )}
 
                               </span>
-                            )}
+
+                              {messageCount >
+                                0 && (
+                                <span className="inline-flex items-center gap-1.5">
+
+                                  <MessageCircle
+                                    size={13}
+                                  />
+
+                                  {
+                                    messageCount
+                                  }{" "}
+                                  message
+                                  {messageCount >
+                                  1
+                                    ? "s"
+                                    : ""}
+
+                                </span>
+                              )}
+
+                              {question.expires_at && (
+                                <span className="hidden items-center gap-1.5 sm:inline-flex">
+
+                                  <Clock
+                                    size={13}
+                                  />
+
+                                  Expire le{" "}
+                                  {formatDate(
+                                    question.expires_at
+                                  )}
+
+                                </span>
+                              )}
+
+                            </div>
+
+                          </div>
+
+                          {/* ----------------------------------
+                              FLÈCHE
+                              ---------------------------------- */}
+
+                          <div className="hidden shrink-0 items-center text-slate-300 transition duration-200 group-hover:translate-x-1 group-hover:text-blue-600 dark:text-slate-700 dark:group-hover:text-blue-400 sm:flex">
+
+                            <ChevronRight
+                              size={25}
+                            />
 
                           </div>
 
                         </div>
 
-                        {/* ----------------------------------
-                            FLÈCHE
-                            ---------------------------------- */}
-
-                        <div className="hidden shrink-0 items-center text-slate-300 transition duration-200 group-hover:translate-x-1 group-hover:text-blue-600 dark:text-slate-700 dark:group-hover:text-blue-400 sm:flex">
-
-                          <ChevronRight
-                            size={25}
-                          />
-
-                        </div>
-
-                      </div>
-
-                    </button>
-                  );
-                })}
+                      </button>
+                    );
+                  }
+                )}
 
               </div>
 
@@ -991,7 +1418,9 @@ const MesQuestions: React.FC = () => {
           <div className="mt-8 flex flex-col items-center justify-center gap-2 text-center text-xs text-slate-400 dark:text-slate-600 sm:flex-row">
 
             <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck size={13} />
+              <ShieldCheck
+                size={13}
+              />
 
               Vos conversations sont sécurisées
             </span>

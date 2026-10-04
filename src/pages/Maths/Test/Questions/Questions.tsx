@@ -1,11 +1,25 @@
 import React, { useEffect, useState, useRef } from "react";
+
 import { useParams, useNavigate } from "react-router-dom";
+
 import api from "@/utils/axios";
+
+import {
+  getOfflineData,
+  saveOfflineData,
+  STORES,
+} from "@/offline/offlineDB";
+
 import { motion } from "framer-motion";
+
 import { Loader2, CheckCircle } from "lucide-react";
+
 import DarkModeToggle from "@/components/DarkModeToggle";
+
 import AudioManager from "@/components/AudioManager";
+
 import CountdownCircle from "@/components/CountdownCircle";
+
 import { useAuth } from "../../../../hooks/useAuth";
 
 // ============================================================
@@ -14,13 +28,17 @@ import { useAuth } from "../../../../hooks/useAuth";
 
 type Question = {
   id: string;
+
   question: string;
+
   choix: string[];
 
   bonneReponse?: string;
+
   bonne_reponse?: string;
 
   notion: string;
+
   duree?: number;
 
   // Matière
@@ -48,6 +66,37 @@ type Reponse = {
 
 type TimerStatus = {
   [key: string]: boolean;
+};
+
+type CachedQuestionTest = {
+  id: string;
+  test_id: string;
+  questions: Question[];
+  matiere: string;
+  niveau: string;
+  serie: string;
+  cachedAt: number;
+};
+
+type OfflineSubmission = {
+  id: string;
+  type: "questionnaire_result";
+  createdAt: number;
+  status: "pending";
+  endpoint: string;
+  method: "POST";
+
+  payload: {
+    matiere: string;
+    niveau: string;
+    serie: string;
+    test_id: string;
+
+    resultats: {
+      id: string;
+      reponse: string;
+    }[];
+  };
 };
 
 // ============================================================
@@ -161,14 +210,11 @@ const Questions = () => {
       "5eme": "5e",
       "4eme": "4e",
       "3eme": "3e",
-
       "2nde": "2nde",
       "seconde": "2nde",
-
       "1ere": "1ere",
       "1re": "1ere",
       "premiere": "1ere",
-
       terminale: "tle",
       tle: "tle",
     };
@@ -505,26 +551,155 @@ const Questions = () => {
         }
 
         // ------------------------------------------------------
-        // APPEL BACKEND
+        // CLÉ UNIQUE DU CACHE
         // ------------------------------------------------------
 
-        const res =
-          await api.get(
-            `/api/questions/${niveauActuel}/generation`,
-            {
-              params,
+        const cacheId = [
+          "test",
+          normalizeMatiere(matiere),
+          niveauActuel,
+          serieActuelle || "none",
+        ].join("_");
+
+        // ------------------------------------------------------
+        // APPEL BACKEND AVEC FALLBACK HORS LIGNE
+        // ------------------------------------------------------
+
+        let test_id: string | null =
+          null;
+
+        let questionsRecues: Question[] =
+          [];
+
+        // ------------------------------------------------------
+        // 1. TENTATIVE DE RÉCUPÉRATION EN LIGNE
+        // ------------------------------------------------------
+
+        if (navigator.onLine) {
+          try {
+            const res =
+              await api.get(
+                `/api/questions/${niveauActuel}/generation`,
+                {
+                  params,
+                }
+              );
+
+            test_id =
+              res.data?.test_id ??
+              null;
+
+            questionsRecues =
+              Array.isArray(
+                res.data?.questions
+              )
+                ? res.data.questions
+                : [];
+
+            // ----------------------------------------------------
+            // MISE EN CACHE DU TEST COMPLET
+            // ----------------------------------------------------
+
+            if (
+              test_id &&
+              questionsRecues.length >
+                0
+            ) {
+              await saveOfflineData(
+                STORES.questions,
+                {
+                  id: cacheId,
+                  test_id:
+                    String(test_id),
+                  questions:
+                    questionsRecues,
+                  matiere:
+                    normalizeMatiere(
+                      matiere
+                    ),
+                  niveau:
+                    niveauActuel,
+                  serie:
+                    serieActuelle ||
+                    "none",
+                  cachedAt:
+                    Date.now(),
+                }
+              );
+
+              console.log(
+                "💾 Test enregistré hors ligne :",
+                cacheId
+              );
             }
+          } catch (error) {
+            console.warn(
+              "⚠️ Backend inaccessible. Tentative de chargement hors ligne.",
+              error
+            );
+          }
+        }
+
+        // ------------------------------------------------------
+        // 2. SI LE BACKEND EST INACCESSIBLE
+        //    → INDEXEDDB
+        // ------------------------------------------------------
+
+        if (
+          !test_id ||
+          questionsRecues.length === 0
+        ) {
+          console.log(
+            "📴 Recherche du test dans IndexedDB..."
           );
 
+          const cachedTest =
+            await getOfflineData<CachedQuestionTest>(
+              STORES.questions,
+              cacheId
+            );
+
+          if (
+            cachedTest &&
+            Array.isArray(
+              cachedTest.questions
+            ) &&
+            cachedTest.questions.length >
+              0
+          ) {
+            test_id =
+              cachedTest.test_id;
+
+            questionsRecues =
+              cachedTest.questions;
+
+            console.log(
+              "✅ Test chargé depuis IndexedDB :",
+              cacheId
+            );
+          }
+        }
+
         // ------------------------------------------------------
-        // RÉCUPÉRATION
+        // 3. AUCUNE SOURCE DISPONIBLE
         // ------------------------------------------------------
 
-        const {
-          test_id,
-          questions:
-            questionsRecues,
-        } = res.data;
+        if (
+          !test_id ||
+          questionsRecues.length === 0
+        ) {
+          console.error(
+            "❌ Aucun test disponible en ligne ou hors ligne."
+          );
+
+          alert(
+            "Impossible de charger les questions. Connectez-vous à Internet au moins une fois pour télécharger ce test."
+          );
+
+          setLoading(false);
+
+          return;
+        }
 
         // ------------------------------------------------------
         // VALIDATION
@@ -778,24 +953,26 @@ const Questions = () => {
 
       const toutesLesReponses =
         reponses.map((r) => {
+          const index =
+            r.reponse;
+
           const lettre =
-            [
-              "a",
-              "b",
-              "c",
-              "d",
-              "e",
-            ][
-              r.reponse ?? 0
-            ];
+            index !== null
+              ? [
+                  "a",
+                  "b",
+                  "c",
+                  "d",
+                  "e",
+                ][index]
+              : "";
 
           return {
             id: String(
               r.questionId
             ),
-
             reponse:
-              lettre,
+              lettre ?? "",
           };
         });
 
@@ -992,41 +1169,189 @@ const Questions = () => {
       // --------------------------------------------------------
 
       try {
-        const res =
-          await api.post(
-            `/api/questions/${niveau}/resultats`,
-            {
-              matiere,
+        // ========================================================
+        // DONNÉES À ENVOYER AU BACKEND
+        // ========================================================
 
-              niveau,
+        const payload = {
+          matiere,
 
-              serie:
-                serie &&
-                serie.toLowerCase() !==
-                  "none"
-                  ? serie
-                  : "none",
+          niveau,
 
-              test_id:
-                testId,
+          serie:
+            serie &&
+            serie.toLowerCase() !==
+              "none"
+              ? serie
+              : "none",
 
-              resultats:
-                toutesLesReponses,
-            }
-          );
+          test_id: testId,
 
-        // ------------------------------------------------------
-        // DEBUG
-        // ------------------------------------------------------
+          resultats:
+            toutesLesReponses,
+        };
 
-        console.log(
-          "📥 RÉPONSE BACKEND :",
-          res.data
+        // ========================================================
+        // TENTATIVE D'ENVOI EN LIGNE
+        // ========================================================
+
+        if (navigator.onLine) {
+          try {
+            const res =
+              await api.post(
+                `/api/questions/${niveau}/resultats`,
+                payload
+              );
+
+            console.log(
+              "📥 RÉPONSE BACKEND :",
+              res.data
+            );
+
+            // ----------------------------------------------------
+            // NAVIGATION RÉSULTATS
+            // ----------------------------------------------------
+
+            navigate(
+              `/test/resultats/${matiere}/${niveau}/${serie ?? "none"}`,
+              {
+                replace: true,
+
+                state: {
+                  matiereActuelle:
+                    matiere,
+
+                  resultats:
+                    res.data,
+
+                  questionsDuTest:
+                    questions,
+
+                  reponsesDuTest:
+                    reponses,
+
+                  questionsAvecReponses:
+                    questionsAvecReponses,
+
+                  questionsRemediation:
+                    questionsRemediation,
+
+                  notionsNonAcquises:
+                    notionsNonAcquises,
+
+                  toutesLesReponses:
+                    toutesLesReponses,
+
+                  testId:
+                    testId,
+
+                  niveauActuel:
+                    niveau,
+
+                  serieActuelle:
+                    serie ??
+                    "none",
+                },
+              }
+            );
+
+            return;
+          } catch (onlineError) {
+            console.warn(
+              "⚠️ Envoi en ligne impossible. Sauvegarde locale.",
+              onlineError
+            );
+          }
+        }
+
+        // ========================================================
+        // MODE HORS LIGNE
+        // ========================================================
+
+        const submissionId =
+          `result_${testId}_${Date.now()}`;
+
+        const offlineSubmission:
+          OfflineSubmission = {
+            id:
+              submissionId,
+
+            type:
+              "questionnaire_result",
+
+            createdAt:
+              Date.now(),
+
+            status:
+              "pending",
+
+            endpoint:
+              `/api/questions/${niveau}/resultats`,
+
+            method:
+              "POST",
+
+            payload,
+          };
+
+        // ========================================================
+        // ENREGISTREMENT DANS syncQueue
+        // ========================================================
+
+        await saveOfflineData(
+          STORES.syncQueue,
+          offlineSubmission
         );
 
-        // ------------------------------------------------------
-        // NAVIGATION RESULTATS
-        // ------------------------------------------------------
+        console.log(
+          "📴 Résultat sauvegardé hors ligne :",
+          offlineSubmission
+        );
+
+        // ========================================================
+        // CRÉATION D'UN RÉSULTAT LOCAL
+        //
+        // Cela permet à la page suivante de fonctionner
+        // immédiatement sans attendre Internet.
+        // ========================================================
+
+        const resultatsOffline = {
+          offline: true,
+
+          pendingSync: true,
+
+          message:
+            "Votre évaluation est terminée. Le résultat sera synchronisé automatiquement dès que la connexion Internet sera rétablie.",
+
+          test_id:
+            testId,
+
+          matiere,
+
+          niveau,
+
+          serie:
+            serie ?? "none",
+
+          resultats:
+            toutesLesReponses,
+
+          questions:
+            questions,
+
+          questionsAvecReponses:
+            questionsAvecReponses,
+
+          questionsRemediation:
+            questionsRemediation,
+
+          notionsNonAcquises:
+            notionsNonAcquises,
+        };
+
+        // ========================================================
+        // NAVIGATION IMMÉDIATE
+        // ========================================================
 
         navigate(
           `/test/resultats/${matiere}/${niveau}/${serie ?? "none"}`,
@@ -1038,7 +1363,7 @@ const Questions = () => {
                 matiere,
 
               resultats:
-                res.data,
+                resultatsOffline,
 
               questionsDuTest:
                 questions,
@@ -1065,18 +1390,25 @@ const Questions = () => {
                 niveau,
 
               serieActuelle:
-                serie ?? "none",
+                serie ??
+                "none",
+
+              offline:
+                true,
+
+              pendingSync:
+                true,
             },
           }
         );
       } catch (error) {
         console.error(
-          "❌ Erreur soumission :",
+          "❌ Erreur sauvegarde hors ligne :",
           error
         );
 
         alert(
-          "Une erreur s'est produite lors de la soumission."
+          "Impossible d'enregistrer votre évaluation. Veuillez réessayer."
         );
       }
     };
@@ -1117,6 +1449,7 @@ const Questions = () => {
     setTimersEnded(
       (prev) => ({
         ...prev,
+
         [currentId]:
           true,
       })
@@ -1229,6 +1562,7 @@ const Questions = () => {
 
       <div className="absolute top-4 right-4 flex items-center gap-4">
         <DarkModeToggle />
+
         <AudioManager />
       </div>
 
@@ -1243,7 +1577,7 @@ const Questions = () => {
         ===================================================== */}
 
         <h1 className="text-3xl font-bold text-center text-blue-700 dark:text-blue-300">
-          ÉVALUATION DIAGNOSTIQUE :{" "}
+          ÉVALUATION DIAGNOSTIQUE:{" "}
           {matiere}
           {" — "}
           {niveau}
@@ -1435,7 +1769,6 @@ const Questions = () => {
             {/* QUESTION + CHRONOMÈTRE */}
 
             <div className="flex justify-between items-start mb-4">
-
               <div
                 className="font-medium text-lg text-gray-800 dark:text-gray-200 w-full pr-4"
                 dangerouslySetInnerHTML={{

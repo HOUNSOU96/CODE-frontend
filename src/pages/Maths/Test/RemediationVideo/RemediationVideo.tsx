@@ -1,4 +1,8 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, {
+  useEffect,
+  useState,
+  useRef,
+} from "react";
 
 import {
   useLocation,
@@ -24,66 +28,68 @@ import CountdownCircle from "@/components/CountdownCircle";
 
 import { useExitNotifier } from "@/hooks/useExitNotifier";
 
+import {
+  getOfflineData,
+  saveOfflineData,
+  STORES,
+} from "@/offline/offlineDB";
+
 /* ============================================================
    TYPES
 ============================================================ */
 
 interface Question {
   id: string;
-
   question: string;
-
   choix: string[];
-
   bonne_reponse: string;
-
   duration?: number;
-
   notion?: string;
-
   niveau?: string;
-
   matiere?: string;
-
   serie?: string | string[] | null;
-
   enseignant?: string | null;
-
   [key: string]: any;
 }
 
 interface VideoData {
   id: string;
-
   titre: string;
-
   niveau: string;
-
   fichier?: string;
-
   videoUrl?: string;
-
   notions: string[];
-
   prerequis: string[];
-
   exercices?: string[];
-
   questions: Question[];
-
   matiere?: string;
-
   serie?: string | string[] | null;
-
   mois?: string[];
-
   enseignant?: string | null;
-
   [key: string]: any;
 }
 
+interface TeacherProfile {
+  email?: string;
+  nom?: string;
+  prenom?: string;
+  teacher_photo?: string;
+  [key: string]: any;
+}
+
+interface PendingExplanation {
+  question: Question;
+  reponseUtilisateur: string;
+  bonneReponse: string;
+  correcte: boolean;
+  notion: string;
+  niveau: string;
+  matiere: string;
+  enseignant?: string | null;
+}
+
 /* ============================================================
-   CONSTANTES & NORMALISATION
+   CONSTANTES
 ============================================================ */
 
 const generalLevels = [
@@ -91,13 +97,13 @@ const generalLevels = [
   "5e",
   "4e",
   "3e",
-] as const;
+];
 
 const lyceeLevels = [
   "2nde",
   "1ere",
   "tle",
-] as const;
+];
 
 const subSeriesMap: Record<
   string,
@@ -108,321 +114,180 @@ const subSeriesMap: Record<
   G: ["G1", "G2", "G3"],
 };
 
-/**
- * Normalisation générale :
- * - supprime les accents
- * - minuscules
- * - espaces superflus
- */
-const normalize = (str?: string) =>
-  (str || "")
+/* ============================================================
+   NORMALISATION
+============================================================ */
+
+const normalize = (
+  value: any
+): string =>
+  String(value ?? "")
     .normalize("NFD")
-    .replace(
-      /[\u0300-\u036f]/g,
-      ""
-    )
-    .toLowerCase()
-    .trim();
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
 
-/**
- * Normalisation matière.
- *
- * Cette fonction utilise des alias afin que :
- *
- * "Maths"
- * "maths"
- * "Mathématiques"
- * "mathématiques"
- * "MATHEMATIQUES"
- *
- * soient considérés comme la même matière.
- */
 const normalizeMatiere = (
-  str?: string
-) => {
-  const value = normalize(str)
-    .replace(/\s+/g, "")
-    .replace(/[-_]/g, "");
-
-  const aliases: Record<
-    string,
-    string
-  > = {
-    maths: "maths",
-    mathematique: "maths",
-    mathematiques: "maths",
-
-    francais: "francais",
-
-    anglais: "anglais",
-
-    physique: "physique",
-
-    chimie: "chimie",
-
-    svt: "svt",
-
-    sciencesdelavie: "svt",
-
-    sciencesdelavieetdelaterre:
-      "svt",
-
-    histoire: "histoire",
-
-    geographie: "geographie",
-
-    philosophie: "philosophie",
-
-    informatique:
-      "informatique",
-  };
-
-  return (
-    aliases[value] ||
-    value
-  );
-};
-
-/**
- * Normalisation niveau.
- */
-const normalizeNiveau = (
-  value?: string
-) => {
-  const normalized = normalize(
-    value
-  );
-
-  const mapping: Record<
-    string,
-    string
-  > = {
-    terminale: "tle",
-    tle: "tle",
-
-    "1ere": "1ere",
-    "1re": "1ere",
-    premiere: "1ere",
-
-    "2nde": "2nde",
-    seconde: "2nde",
-
-    "6eme": "6e",
-    "5eme": "5e",
-    "4eme": "4e",
-    "3eme": "3e",
-  };
-
-  return (
-    mapping[normalized] ||
-    normalized
-  );
-};
-
-/**
- * Normalisation série.
- */
-const normalizeSerie = (
-  value?: string
-) => {
-  if (!value) return "";
-
-  const normalized =
-    normalize(value);
+  value: any
+): string => {
+  const normalized = normalize(value);
 
   if (
-    normalized === "none" ||
-    normalized === "null"
+    normalized === "mathematiques" ||
+    normalized === "mathematique" ||
+    normalized === "math"
   ) {
+    return "maths";
+  }
+
+  return normalized;
+};
+
+const normalizeNiveau = (
+  value: any
+): string => {
+  const normalized = normalize(value);
+
+  const map: Record<string, string> = {
+    "6eme": "6e",
+    "6e": "6e",
+    "5eme": "5e",
+    "5e": "5e",
+    "4eme": "4e",
+    "4e": "4e",
+    "3eme": "3e",
+    "3e": "3e",
+    seconde: "2nde",
+    "2nde": "2nde",
+    "1ere": "1ere",
+    premiere: "1ere",
+    terminale: "tle",
+    terminal: "tle",
+    tle: "tle",
+  };
+
+  return map[normalized] || normalized;
+};
+
+const normalizeSerie = (
+  value: any
+): string => {
+  const normalized = normalize(value);
+
+  if (!normalized) {
     return "";
   }
 
   return normalized.toUpperCase();
 };
 
-/**
- * Séries contenues dans une vidéo.
- */
 const getVideoSeries = (
   video: VideoData
 ): string[] => {
-  const raw = video.serie;
+  const serie = video.serie;
 
-  if (!raw) return [];
-
-  if (Array.isArray(raw)) {
-    return raw
-      .map((serie) =>
-        normalizeSerie(serie)
-      )
+  if (Array.isArray(serie)) {
+    return serie
+      .map(normalizeSerie)
       .filter(Boolean);
   }
 
-  const serie =
-    normalizeSerie(raw);
+  if (
+    typeof serie === "string" &&
+    serie.trim()
+  ) {
+    return serie
+      .split(/[,\s;/|]+/)
+      .map(normalizeSerie)
+      .filter(Boolean);
+  }
 
-  return serie
-    ? [serie]
-    : [];
+  return [];
 };
 
-/**
- * Vérifie si une vidéo appartient
- * à la matière demandée.
- *
- * IMPORTANT :
- * Une vidéo sans matière reste
- * compatible afin de conserver
- * le comportement de l'ancienne
- * version fonctionnelle.
- */
+/* ============================================================
+   COMPATIBILITÉ VIDÉO
+============================================================ */
+
 const isVideoForSubject = (
-  videoMatiere: string | undefined,
-  userMatiere: string
-) => {
-  if (!videoMatiere) {
+  video: VideoData,
+  matiere: string
+): boolean => {
+  if (!video.matiere) {
     return true;
   }
 
   return (
-    normalizeMatiere(
-      videoMatiere
-    ) ===
-    normalizeMatiere(
-      userMatiere
-    )
+    normalizeMatiere(video.matiere) ===
+    normalizeMatiere(matiere)
   );
 };
 
-/**
- * Vérifie si une vidéo correspond
- * au niveau et à la série.
- */
 const isVideoForLevel = (
-  videoNiveau: string,
-  userNiveau: string,
+  video: VideoData,
+  niveau: string,
   serie?: string
-) => {
-  const normalizedVideoLevel =
-    normalizeNiveau(
-      videoNiveau
-    );
+): boolean => {
+  const requestedLevel =
+    normalizeNiveau(niveau);
 
-  const normalizedUserLevel =
-    normalizeNiveau(
-      userNiveau
-    );
-
-  /* -------------------------
-     COLLÈGE
-  ------------------------- */
+  const videoLevel =
+    normalizeNiveau(video.niveau);
 
   if (
     generalLevels.includes(
-      normalizedUserLevel as any
+      requestedLevel
     )
   ) {
-    return (
-      normalizedVideoLevel ===
-      normalizedUserLevel
-    );
+    return videoLevel === requestedLevel;
   }
 
-  /* -------------------------
-     LYCÉE
-  ------------------------- */
-
   if (
-    lyceeLevels.includes(
-      normalizedUserLevel as any
+    videoLevel !== requestedLevel &&
+    !(
+      requestedLevel === "tle" &&
+      videoLevel === "terminale"
     )
   ) {
-    /*
-     * Une vidéo peut être enregistrée
-     * par exemple :
-     *
-     * "Terminale D"
-     * "tle D"
-     * "Terminale F2"
-     */
-    const normalizedVideo =
-      normalize(videoNiveau);
+    return false;
+  }
 
-    const parts =
-      normalizedVideo.split(
-        /\s+/
-      );
+  if (!serie) {
+    return true;
+  }
 
-    const videoLevel =
-      normalizeNiveau(
-        parts[0]
-      );
+  const requestedSerie =
+    normalizeSerie(serie);
 
-    if (
-      videoLevel !==
-      normalizedUserLevel
-    ) {
-      return false;
-    }
+  const videoSeries =
+    getVideoSeries(video);
 
-    /*
-     * Si la vidéo ne porte pas
-     * de série, elle reste générale
-     * pour le niveau.
-     */
-    const videoSerie =
-      parts.length > 1
-        ? normalizeSerie(
-            parts[1]
-          )
-        : "";
+  if (!videoSeries.length) {
+    return true;
+  }
 
-    if (!serie) {
-      return true;
-    }
+  if (
+    videoSeries.includes(
+      requestedSerie
+    )
+  ) {
+    return true;
+  }
 
-    const serieNormalisee =
-      normalizeSerie(serie);
+  const parentSerie =
+    requestedSerie.charAt(0);
 
-    /*
-     * Vidéo générale du niveau.
-     */
-    if (!videoSerie) {
-      return true;
-    }
-
-    /*
-     * Exemple :
-     * vidéo A -> accessible à A1/A2
-     * vidéo F -> accessible à F1/F2/F3/F4
-     * vidéo G -> accessible à G1/G2/G3
-     */
-    const allowedSubSeries =
-      subSeriesMap[
-        videoSerie
-      ];
-
-    if (
-      allowedSubSeries
-    ) {
-      return (
-        allowedSubSeries.includes(
-          serieNormalisee
-        ) ||
-        videoSerie ===
-          serieNormalisee
-      );
-    }
-
-    /*
-     * Série précise :
-     * D -> D
-     * F2 -> F2
-     * A1 -> A1
-     */
-    return (
-      videoSerie ===
-      serieNormalisee
+  if (
+    subSeriesMap[parentSerie]?.includes(
+      requestedSerie
+    )
+  ) {
+    return videoSeries.some(
+      (s) =>
+        s === parentSerie ||
+        subSeriesMap[parentSerie]?.includes(
+          s
+        )
     );
   }
 
@@ -430,304 +295,99 @@ const isVideoForLevel = (
 };
 
 /* ============================================================
-   URL
+   URLS
 ============================================================ */
 
 const cleanUrl = (
-  url?: string
-) =>
-  url
-    ? url
-        .trim()
-        .replace(
-          /^"|"$/g,
-          ""
-        )
-    : "";
+  value?: string
+): string => {
+  if (!value) {
+    return "";
+  }
+
+  return value.trim();
+};
 
 const isYouTubeUrl = (
-  url: string
-) =>
-  url.includes(
-    "youtube.com"
-  ) ||
-  url.includes(
-    "youtu.be"
+  value: string
+): boolean => {
+  return /(?:youtube\.com|youtu\.be)/i.test(
+    value
   );
-
-/* ============================================================
-   SHUFFLE
-============================================================ */
-
-const shuffleArray = <T,>(
-  array: T[]
-): T[] =>
-  [...array].sort(
-    () => Math.random() - 0.5
-  );
-
-/* ============================================================
-   YOUTUBE
-============================================================ */
+};
 
 const getSafeYouTubeUrl = (
   url: string
 ): string => {
   try {
-    if (!url) return "";
+    const parsed = new URL(url);
 
-    const u = new URL(
-      url.startsWith("http")
-        ? url
-        : `https://${url}`
-    );
+    let videoId = "";
 
     if (
-      u.hostname.includes(
-        "youtube.com"
-      ) &&
-      u.searchParams.get("v")
-    ) {
-      const vid =
-        u.searchParams.get("v");
-
-      return `https://www.youtube-nocookie.com/embed/${vid}?rel=0&modestbranding=1&controls=1&disablekb=1`;
-    }
-
-    if (
-      u.hostname.includes(
+      parsed.hostname.includes(
         "youtu.be"
       )
     ) {
-      const vid =
-        u.pathname.replace(
-          "/",
+      videoId =
+        parsed.pathname.replace(
+          /^\/+/,
           ""
         );
+    } else {
+      videoId =
+        parsed.searchParams.get(
+          "v"
+        ) || "";
 
-      return `https://www.youtube-nocookie.com/embed/${vid}?rel=0&modestbranding=1&controls=1&disablekb=1`;
+      if (
+        !videoId &&
+        parsed.pathname.includes(
+          "/embed/"
+        )
+      ) {
+        videoId =
+          parsed.pathname
+            .split("/embed/")[1]
+            ?.split("/")[0] || "";
+      }
     }
 
-    return url;
+    if (!videoId) {
+      return url;
+    }
+
+    return `https://www.youtube-nocookie.com/embed/${videoId}?rel=0`;
   } catch {
     return url;
   }
 };
 
 /* ============================================================
-   PRÉREQUIS
+   OUTILS
 ============================================================ */
 
-const expandPrereqs = (
-  video: VideoData,
-  allVideos: VideoData[],
-  niveauActuel: string,
-  seenAtLevel: Set<string>
-): VideoData[] => {
-  const result: VideoData[] =
-    [];
+const shuffleArray = <T,>(
+  array: T[]
+): T[] => {
+  const result = [...array];
 
-  for (const prereqNotion of
-    video.prerequis || []) {
-    const prereqVideo =
-      allVideos.find((v) =>
-        v.notions.includes(
-          prereqNotion
-        )
-      );
-
-    if (!prereqVideo) continue;
-
-    if (
-      normalizeNiveau(
-        prereqVideo.niveau
-      ) ===
-      normalizeNiveau(
-        niveauActuel
-      )
-    ) {
-      if (
-        !seenAtLevel.has(
-          prereqVideo.id
-        )
-      ) {
-        seenAtLevel.add(
-          prereqVideo.id
-        );
-
-        result.push(
-          prereqVideo
-        );
-      }
-    } else {
-      const sub =
-        expandPrereqs(
-          prereqVideo,
-          allVideos,
-          niveauActuel,
-          seenAtLevel
-        );
-
-      sub.forEach((v) => {
-        if (
-          normalizeNiveau(
-            v.niveau
-          ) !==
-            normalizeNiveau(
-              niveauActuel
-            ) ||
-          !seenAtLevel.has(
-            v.id
-          )
-        ) {
-          result.push(v);
-
-          if (
-            normalizeNiveau(
-              v.niveau
-            ) ===
-            normalizeNiveau(
-              niveauActuel
-            )
-          ) {
-            seenAtLevel.add(
-              v.id
-            );
-          }
-        }
-      });
-
-      if (
-        !result.includes(
-          prereqVideo
-        )
-      ) {
-        result.push(
-          prereqVideo
-        );
-      }
-    }
-  }
-
-  return result;
-};
-
-const buildLearningQueue = (
-  allVideos: VideoData[],
-  niveau: string
-): VideoData[] => {
-  const result: VideoData[] =
-    [];
-
-  const seenAtLevel =
-    new Set<string>();
-
-  const videosByNiveau =
-    [...allVideos].sort(
-      (a, b) =>
-        a.niveau.localeCompare(
-          b.niveau
-        )
+  for (
+    let i = result.length - 1;
+    i > 0;
+    i--
+  ) {
+    const j = Math.floor(
+      Math.random() * (i + 1)
     );
 
-  for (const video of
-    videosByNiveau) {
-    const prereqs =
-      expandPrereqs(
-        video,
-        allVideos,
-        niveau,
-        seenAtLevel
-      );
-
-    prereqs.forEach((v) => {
-      if (
-        !result.find(
-          (vv) =>
-            vv.id === v.id
-        )
-      ) {
-        result.push(v);
-
-        if (
-          normalizeNiveau(
-            v.niveau
-          ) ===
-          normalizeNiveau(
-            niveau
-          )
-        ) {
-          seenAtLevel.add(
-            v.id
-          );
-        }
-      }
-    });
-
-    if (
-      !result.find(
-        (vv) =>
-          vv.id === video.id
-      )
-    ) {
-      result.push(video);
-
-      if (
-        normalizeNiveau(
-          video.niveau
-        ) ===
-        normalizeNiveau(
-          niveau
-        )
-      ) {
-        seenAtLevel.add(
-          video.id
-        );
-      }
-    }
-
-    if (
-      normalizeNiveau(
-        video.niveau
-      ) ===
-      normalizeNiveau(
-        niveau
-      )
-    ) {
-      const sameNotionVideos =
-        allVideos.filter(
-          (v) =>
-            normalizeNiveau(
-              v.niveau
-            ) ===
-              normalizeNiveau(
-                niveau
-              ) &&
-            v.notions.some(
-              (n) =>
-                video.notions.includes(
-                  n
-                )
-            ) &&
-            v.id !== video.id
-        );
-
-      for (const v of
-        sameNotionVideos) {
-        if (
-          !result.find(
-            (vv) =>
-              vv.id === v.id
-          )
-        ) {
-          result.push(v);
-
-          seenAtLevel.add(
-            v.id
-          );
-        }
-      }
-    }
+    [
+      result[i],
+      result[j],
+    ] = [
+      result[j],
+      result[i],
+    ];
   }
 
   return result;
@@ -735,58 +395,85 @@ const buildLearningQueue = (
 
 const shuffleQuestionsWithChoices = (
   questions: Question[]
-) =>
-  shuffleArray(
+): Question[] => {
+  return shuffleArray(
     questions || []
-  ).map((q) => ({
-    ...q,
-
+  ).map((question) => ({
+    ...question,
     choix: shuffleArray(
-      q.choix || []
+      question.choix || []
     ),
   }));
+};
+
+const expandPrereqs = (
+  videos: VideoData[]
+): VideoData[] => {
+  return videos;
+};
+
+const buildLearningQueue = (
+  videos: VideoData[],
+  niveau: string
+): VideoData[] => {
+  const currentLevel =
+    normalizeNiveau(niveau);
+
+  const prerequisites = videos.filter(
+    (video) =>
+      normalizeNiveau(video.niveau) !==
+      currentLevel
+  );
+
+  const currentLevelVideos =
+    videos.filter(
+      (video) =>
+        normalizeNiveau(video.niveau) ===
+        currentLevel
+    );
+
+  return [
+    ...prerequisites,
+    ...currentLevelVideos,
+  ];
+};
 
 /* ============================================================
-   ENSEIGNANT
+   CACHE OFFLINE
 ============================================================ */
 
-interface TeacherProfile {
-  nom: string;
-
-  prenom: string;
-
-  email: string;
-
-  telephone?: string | null;
-
-  pays_residence?: string | null;
-
-  subjects?: string[];
-
-  teacher_photo?: string | null;
-}
-
-/* ============================================================
-   EXPLICATION IA
-============================================================ */
-
-interface PendingExplanation {
-  question: Question;
-
-  reponseUtilisateur: string;
-
-  bonneReponse: string;
-
-  correcte: boolean;
-
-  notion: string;
-
+interface CachedRemediationVideos {
+  id: string;
   niveau: string;
-
   matiere: string;
-
-  enseignant?: string | null;
+  serie: string;
+  videos: VideoData[];
+  cachedAt: number;
 }
+
+interface CachedTeacherProfile
+  extends TeacherProfile {
+  id: string;
+  cachedAt: number;
+}
+
+const buildVideosCacheId = (
+  matiere: string,
+  niveau: string,
+  serie?: string
+): string =>
+  `remediation_${normalizeMatiere(
+    matiere
+  )}_${normalizeNiveau(
+    niveau
+  )}_${normalizeSerie(
+    serie || ""
+  ) || "none"}`;
+
+const buildTeacherCacheId = (
+  email: string
+): string =>
+  `teacher_${normalize(email)}`;
 
 /* ============================================================
    COMPOSANT
@@ -814,45 +501,39 @@ const RemediationVideo: React.FC =
       matiere: matiereRoute,
       niveau: niveauRoute,
       serie: serieRoute,
-    } =
-      useParams<{
-        matiere?: string;
-        niveau?: string;
-        serie?: string;
-      }>();
+    } = useParams<{
+      matiere?: string;
+      niveau?: string;
+      serie?: string;
+    }>();
 
-    /*
-     * ==========================================================
-     * STATE TRANSMIS PAR LA PAGE PRÉCÉDENTE
-     * ==========================================================
-     */
+    /* ========================================================
+       ÉTAT TRANSMIS PAR LA PAGE PRÉCÉDENTE
+    ======================================================== */
 
     const routeState =
       location.state as
         | {
             matiereActuelle?: string;
             matiere?: string;
-
             niveauActuel?: string;
-
             serieActuelle?: string;
-
             questionsIncorrectes?: Question[];
-
             resultats?: any;
           }
         | undefined;
 
-    /*
-     * ==========================================================
-     * NIVEAU
-     * ==========================================================
-     */
+    /* ========================================================
+       PARAMÈTRES
+    ======================================================== */
 
-    const niveauParam =
+    const params =
       new URLSearchParams(
         location.search
-      ).get("niveau");
+      );
+
+    const niveauParam =
+      params.get("niveau") || "";
 
     const niveau =
       normalizeNiveau(
@@ -862,36 +543,12 @@ const RemediationVideo: React.FC =
           ""
       );
 
-    /*
-     * ==========================================================
-     * MATIÈRE
-     *
-     * Priorité :
-     * 1. state.matiereActuelle
-     * 2. state.matiere
-     * 3. resultats.matiere
-     * 4. paramètre URL
-     * 5. "maths"
-     *
-     * Le fallback "maths" est important
-     * pour conserver le comportement
-     * de l'ancienne version.
-     * ==========================================================
-     */
-
     const matiere =
       routeState?.matiereActuelle ||
       routeState?.matiere ||
-      routeState?.resultats
-        ?.matiere ||
+      routeState?.resultats?.matiere ||
       matiereRoute ||
       "maths";
-
-    /*
-     * ==========================================================
-     * SÉRIE
-     * ==========================================================
-     */
 
     const serie =
       routeState?.serieActuelle ||
@@ -903,69 +560,49 @@ const RemediationVideo: React.FC =
         niveau as any
       )
         ? undefined
-        : normalizeSerie(
-            serie
-          );
+        : normalizeSerie(serie);
 
-    /*
-     * Clé utilisée pour les vidéos
-     * terminées.
-     *
-     * Elle est maintenant identique
-     * lors de la lecture et de
-     * l'enregistrement.
-     */
     const completedStorageKey =
       `completedVideos_${normalizeMatiere(
         matiere
       )}`;
 
-    useExitNotifier({
-      eventType:
-        "remediation",
-    });
+    /* ========================================================
+       NOTIFICATIONS SORTIE
+    ======================================================== */
 
     useExitNotifier({
-      eventType:
-        "videofinish",
-    });
+  eventType: "remediation",
+});
 
-    /* ============================================================
-       VALIDATION DES PARAMÈTRES
-    ============================================================ */
+useExitNotifier({
+  eventType: "videofinish",
+});
+
+    /* ========================================================
+       VALIDATION PARAMÈTRES
+    ======================================================== */
 
     useEffect(() => {
       if (!niveau || !matiere) {
-        console.error(
-          "❌ Paramètres de remédiation incomplets.",
-          {
-            matiere,
-            niveau,
-            serie,
-          }
-        );
-
         navigate("/", {
           replace: true,
         });
       }
     }, [
-      matiere,
       niveau,
-      serie,
+      matiere,
       navigate,
     ]);
 
-    /* ============================================================
-       ÉTATS PRINCIPAUX
-    ============================================================ */
+    /* ========================================================
+       VIDÉOS
+    ======================================================== */
 
     const [
       orderedVideos,
       setOrderedVideos,
-    ] = useState<
-      VideoData[]
-    >([]);
+    ] = useState<VideoData[]>([]);
 
     const [
       currentIndex,
@@ -980,13 +617,13 @@ const RemediationVideo: React.FC =
     const [
       accessMessage,
       setAccessMessage,
-    ] = useState<
-      string | null
-    >(null);
+    ] = useState<string | null>(
+      null
+    );
 
-    /* ============================================================
-       PROFILS ENSEIGNANTS
-    ============================================================ */
+    /* ========================================================
+       ENSEIGNANTS
+    ======================================================== */
 
     const [
       teacherProfiles,
@@ -1003,10 +640,6 @@ const RemediationVideo: React.FC =
       setLoadingTeachers,
     ] = useState(false);
 
-    /* ============================================================
-       EXPLICATION IA
-    ============================================================ */
-
     const [
       pendingExplanation,
       setPendingExplanation,
@@ -1015,466 +648,400 @@ const RemediationVideo: React.FC =
         null
       );
 
-    /* ============================================================
-       RÉCUPÉRATION DES VIDÉOS
-    ============================================================ */
+    /* ========================================================
+       CHARGEMENT DES VIDÉOS
+    ======================================================== */
 
     useEffect(() => {
+      let cancelled = false;
+
       if (!niveau || !matiere) {
         return;
       }
 
-      const fetchVideos =
+      const cacheId =
+        buildVideosCacheId(
+          matiere,
+          niveau,
+          serieEffective
+        );
+
+      const loadVideos =
         async () => {
+          setLoading(true);
+          setAccessMessage(null);
+
+          let apiVideos: VideoData[] =
+            [];
+
           try {
-            setLoading(true);
-
-            /*
-             * IMPORTANT :
-             *
-             * L'ancienne version fonctionnelle
-             * appelait l'API uniquement avec
-             * le niveau.
-             *
-             * On conserve donc ce contrat
-             * et on effectue le filtrage
-             * matière/série côté frontend.
-             *
-             * Cela évite que le backend
-             * élimine les vidéos lorsque
-             * "maths" et "mathématiques"
-             * sont utilisés différemment.
-             */
-            const res =
-              await api.get<
-                VideoData[]
-              >(
-                `/api/videos/remediation?niveau=${encodeURIComponent(
-                  niveau
-                )}`
-              );
-
-            const allVideos =
-              Array.isArray(
-                res.data
-              )
-                ? res.data
-                : [];
-
-            /*
-             * DIAGNOSTIC :
-             * permet de savoir si l'API
-             * renvoie réellement les vidéos.
-             */
-            console.log(
-              "🎥 REMEDIATION - réponse API",
-              {
-                url: `/api/videos/remediation?niveau=${niveau}`,
-                matiere,
-                niveau,
-                serieEffective,
-                nombreVideos:
-                  allVideos.length,
-                videos:
-                  allVideos.map(
-                    (v) => ({
-                      id: v.id,
-                      titre:
-                        v.titre,
-                      niveau:
-                        v.niveau,
-                      matiere:
-                        v.matiere,
-                      serie:
-                        v.serie,
-                    })
-                  ),
-              }
-            );
-
-            /*
-             * Normalisation des données
-             * reçues du backend.
-             */
-            const cleaned =
-              allVideos.map(
-                (v) => ({
-                  ...v,
-
-                  videoUrl:
-                    cleanUrl(
-                      v.videoUrl
-                    ),
-
-                  fichier:
-                    v.fichier
-                      ? v.fichier.trim()
-                      : "",
-
-                  notions:
-                    Array.isArray(
-                      v.notions
-                    )
-                      ? v.notions
-                      : [],
-
-                  prerequis:
-                    Array.isArray(
-                      v.prerequis
-                    )
-                      ? v.prerequis
-                      : [],
-
-                  questions:
-                    Array.isArray(
-                      v.questions
-                    )
-                      ? v.questions
-                      : [],
-
-                  mois:
-                    Array.isArray(
-                      v.mois
-                    )
-                      ? v.mois
-                      : [],
-
-                  matiere:
-                    v.matiere,
-
-                  serie:
-                    v.serie,
-
-                  enseignant:
-                    v.enseignant,
-                })
-              );
-
-            /*
-             * FILTRE MATIÈRE
-             *
-             * Une vidéo sans matière
-             * n'est pas rejetée.
-             *
-             * La comparaison utilise
-             * normalizeMatiere(), donc :
-             *
-             * Maths == Mathématiques
-             */
-            const filtered =
-              cleaned
-                .filter(
-                  (v) =>
-                    isVideoForSubject(
-                      v.matiere,
-                      matiere
-                    )
-                )
-                .filter(
-                  (v) =>
-                    isVideoForLevel(
-                      v.niveau,
-                      niveau,
-                      serieEffective
-                    )
+            if (
+              navigator.onLine
+            ) {
+              const response =
+                await api.get(
+                  `/api/videos/remediation?niveau=${encodeURIComponent(
+                    niveau
+                  )}`
                 );
 
-            /*
-             * DIAGNOSTIC :
-             * permet de voir ce qui a été
-             * éliminé par les filtres.
-             */
-            console.log(
-              "🎯 REMEDIATION - après filtrage",
-              {
-                matiereDemandee:
-                  matiere,
+              const rawVideos =
+                Array.isArray(
+                  response.data
+                )
+                  ? response.data
+                  : Array.isArray(
+                      response.data?.videos
+                    )
+                  ? response.data
+                      .videos
+                  : [];
 
-                matiereNormalisee:
-                  normalizeMatiere(
-                    matiere
-                  ),
+              apiVideos =
+                rawVideos.map(
+                  (
+                    v: any
+                  ): VideoData => ({
+                    ...v,
+                    videoUrl:
+                      cleanUrl(
+                        v.videoUrl
+                      ),
+                    fichier:
+                      v.fichier
+                        ? String(
+                            v.fichier
+                          ).trim()
+                        : "",
+                    notions:
+                      Array.isArray(
+                        v.notions
+                      )
+                        ? v.notions
+                        : [],
+                    prerequis:
+                      Array.isArray(
+                        v.prerequis
+                      )
+                        ? v.prerequis
+                        : [],
+                    questions:
+                      Array.isArray(
+                        v.questions
+                      )
+                        ? v.questions
+                        : [],
+                    exercices:
+                      Array.isArray(
+                        v.exercices
+                      )
+                        ? v.exercices
+                        : [],
+                    mois:
+                      Array.isArray(
+                        v.mois
+                      )
+                        ? v.mois
+                        : [],
+                    matiere:
+                      v.matiere,
+                    serie:
+                      v.serie,
+                    enseignant:
+                      v.enseignant,
+                  })
+                );
 
-                niveauDemande:
-                  niveau,
-
-                avantFiltre:
-                  cleaned.length,
-
-                apresFiltre:
-                  filtered.length,
-
-                videos:
-                  filtered.map(
-                    (v) => ({
-                      id: v.id,
-                      titre:
-                        v.titre,
-                      niveau:
-                        v.niveau,
-                      matiere:
-                        v.matiere,
-                      matiereNormalisee:
-                        normalizeMatiere(
-                          v.matiere
-                        ),
-                      serie:
-                        v.serie,
-                    })
-                  ),
+              try {
+                await saveOfflineData(
+                  STORES.documents,
+                  {
+                    id: cacheId,
+                    type:
+                      "remediation_videos",
+                    niveau,
+                    matiere:
+                      normalizeMatiere(
+                        matiere
+                      ),
+                    serie:
+                      serieEffective ||
+                      "",
+                    videos:
+                      apiVideos,
+                    cachedAt:
+                      Date.now(),
+                  } as any
+                );
+              } catch (
+                cacheError
+              ) {
+                console.warn(
+                  "Impossible de mettre les vidéos en cache offline :",
+                  cacheError
+                );
               }
+            }
+          } catch (error) {
+            console.warn(
+              "API vidéos indisponible. Tentative avec le cache offline.",
+              error
+            );
+          }
+
+          if (
+            !apiVideos.length
+          ) {
+            try {
+              const cached =
+                await getOfflineData<CachedRemediationVideos>(
+                  STORES.documents,
+                  cacheId
+                );
+
+              if (
+                cached?.videos?.length
+              ) {
+                apiVideos =
+                  cached.videos;
+
+                if (
+                  !navigator.onLine
+                ) {
+                  setAccessMessage(
+                    "Mode hors connexion : les vidéos disponibles précédemment sont utilisées."
+                  );
+                }
+              }
+            } catch (
+              cacheError
+            ) {
+              console.warn(
+                "Impossible de lire le cache des vidéos :",
+                cacheError
+              );
+            }
+          }
+
+          if (cancelled) {
+            return;
+          }
+
+          if (!apiVideos.length) {
+            setOrderedVideos(
+              []
+            );
+            setLoading(false);
+            return;
+          }
+
+          const filtered =
+            apiVideos.filter(
+              (video) =>
+                isVideoForSubject(
+                  video,
+                  matiere
+                ) &&
+                isVideoForLevel(
+                  video,
+                  niveau,
+                  serieEffective
+                )
             );
 
-            /*
-             * Aucun résultat.
-             */
-            if (
-              !filtered.length
-            ) {
-              setOrderedVideos(
+          if (!filtered.length) {
+            setOrderedVideos(
+              []
+            );
+            setLoading(false);
+            return;
+          }
+
+          const learningQueue =
+            buildLearningQueue(
+              expandPrereqs(
+                filtered
+              ),
+              niveau
+            );
+
+          const videosByNotionCache =
+            new Map<
+              string,
+              VideoData[]
+            >();
+
+          learningQueue.forEach(
+            (video) => {
+              (
+                video.notions ||
                 []
-              );
-
-              setLoading(false);
-
-              return;
-            }
-
-            /*
-             * Construction de la
-             * file pédagogique.
-             */
-            const learningQueue =
-              buildLearningQueue(
-                filtered,
-                niveau
-              );
-
-            /*
-             * Organisation par notion.
-             */
-            const videosByNotion:
-              Record<
-                string,
-                VideoData[]
-              > = {};
-
-            learningQueue.forEach(
-              (v) => {
-                (
-                  v.notions ||
-                  []
-                ).forEach(
-                  (n) => {
-                    if (
-                      !videosByNotion[
-                        n
-                      ]
-                    ) {
-                      videosByNotion[
-                        n
-                      ] = [];
-                    }
-
-                    /*
-                     * Prérequis.
-                     */
-                    (
-                      v.prerequis ||
+              ).forEach(
+                (notion) => {
+                  if (
+                    !videosByNotionCache.has(
+                      notion
+                    )
+                  ) {
+                    videosByNotionCache.set(
+                      notion,
                       []
-                    ).forEach(
-                      (p) => {
-                        const prereqVideo =
-                          learningQueue.find(
-                            (
-                              vid
-                            ) =>
-                              vid.notions.includes(
-                                p
-                              )
-                          );
-
-                        if (
-                          prereqVideo &&
-                          !videosByNotion[
-                            n
-                          ].some(
-                            (x) =>
-                              x.id ===
-                              prereqVideo.id
-                          )
-                        ) {
-                          videosByNotion[
-                            n
-                          ].push(
-                            prereqVideo
-                          );
-                        }
-                      }
                     );
+                  }
 
-                    /*
-                     * Vidéo principale.
-                     */
+                  videosByNotionCache
+                    .get(
+                      notion
+                    )!
+                    .push(video);
+                }
+              );
+            }
+          );
+
+          const finalList: VideoData[] =
+            [];
+
+          const seen =
+            new Set<string>();
+
+          const addVideo = (
+            video: VideoData
+          ) => {
+            if (
+              !seen.has(video.id)
+            ) {
+              seen.add(video.id);
+              finalList.push(
+                video
+              );
+            }
+          };
+
+          learningQueue.forEach(
+            (video) => {
+              if (
+                video.prerequis
+                  ?.length
+              ) {
+                video.prerequis.forEach(
+                  (
+                    prereqTitle
+                  ) => {
+                    const prereqVideo =
+                      filtered.find(
+                        (v) =>
+                          v.titre ===
+                          prereqTitle
+                      );
+
                     if (
-                      !videosByNotion[
-                        n
-                      ].some(
-                        (x) =>
-                          x.id ===
-                          v.id
-                      )
+                      prereqVideo
                     ) {
-                      videosByNotion[
-                        n
-                      ].push(v);
+                      addVideo(
+                        prereqVideo
+                      );
                     }
                   }
                 );
               }
-            );
 
-            /*
-             * Construction de la liste finale
-             * sans doublons.
-             */
-            const finalList:
-              VideoData[] = [];
-
-            for (const notion of Object.keys(
-              videosByNotion
-            )) {
-              for (const v of
-                videosByNotion[
-                  notion
-                ]) {
-                if (
-                  !finalList.some(
-                    (x) =>
-                      x.id ===
-                      v.id
-                  )
-                ) {
-                  finalList.push(v);
-                }
-              }
+              addVideo(video);
             }
+          );
 
-            /*
-             * Si une vidéo ne possède pas
-             * de notion, on la conserve aussi.
-             *
-             * Cela évite qu'une vidéo valide
-             * disparaisse simplement parce que
-             * notions est vide.
-             */
-            for (const v of
-              learningQueue) {
+          filtered.forEach(
+            (video) => {
+              addVideo(video);
+            }
+          );
+
+          finalList.sort(
+            (a, b) => {
+              const aCurrent =
+                normalizeNiveau(
+                  a.niveau
+                ) ===
+                normalizeNiveau(
+                  niveau
+                );
+
+              const bCurrent =
+                normalizeNiveau(
+                  b.niveau
+                ) ===
+                normalizeNiveau(
+                  niveau
+                );
+
               if (
-                !finalList.some(
-                  (x) =>
-                    x.id === v.id
-                )
+                aCurrent ===
+                bCurrent
               ) {
-                finalList.push(v);
-              }
-            }
-
-            /*
-             * Les vidéos correspondant
-             * directement au niveau actuel
-             * passent en priorité.
-             */
-            finalList.sort(
-              (a, b) => {
-                const aCurrent =
-                  normalizeNiveau(
-                    a.niveau
-                  ) === niveau;
-
-                const bCurrent =
-                  normalizeNiveau(
-                    b.niveau
-                  ) === niveau;
-
-                if (
-                  aCurrent &&
-                  !bCurrent
-                )
-                  return -1;
-
-                if (
-                  !aCurrent &&
-                  bCurrent
-                )
-                  return 1;
-
                 return 0;
               }
-            );
 
-            setOrderedVideos(
-              finalList
-            );
-
-            /*
-             * Vidéos déjà terminées.
-             */
-            const savedCompleted =
-              localStorage.getItem(
-                completedStorageKey
-              );
-
-            const completedSet: Set<string> =
-              savedCompleted
-                ? new Set(
-                    JSON.parse(
-                      savedCompleted
-                    )
-                  )
-                : new Set();
-
-            setCompletedVideos(
-              new Set(
-                completedSet
-              )
-            );
-
-            let firstUnwatchedIndex =
-              finalList.findIndex(
-                (v) =>
-                  !completedSet.has(
-                    v.id
-                  )
-              );
-
-            if (
-              firstUnwatchedIndex ===
-              -1
-            ) {
-              firstUnwatchedIndex = 0;
+              return aCurrent
+                ? 1
+                : -1;
             }
+          );
 
-            setCurrentIndex(
-              firstUnwatchedIndex
+          setOrderedVideos(
+            finalList
+          );
+
+          const savedCompleted =
+            localStorage.getItem(
+              completedStorageKey
             );
 
-            setLoading(false);
-          } catch (err) {
-            console.error(
-              "Erreur fetch vidéos remediation:",
-              err
-            );
+          let completedSet =
+            new Set<string>();
 
-            setOrderedVideos(
-              []
-            );
-
-            setLoading(false);
+          if (
+            savedCompleted
+          ) {
+            try {
+              completedSet =
+                new Set(
+                  JSON.parse(
+                    savedCompleted
+                  )
+                );
+            } catch {
+              console.warn(
+                "Impossible de lire la progression locale."
+              );
+            }
           }
+
+          setCompletedVideos(
+            completedSet
+          );
+
+          const firstUnwatched =
+            finalList.findIndex(
+              (video) =>
+                !completedSet.has(
+                  video.id
+                )
+            );
+
+          setCurrentIndex(
+            firstUnwatched >= 0
+              ? firstUnwatched
+              : 0
+          );
+
+          setLoading(false);
         };
 
-      fetchVideos();
+      loadVideos();
+
+      return () => {
+        cancelled = true;
+      };
     }, [
       niveau,
       matiere,
@@ -1482,51 +1049,41 @@ const RemediationVideo: React.FC =
       completedStorageKey,
     ]);
 
-    /* ============================================================
+    /* ========================================================
        PROFILS ENSEIGNANTS
-    ============================================================ */
+    ======================================================== */
 
     useEffect(() => {
-      let cancelled =
-        false;
+      let cancelled = false;
 
-      const fetchTeacherProfiles =
+      const emails = Array.from(
+        new Set(
+          orderedVideos
+            .map(
+              (video) =>
+                video.enseignant
+            )
+            .filter(
+              (
+                email
+              ): email is string =>
+                Boolean(email)
+            )
+        )
+      );
+
+      if (!emails.length) {
+        setTeacherProfiles(
+          {}
+        );
+        setLoadingTeachers(
+          false
+        );
+        return;
+      }
+
+      const loadTeachers =
         async () => {
-          const emails = [
-            ...new Set(
-              orderedVideos
-                .map(
-                  (video) =>
-                    video.enseignant
-                )
-                .filter(
-                  (
-                    email
-                  ): email is string =>
-                    typeof email ===
-                      "string" &&
-                    email.trim() !==
-                      ""
-                )
-            ),
-          ];
-
-          if (!emails.length) {
-            if (
-              !cancelled
-            ) {
-              setTeacherProfiles(
-                {}
-              );
-
-              setLoadingTeachers(
-                false
-              );
-            }
-
-            return;
-          }
-
           setLoadingTeachers(
             true
           );
@@ -1538,32 +1095,82 @@ const RemediationVideo: React.FC =
 
           await Promise.all(
             emails.map(
-              async (
-                email
-              ) => {
+              async (email) => {
+                const cacheId =
+                  buildTeacherCacheId(
+                    email
+                  );
+
                 try {
-                  const response =
-                    await api.get(
-                      "/api/teacher/public-profile",
-                      {
-                        params: {
-                          email,
-                        },
+                  if (
+                    navigator.onLine
+                  ) {
+                    const response =
+                      await api.get(
+                        `/api/teacher/public-profile?email=${encodeURIComponent(
+                          email
+                        )}`
+                      );
+
+                    const profile =
+                      response.data;
+
+                    profiles[
+                      email
+                    ] =
+                      profile ||
+                      null;
+
+                    if (
+                      profile
+                    ) {
+                      try {
+                        await saveOfflineData(
+                          STORES.documents,
+                          {
+                            ...profile,
+                            id: cacheId,
+                            cachedAt:
+                              Date.now(),
+                          } as CachedTeacherProfile &
+                            {
+                              id: string;
+                            }
+                        );
+                      } catch (
+                        cacheError
+                      ) {
+                        console.warn(
+                          "Impossible de mettre le profil enseignant en cache :",
+                          cacheError
+                        );
                       }
+                    }
+
+                    return;
+                  }
+                } catch (
+                  error
+                ) {
+                  console.warn(
+                    `Profil enseignant indisponible pour ${email}.`,
+                    error
+                  );
+                }
+
+                try {
+                  const cached =
+                    await getOfflineData<CachedTeacherProfile>(
+                      STORES.documents,
+                      cacheId
                     );
 
                   profiles[
                     email
                   ] =
-                    response.data;
-                } catch (
-                  error
-                ) {
-                  console.error(
-                    `Impossible de récupérer le profil enseignant ${email}`,
-                    error
-                  );
-
+                    cached ||
+                    null;
+                } catch {
                   profiles[
                     email
                   ] = null;
@@ -1572,20 +1179,17 @@ const RemediationVideo: React.FC =
             )
           );
 
-          if (
-            !cancelled
-          ) {
+          if (!cancelled) {
             setTeacherProfiles(
               profiles
             );
-
             setLoadingTeachers(
               false
             );
           }
         };
 
-      fetchTeacherProfiles();
+      loadTeachers();
 
       return () => {
         cancelled = true;
@@ -1594,9 +1198,9 @@ const RemediationVideo: React.FC =
       orderedVideos,
     ]);
 
-    /* ============================================================
-       LECTURE + QUIZ
-    ============================================================ */
+    /* ========================================================
+       LECTURE / QUIZ
+    ======================================================== */
 
     const [
       videoPlaying,
@@ -1649,7 +1253,9 @@ const RemediationVideo: React.FC =
       answerStatus,
       setAnswerStatus,
     ] = useState<
-      "none" | "correct" | "wrong"
+      "none" |
+        "correct" |
+        "wrong"
     >("none");
 
     const [
@@ -1676,9 +1282,9 @@ const RemediationVideo: React.FC =
       Set<string>
     >(new Set());
 
-    /* ============================================================
+    /* ========================================================
        SIDEBAR
-    ============================================================ */
+    ======================================================== */
 
     const [
       isSidebarOpen,
@@ -1690,9 +1296,9 @@ const RemediationVideo: React.FC =
       setCanShowQuiz,
     ] = useState(false);
 
-    /* ============================================================
+    /* ========================================================
        SCROLL
-    ============================================================ */
+    ======================================================== */
 
     const scrollPageToTop = (
       behavior: ScrollBehavior =
@@ -1719,9 +1325,9 @@ const RemediationVideo: React.FC =
       });
     };
 
-    /* ============================================================
+    /* ========================================================
        CHANGEMENT VIDÉO
-    ============================================================ */
+    ======================================================== */
 
     const handleVideoChange = (
       index: number
@@ -1738,25 +1344,17 @@ const RemediationVideo: React.FC =
         orderedVideos[index];
 
       setCurrentIndex(index);
-
       setVideoPlaying(false);
-
       setShowQuiz(false);
-
       setShowCountdown(false);
-
       setTimerEnded(false);
-
       setCurrentQuestionIndex(
         0
       );
-
       setSelectedAnswer("");
-
       setAnswerStatus(
         "none"
       );
-
       setPendingExplanation(
         null
       );
@@ -1787,8 +1385,9 @@ const RemediationVideo: React.FC =
     useEffect(() => {
       if (
         !orderedVideos.length
-      )
+      ) {
         return;
+      }
 
       scrollPageToTop(
         "smooth"
@@ -1796,8 +1395,9 @@ const RemediationVideo: React.FC =
     }, [currentIndex]);
 
     useEffect(() => {
-      if (!showQuiz)
+      if (!showQuiz) {
         return;
+      }
 
       scrollPageToTop(
         "smooth"
@@ -1836,8 +1436,9 @@ const RemediationVideo: React.FC =
       if (
         !videoPlaying ||
         showQuiz
-      )
+      ) {
         return;
+      }
 
       requestAnimationFrame(
         () => {
@@ -1850,9 +1451,9 @@ const RemediationVideo: React.FC =
       fadeKey,
     ]);
 
-    /* ============================================================
+    /* ========================================================
        ÉVALUATION
-    ============================================================ */
+    ======================================================== */
 
     const [
       evaluationMode,
@@ -1878,9 +1479,9 @@ const RemediationVideo: React.FC =
       setEvaluationIndex,
     ] = useState(0);
 
-    /* ============================================================
+    /* ========================================================
        REFS
-    ============================================================ */
+    ======================================================== */
 
     const videoRef =
       useRef<HTMLVideoElement | null>(
@@ -1892,9 +1493,9 @@ const RemediationVideo: React.FC =
         null
       );
 
-    /* ============================================================
+    /* ========================================================
        QUESTION COURANTE
-    ============================================================ */
+    ======================================================== */
 
     const currentVideo =
       orderedVideos[
@@ -1906,9 +1507,9 @@ const RemediationVideo: React.FC =
         currentQuestionIndex
       ];
 
-    /* ============================================================
+    /* ========================================================
        EXPLICATION IA
-    ============================================================ */
+    ======================================================== */
 
     const openExplanation = (
       explanation: PendingExplanation
@@ -2013,15 +1614,11 @@ const RemediationVideo: React.FC =
         openExplanation({
           question: {
             ...currentQuestion,
-
             notion,
-
             niveau:
               niveauQuestion,
-
             matiere:
               matiereQuestion,
-
             enseignant,
           },
 
@@ -2044,9 +1641,9 @@ const RemediationVideo: React.FC =
         });
       };
 
-    /* ============================================================
+    /* ========================================================
        TIME UP
-    ============================================================ */
+    ======================================================== */
 
     const handleTimeUp =
       () => {
@@ -2057,17 +1654,12 @@ const RemediationVideo: React.FC =
         });
 
         setShowQuiz(false);
-
         setVideoPlaying(false);
-
         setShowCountdown(false);
-
         setCurrentQuestionIndex(
           0
         );
-
         setSelectedAnswer("");
-
         setAnswerStatus(
           "none"
         );
@@ -2081,20 +1673,18 @@ const RemediationVideo: React.FC =
 
         setTimeout(() => {
           setFeedback(null);
-
           setVideoPlaying(
             true
           );
-
           setShowCountdown(
             true
           );
         }, 2500);
       };
 
-    /* ============================================================
+    /* ========================================================
        TITRES
-    ============================================================ */
+    ======================================================== */
 
     const currentVideoTitle =
       orderedVideos[
@@ -2106,9 +1696,9 @@ const RemediationVideo: React.FC =
         currentIndex + 1
       ]?.titre || null;
 
-    /* ============================================================
+    /* ========================================================
        SON
-    ============================================================ */
+    ======================================================== */
 
     useEffect(() => {
       questionSoundRef.current =
@@ -2118,15 +1708,14 @@ const RemediationVideo: React.FC =
 
       return () => {
         questionSoundRef.current?.pause();
-
         questionSoundRef.current =
           null;
       };
     }, []);
 
-    /* ============================================================
+    /* ========================================================
        PLEIN ÉCRAN
-    ============================================================ */
+    ======================================================== */
 
     const [
       isFullscreen,
@@ -2148,8 +1737,7 @@ const RemediationVideo: React.FC =
         new Date().toLocaleString(
           "fr-FR",
           {
-            month:
-              "long",
+            month: "long",
           }
         )
       );
@@ -2166,17 +1754,16 @@ const RemediationVideo: React.FC =
         videoUrl
       );
 
-    const handleVideoComplete =
-      (
-        videoId: string
-      ) => {
-        localStorage.setItem(
-          `lastVideoWatched_${normalizeMatiere(
-            matiere
-          )}`,
-          videoId
-        );
-      };
+    const handleVideoComplete = (
+      videoId: string
+    ) => {
+      localStorage.setItem(
+        `lastVideoWatched_${normalizeMatiere(
+          matiere
+        )}`,
+        videoId
+      );
+    };
 
     const isPrereq =
       currentVideo
@@ -2233,9 +1820,9 @@ const RemediationVideo: React.FC =
         );
     }, []);
 
-    /* ============================================================
+    /* ========================================================
        ORGANISATION PAR NOTION
-    ============================================================ */
+    ======================================================== */
 
     const videosByNotion:
       Record<
@@ -2367,9 +1954,9 @@ const RemediationVideo: React.FC =
         videosByNotion
       );
 
-    /* ============================================================
+    /* ========================================================
        NAVIGATION CLAVIER
-    ============================================================ */
+    ======================================================== */
 
     const [
       focusArea,
@@ -2493,7 +2080,6 @@ const RemediationVideo: React.FC =
           setFocusArea(
             "sidebar"
           );
-
           return;
         }
 
@@ -2506,7 +2092,6 @@ const RemediationVideo: React.FC =
           setFocusArea(
             "video"
           );
-
           return;
         }
 
@@ -2523,7 +2108,6 @@ const RemediationVideo: React.FC =
             setVideoPlaying(
               true
             );
-
             setShowCountdown(
               true
             );
@@ -2556,9 +2140,9 @@ const RemediationVideo: React.FC =
       selectedAnswer,
     ]);
 
-    /* ============================================================
+    /* ========================================================
        PLEIN ÉCRAN
-    ============================================================ */
+    ======================================================== */
 
     const requestFullscreenLandscape =
       async (
@@ -2568,7 +2152,9 @@ const RemediationVideo: React.FC =
           videoElement ||
           videoContainerRef.current;
 
-        if (!el) return;
+        if (!el) {
+          return;
+        }
 
         try {
           if (
@@ -2689,9 +2275,9 @@ const RemediationVideo: React.FC =
         );
     }, []);
 
-    /* ============================================================
+    /* ========================================================
        NAVIGATION CLAVIER VIDÉOS
-    ============================================================ */
+    ======================================================== */
 
     useEffect(() => {
       const handleKey = (
@@ -2727,13 +2313,14 @@ const RemediationVideo: React.FC =
             videosByNotion
           );
 
-        const currentVideo =
+        const current =
           orderedVideos[
             currentIndex
           ];
 
-        if (!currentVideo)
+        if (!current) {
           return;
+        }
 
         let currentNotionIndex =
           notions.findIndex(
@@ -2743,7 +2330,7 @@ const RemediationVideo: React.FC =
               ].some(
                 (v) =>
                   v.id ===
-                  currentVideo.id
+                  current.id
               )
           );
 
@@ -2765,7 +2352,7 @@ const RemediationVideo: React.FC =
           vidsInNotion.findIndex(
             (v) =>
               v.id ===
-              currentVideo.id
+              current.id
           );
 
         if (
@@ -2923,9 +2510,9 @@ const RemediationVideo: React.FC =
       focusArea,
     ]);
 
-    /* ============================================================
+    /* ========================================================
        DÉMARRER VIDÉO
-    ============================================================ */
+    ======================================================== */
 
     const startVideo = () => {
       scrollPageToTop();
@@ -2979,9 +2566,9 @@ const RemediationVideo: React.FC =
       }
     };
 
-    /* ============================================================
+    /* ========================================================
        ÉVALUATION
-    ============================================================ */
+    ======================================================== */
 
     const handleGoToQuestions =
       () => {
@@ -2991,7 +2578,9 @@ const RemediationVideo: React.FC =
 
         setShowQuiz(true);
 
-        setTimerEnded(true);
+        setTimerEnded(
+          true
+        );
 
         setVideoPlaying(
           false
@@ -3017,9 +2606,9 @@ const RemediationVideo: React.FC =
         );
       };
 
-    /* ============================================================
+    /* ========================================================
        VALIDATION
-    ============================================================ */
+    ======================================================== */
 
     const handleValidateAnswer =
       () => {
@@ -3028,8 +2617,9 @@ const RemediationVideo: React.FC =
             currentQuestionIndex
           ];
 
-        if (!currentQ)
+        if (!currentQ) {
           return;
+        }
 
         const userAnswer =
           normalize(
@@ -3047,7 +2637,6 @@ const RemediationVideo: React.FC =
         ) {
           setFeedback({
             type: "success",
-
             message:
               "✅ Bravo ! Réponse correcte",
           });
@@ -3086,8 +2675,9 @@ const RemediationVideo: React.FC =
             } else {
               if (
                 !currentVideo
-              )
+              ) {
                 return;
+              }
 
               setCompletedVideos(
                 (prev) => {
@@ -3117,12 +2707,6 @@ const RemediationVideo: React.FC =
             }
           }, 900);
         } else {
-          /*
-           * ======================================================
-           * MAUVAISE RÉPONSE
-           * ======================================================
-           */
-
           const bonneReponse =
             currentQ.bonne_reponse ||
             "";
@@ -3148,44 +2732,37 @@ const RemediationVideo: React.FC =
             currentVideo?.matiere ||
             matiere;
 
-          setPendingExplanation(
-            {
-              question: {
-                ...currentQ,
-
-                notion,
-
-                niveau:
-                  niveauQuestion,
-
-                matiere:
-                  matiereQuestion,
-
-                enseignant,
-              },
-
-              reponseUtilisateur:
-                selectedAnswer,
-
-              bonneReponse,
-
-              correcte: false,
-
+          setPendingExplanation({
+            question: {
+              ...currentQ,
               notion,
-
               niveau:
                 niveauQuestion,
-
               matiere:
                 matiereQuestion,
-
               enseignant,
-            }
-          );
+            },
+
+            reponseUtilisateur:
+              selectedAnswer,
+
+            bonneReponse,
+
+            correcte: false,
+
+            notion,
+
+            niveau:
+              niveauQuestion,
+
+            matiere:
+              matiereQuestion,
+
+            enseignant,
+          });
 
           setFeedback({
             type: "error",
-
             message:
               "❌ Mauvaise réponse ! Retournez à la vidéo pour revoir cette notion. Vous pourrez ensuite demander une explication avec CODE IA.",
           });
@@ -3213,10 +2790,6 @@ const RemediationVideo: React.FC =
               false
             );
 
-            /*
-             * On conserve pendingExplanation.
-             */
-
             setCurrentQuestionIndex(
               currentQuestionIndex
             );
@@ -3234,9 +2807,9 @@ const RemediationVideo: React.FC =
         }
       };
 
-    /* ============================================================
+    /* ========================================================
        ÉVALUATION D'UNE NOTION
-    ============================================================ */
+    ======================================================== */
 
     const startEvaluationForNotion =
       (
@@ -3271,8 +2844,9 @@ const RemediationVideo: React.FC =
 
         if (
           !allQuestions.length
-        )
+        ) {
           return;
+        }
 
         const evalCount =
           Math.max(
@@ -3328,9 +2902,9 @@ const RemediationVideo: React.FC =
         );
       };
 
-    /* ============================================================
+    /* ========================================================
        VIDÉO SUIVANTE
-    ============================================================ */
+    ======================================================== */
 
     const handleNextVideo =
       () => {
@@ -3558,11 +3132,57 @@ const RemediationVideo: React.FC =
         );
       };
 
-    /* ============================================================
-       RENDER
-    ============================================================ */
+    /* ========================================================
+       PROGRESSION OFFLINE
+    ======================================================== */
 
-    if (loading)
+    useEffect(() => {
+      if (
+        !currentVideo
+      ) {
+        return;
+      }
+
+      const savedPosition =
+        localStorage.getItem(
+          `lastVideo_${normalizeMatiere(
+            matiere
+          )}_${currentVideo.id}`
+        );
+
+      if (
+        savedPosition &&
+        videoRef.current
+      ) {
+        try {
+          const parsed =
+            JSON.parse(
+              savedPosition
+            );
+
+          if (
+            typeof parsed.position ===
+            "number"
+          ) {
+            videoRef.current.currentTime =
+              parsed.position;
+          }
+        } catch {
+          console.warn(
+            "Position vidéo invalide."
+          );
+        }
+      }
+    }, [
+      currentVideo?.id,
+      matiere,
+    ]);
+
+    /* ========================================================
+       RENDU CHARGEMENT
+    ======================================================== */
+
+    if (loading) {
       return (
         <div className="flex flex-col items-center justify-center h-screen gap-4 bg-black text-white">
           <Loader2 className="animate-spin h-10 w-10" />
@@ -3570,10 +3190,21 @@ const RemediationVideo: React.FC =
           <p>
             Chargement des vidéos...
           </p>
+
+          {!navigator.onLine && (
+            <p className="text-sm text-yellow-400">
+              Mode hors connexion
+            </p>
+          )}
         </div>
       );
+    }
 
-    if (!orderedVideos.length)
+    /* ========================================================
+       AUCUNE VIDÉO
+    ======================================================== */
+
+    if (!orderedVideos.length) {
       return (
         <div className="text-center mt-20 text-white bg-black min-h-screen p-8">
           <p className="text-xl font-bold mb-3">
@@ -3614,6 +3245,11 @@ const RemediationVideo: React.FC =
           </p>
         </div>
       );
+    }
+
+    /* ========================================================
+       URL VIDÉO
+    ======================================================== */
 
     const currentTitle =
       currentVideo?.titre ||
@@ -3633,9 +3269,9 @@ const RemediationVideo: React.FC =
           )
         : videoUrl;
 
-    /* ============================================================
+    /* ========================================================
        ENSEIGNANT COURANT
-    ============================================================ */
+    ======================================================== */
 
     const currentTeacher =
       currentVideo?.enseignant
@@ -3645,35 +3281,48 @@ const RemediationVideo: React.FC =
           ]
         : null;
 
-    const currentTeacherPhoto =
-      currentTeacher?.teacher_photo
-        ? /^https?:\/\//i.test(
-            currentTeacher.teacher_photo
+    const buildTeacherPhotoUrl =
+      (
+        photo?: string
+      ): string | null => {
+        if (!photo) {
+          return null;
+        }
+
+        if (
+          /^https?:\/\/+/i.test(
+            photo
           )
-          ? currentTeacher.teacher_photo
-          : (() => {
-              const baseUrl =
-                api.defaults.baseURL?.replace(
-                  /\/$/,
-                  ""
-                ) || "";
+        ) {
+          return photo;
+        }
 
-              const normalizedBase =
-                baseUrl.endsWith(
-                  "/api"
-                )
-                  ? baseUrl.slice(
-                      0,
-                      -4
-                    )
-                  : baseUrl;
+        const baseUrl =
+          api.defaults.baseURL?.replace(
+            /\/+$/,
+            ""
+          ) || "";
 
-              return `${normalizedBase}/${currentTeacher.teacher_photo.replace(
-                /^\/+/,
-                ""
-              )}`;
-            })()
-        : null;
+        const normalizedBase =
+          baseUrl.endsWith(
+            "/api"
+          )
+            ? baseUrl.slice(
+                0,
+                -4
+              )
+            : baseUrl;
+
+        return `${normalizedBase}/${photo.replace(
+          /^\/+/,
+          ""
+        )}`;
+      };
+
+    const currentTeacherPhoto =
+      buildTeacherPhotoUrl(
+        currentTeacher?.teacher_photo
+      );
 
     const currentTeacherName =
       currentTeacher
@@ -3690,7 +3339,9 @@ const RemediationVideo: React.FC =
           currentTeacher?.email ||
           currentVideo?.enseignant;
 
-        if (!teacherEmail) {
+        if (
+          !teacherEmail
+        ) {
           return;
         }
 
@@ -3700,6 +3351,10 @@ const RemediationVideo: React.FC =
           )}`
         );
       };
+
+    /* ========================================================
+       RENDU PRINCIPAL
+    ======================================================== */
 
     return (
       <div className="flex flex-col lg:flex-row min-h-screen bg-black text-white">
@@ -3724,9 +3379,15 @@ const RemediationVideo: React.FC =
           </motion.div>
         )}
 
-        {/* ========================================================
+        {!navigator.onLine && (
+          <div className="fixed top-0 left-0 right-0 z-[9998] bg-yellow-500 text-black text-center text-xs font-semibold py-1">
+            Mode hors connexion — les données déjà téléchargées restent accessibles.
+          </div>
+        )}
+
+        {/* ====================================================
             BOUTON MOBILE
-        ======================================================== */}
+        ==================================================== */}
 
         <button
           type="button"
@@ -3738,15 +3399,17 @@ const RemediationVideo: React.FC =
           }
         >
           <List className="w-5 h-5" />
-
           Liste des vidéos
         </button>
 
-        {/* ========================================================
+        {/* ====================================================
             SIDEBAR
-        ======================================================== */}
+        ==================================================== */}
 
         <aside
+          ref={
+            sidebarRef
+          }
           className={`lg:block ${
             isSidebarOpen
               ? "block"
@@ -3765,7 +3428,9 @@ const RemediationVideo: React.FC =
                     </h3>
 
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {orderedVideos.length}{" "}
+                      {
+                        orderedVideos.length
+                      }{" "}
                       vidéo
                       {orderedVideos.length >
                       1
@@ -3814,34 +3479,9 @@ const RemediationVideo: React.FC =
                         : null;
 
                     const teacherPhoto =
-                      teacher?.teacher_photo
-                        ? /^https?:\/\//i.test(
-                            teacher.teacher_photo
-                          )
-                          ? teacher.teacher_photo
-                          : (() => {
-                              const baseUrl =
-                                api.defaults.baseURL?.replace(
-                                  /\/$/,
-                                  ""
-                                ) || "";
-
-                              const normalizedBase =
-                                baseUrl.endsWith(
-                                  "/api"
-                                )
-                                  ? baseUrl.slice(
-                                      0,
-                                      -4
-                                    )
-                                  : baseUrl;
-
-                              return `${normalizedBase}/${teacher.teacher_photo.replace(
-                                /^\/+/,
-                                ""
-                              )}`;
-                            })()
-                        : null;
+                      buildTeacherPhotoUrl(
+                        teacher?.teacher_photo
+                      );
 
                     const teacherName =
                       teacher
@@ -4014,14 +3654,16 @@ const RemediationVideo: React.FC =
           </div>
         </aside>
 
-        {/* ========================================================
+        {/* ====================================================
             MAIN
-        ======================================================== */}
+        ==================================================== */}
 
         <main className="flex-1 flex flex-col items-center justify-start px-4 py-6">
+
           <div className="w-full max-w-3xl">
 
             <div className="mb-4 text-center">
+
               <p className="text-sm uppercase tracking-widest text-blue-400 font-semibold">
                 Remédiation
               </p>
@@ -4034,9 +3676,11 @@ const RemediationVideo: React.FC =
                   ? ` • ${serieEffective}`
                   : ""}
               </p>
+
             </div>
 
             <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full mb-4">
+
               <div
                 className="h-2 bg-blue-600 rounded-full transition-all"
                 style={{
@@ -4048,6 +3692,7 @@ const RemediationVideo: React.FC =
                   }%`,
                 }}
               />
+
             </div>
 
             <h1 className="text-2xl font-bold text-center text-blue-700 dark:text-blue-300 mb-4">
@@ -4323,6 +3968,11 @@ const RemediationVideo: React.FC =
                               (p) =>
                                 p + 1
                             );
+
+                            handleVideoComplete(
+                              currentVideo?.id ||
+                                ""
+                            );
                           }}
                           onLoadedMetadata={() => {
                             if (
@@ -4349,7 +3999,8 @@ const RemediationVideo: React.FC =
                                   );
 
                                 if (
-                                  parsed.position
+                                  typeof parsed.position ===
+                                  "number"
                                 ) {
                                   videoRef.current.currentTime =
                                     parsed.position;

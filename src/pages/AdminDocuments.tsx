@@ -24,6 +24,21 @@ const AdminDocuments: React.FC = () => {
   const [error, setError] = useState("");
 
   // ============================================================
+  // ÉTAT DE LA CONNEXION
+  // ============================================================
+
+  const [isOffline, setIsOffline] = useState<boolean>(() => {
+    if (typeof navigator === "undefined") {
+      return false;
+    }
+
+    return !navigator.onLine;
+  });
+
+  const [lastFetchFailed, setLastFetchFailed] =
+    useState(false);
+
+  // ============================================================
   // PAGINATION
   // ============================================================
 
@@ -32,39 +47,119 @@ const AdminDocuments: React.FC = () => {
   const DOCUMENTS_PER_PAGE = 100;
 
   // ============================================================
-  // RÉCUPÉRATION DES DOCUMENTS
+  // SURVEILLANCE DE LA CONNEXION
   // ============================================================
 
   useEffect(() => {
-    const fetchDocuments = async () => {
-      setLoading(true);
-      setError("");
+    const handleOnline = () => {
+      setIsOffline(false);
+      setLastFetchFailed(false);
+    };
 
-      try {
-        const response = await api.get("/api/admin/documents");
-        const data = response.data;
+    const handleOffline = () => {
+      setIsOffline(true);
+    };
 
-        setDocuments(
-          Array.isArray(data)
-            ? data
-            : Array.isArray(data.documents)
-            ? data.documents
-            : []
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  // ============================================================
+  // RÉCUPÉRATION DES DOCUMENTS
+  // ============================================================
+
+  const fetchDocuments = async () => {
+    setLoading(true);
+    setError("");
+    setLastFetchFailed(false);
+
+    // ----------------------------------------------------------
+    // Si l'appareil est hors ligne
+    // ----------------------------------------------------------
+
+    if (
+      typeof navigator !== "undefined" &&
+      !navigator.onLine
+    ) {
+      setIsOffline(true);
+      setError(
+        "Vous êtes actuellement hors ligne. " +
+          "Les documents administratifs nécessitent une connexion " +
+          "Internet pour être récupérés."
+      );
+      setLastFetchFailed(true);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await api.get(
+        "/api/admin/documents"
+      );
+
+      const data = response.data;
+
+      const normalizedDocuments: DocumentRecord[] =
+        Array.isArray(data)
+          ? data
+          : Array.isArray(data.documents)
+          ? data.documents
+          : [];
+
+      setDocuments(normalizedDocuments);
+
+      setIsOffline(false);
+      setLastFetchFailed(false);
+    } catch (err) {
+      console.error(
+        "Erreur récupération documents :",
+        err
+      );
+
+      // --------------------------------------------------------
+      // Détection d'une éventuelle perte de connexion
+      // --------------------------------------------------------
+
+      if (
+        typeof navigator !== "undefined" &&
+        !navigator.onLine
+      ) {
+        setIsOffline(true);
+
+        setError(
+          "La connexion Internet a été interrompue. " +
+            "Les documents administratifs ne peuvent pas être " +
+            "actualisés hors ligne."
         );
-      } catch (err) {
-        console.error("Erreur récupération documents :", err);
-
+      } else {
         setError(
           "Impossible de récupérer les informations des documents. " +
             "Vérifie que la route /api/admin/documents existe côté backend."
         );
-      } finally {
-        setLoading(false);
       }
-    };
 
+      setLastFetchFailed(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchDocuments();
   }, []);
+
+  // ============================================================
+  // NOUVELLE TENTATIVE
+  // ============================================================
+
+  const handleRetry = () => {
+    fetchDocuments();
+  };
 
   // ============================================================
   // FILTRAGE PAR RECHERCHE
@@ -90,7 +185,9 @@ const AdminDocuments: React.FC = () => {
       ]
         .filter(Boolean)
         .some((value) =>
-          String(value).toLowerCase().includes(term)
+          String(value)
+            .toLowerCase()
+            .includes(term)
         )
     );
   }, [documents, search]);
@@ -122,10 +219,11 @@ const AdminDocuments: React.FC = () => {
   const endIndex =
     startIndex + DOCUMENTS_PER_PAGE;
 
-  const paginatedDocuments = filteredDocuments.slice(
-    startIndex,
-    endIndex
-  );
+  const paginatedDocuments =
+    filteredDocuments.slice(
+      startIndex,
+      endIndex
+    );
 
   // ============================================================
   // RETOUR À LA PAGE 1 LORS D'UNE NOUVELLE RECHERCHE
@@ -134,6 +232,19 @@ const AdminDocuments: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [search]);
+
+  // ============================================================
+  // PROTECTION DE LA PAGE COURANTE
+  // ============================================================
+
+  useEffect(() => {
+    if (
+      totalPages > 0 &&
+      currentPage > totalPages
+    ) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   // ============================================================
   // PAGES VISIBLES
@@ -154,8 +265,15 @@ const AdminDocuments: React.FC = () => {
 
     // Pages autour de la page actuelle
     for (
-      let page = Math.max(2, currentPage - 2);
-      page <= Math.min(totalPages - 1, currentPage + 2);
+      let page = Math.max(
+        2,
+        currentPage - 2
+      );
+      page <=
+      Math.min(
+        totalPages - 1,
+        currentPage + 2
+      );
       page++
     ) {
       pages.push(page);
@@ -164,7 +282,9 @@ const AdminDocuments: React.FC = () => {
     // Dernière page
     pages.push(totalPages);
 
-    return Array.from(new Set(pages));
+    return Array.from(
+      new Set(pages)
+    );
   }, [currentPage, totalPages]);
 
   // ============================================================
@@ -173,12 +293,63 @@ const AdminDocuments: React.FC = () => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 25 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
+      initial={{
+        opacity: 0,
+        y: 25,
+      }}
+      animate={{
+        opacity: 1,
+        y: 0,
+      }}
+      transition={{
+        duration: 0.4,
+      }}
       className="min-h-screen p-6 bg-gray-100 dark:bg-gray-900"
     >
       <div className="max-w-7xl mx-auto">
+
+        {/* ======================================================
+            INDICATEUR HORS LIGNE
+        ====================================================== */}
+
+        {isOffline && (
+          <motion.div
+            initial={{
+              opacity: 0,
+              y: -10,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            className="mb-5 rounded-xl border border-orange-300 bg-orange-50 dark:bg-orange-900/30 dark:border-orange-700 px-4 py-3"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+
+              <div>
+                <p className="font-semibold text-orange-700 dark:text-orange-300">
+                  📴 Mode hors ligne
+                </p>
+
+                <p className="text-sm text-orange-600 dark:text-orange-400 mt-1">
+                  La gestion des documents administratifs
+                  nécessite une connexion Internet.
+                </p>
+              </div>
+
+              <button
+                onClick={handleRetry}
+                disabled={loading}
+                className="px-4 py-2 rounded-lg bg-orange-600 text-white font-semibold hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                {loading
+                  ? "Vérification..."
+                  : "Réessayer"}
+              </button>
+
+            </div>
+          </motion.div>
+        )}
 
         {/* ======================================================
             EN-TÊTE
@@ -198,7 +369,7 @@ const AdminDocuments: React.FC = () => {
 
           <button
             onClick={() => navigate(-1)}
-            className="px-5 py-2 rounded-xl bg-gray-700 text-white hover:bg-gray-800"
+            className="px-5 py-2 rounded-xl bg-gray-700 text-white hover:bg-gray-800 transition"
           >
             ← Retour
           </button>
@@ -278,9 +449,13 @@ const AdminDocuments: React.FC = () => {
         ====================================================== */}
 
         {loading && (
-          <p className="text-center py-10 text-gray-600 dark:text-gray-300">
-            Chargement des documents...
-          </p>
+          <div className="text-center py-10">
+
+            <p className="text-gray-600 dark:text-gray-300">
+              Chargement des documents...
+            </p>
+
+          </div>
         )}
 
         {/* ======================================================
@@ -288,8 +463,25 @@ const AdminDocuments: React.FC = () => {
         ====================================================== */}
 
         {!loading && error && (
-          <div className="bg-red-100 text-red-700 rounded-xl p-4 mb-6">
-            {error}
+          <div className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-xl p-4 mb-6">
+
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+
+              <p>
+                {error}
+              </p>
+
+              {lastFetchFailed && !isOffline && (
+                <button
+                  onClick={handleRetry}
+                  className="shrink-0 px-4 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition"
+                >
+                  Réessayer
+                </button>
+              )}
+
+            </div>
+
           </div>
         )}
 
@@ -398,7 +590,7 @@ const AdminDocuments: React.FC = () => {
                                   </p>
 
                                   {doc.user_id && (
-                                    <p className="text-xs text-gray-500">
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
                                       ID utilisateur :{" "}
                                       {doc.user_id}
                                     </p>
@@ -631,7 +823,7 @@ const AdminDocuments: React.FC = () => {
             NAVIGATION ADMIN
         ====================================================== */}
 
-        <div className="flex justify-center gap-4 mt-8">
+        <div className="flex flex-col sm:flex-row justify-center gap-4 mt-8">
 
           <button
             onClick={() =>
@@ -639,7 +831,7 @@ const AdminDocuments: React.FC = () => {
                 "/admin/codes-activation"
               )
             }
-            className="px-6 py-3 bg-orange-600 text-white rounded-xl font-semibold hover:bg-orange-700"
+            className="px-6 py-3 bg-orange-600 text-white rounded-xl font-semibold hover:bg-orange-700 transition"
           >
             🔑 Voir les codes d'activation
           </button>
@@ -650,7 +842,7 @@ const AdminDocuments: React.FC = () => {
                 "/admin/historique-connections"
               )
             }
-            className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700"
+            className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition"
           >
             Connexions
           </button>

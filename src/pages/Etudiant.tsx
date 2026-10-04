@@ -1,7 +1,6 @@
-
 // CODE — UNIVERS DU SAVOIR ET DES COMPÉTENCES
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../hooks/useAuth";
@@ -41,6 +40,40 @@ import {
 const Etudiant: React.FC = () => {
   const { loading } = useAuth();
   const navigate = useNavigate();
+
+  // ==========================================================
+  // ÉTAT HORS LIGNE
+  // ==========================================================
+
+  const [isOffline, setIsOffline] = useState<boolean>(() => {
+    if (typeof navigator === "undefined") {
+      return false;
+    }
+
+    return !navigator.onLine;
+  });
+
+  // ==========================================================
+  // SURVEILLANCE DE LA CONNEXION
+  // ==========================================================
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+    };
+
+    const handleOffline = () => {
+      setIsOffline(true);
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   // ==========================================================
   // LES GRANDS DOMAINES DE CODE
@@ -536,6 +569,38 @@ const Etudiant: React.FC = () => {
       </button>
 
       {/* =====================================================
+          INDICATEUR HORS LIGNE
+      ====================================================== */}
+
+      {isOffline && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 0.8, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="
+            fixed
+            bottom-3
+            left-1/2
+            -translate-x-1/2
+            z-50
+            px-4
+            py-2
+            rounded-full
+            bg-black/70
+            backdrop-blur-sm
+            text-xs
+            sm:text-sm
+            text-gray-300
+            shadow-lg
+            pointer-events-none
+            text-center
+          "
+        >
+          Mode hors ligne
+        </motion.div>
+      )}
+
+      {/* =====================================================
           CSS CARTES 3D
       ====================================================== */}
 
@@ -570,4 +635,3 @@ const Etudiant: React.FC = () => {
 };
 
 export default Etudiant;
-

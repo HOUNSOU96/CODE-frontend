@@ -1,4 +1,3 @@
-
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -17,9 +16,15 @@ import {
   UserRound,
   LockKeyhole,
   Info,
+  WifiOff,
 } from "lucide-react";
 
 import api from "../../utils/axios";
+import {
+  getOfflineData,
+  saveOfflineData,
+  STORES,
+} from "@/offline/offlineDB";
 
 // ============================================================
 // TYPES
@@ -54,6 +59,25 @@ type Question = {
   messages: Message[];
 };
 
+type CachedConversation = {
+  id: string;
+  question: Question;
+  cachedAt: number;
+};
+
+type OfflineMessageSubmission = {
+  id: string;
+  type: "question_message";
+  createdAt: number;
+  status: "pending";
+  endpoint: string;
+  method: "POST";
+  payload: {
+    content: string;
+  };
+  questionId: number;
+};
+
 // ============================================================
 // COMPOSANT
 // ============================================================
@@ -80,6 +104,153 @@ const Conversation: React.FC = () => {
   const [error, setError] =
     useState<string | null>(null);
 
+  const [isOffline, setIsOffline] =
+    useState<boolean>(() => {
+      if (
+        typeof navigator === "undefined"
+      ) {
+        return false;
+      }
+
+      return !navigator.onLine;
+    });
+
+  const [usingOfflineCache, setUsingOfflineCache] =
+    useState(false);
+
+  const [pendingOfflineMessage, setPendingOfflineMessage] =
+    useState(false);
+
+  // ==========================================================
+  // ID DE QUESTION
+  // ==========================================================
+
+  const questionIdNumber = Number(questionId);
+
+  // ==========================================================
+  // CLÉ DE CACHE
+  // ==========================================================
+
+  const getConversationCacheKey = useCallback(() => {
+    if (
+      !questionId ||
+      !Number.isInteger(questionIdNumber) ||
+      questionIdNumber <= 0
+    ) {
+      return null;
+    }
+
+    return `conversation-cache:${questionIdNumber}`;
+  }, [questionId, questionIdNumber]);
+
+  // ==========================================================
+  // SAUVEGARDE DE LA CONVERSATION
+  // ==========================================================
+
+  const sauvegarderConversation = useCallback(
+    async (conversation: Question) => {
+      const cacheKey =
+        getConversationCacheKey();
+
+      if (!cacheKey) {
+        return;
+      }
+
+      try {
+        const cache: CachedConversation = {
+          id: cacheKey,
+          question: conversation,
+          cachedAt: Date.now(),
+        };
+
+        await saveOfflineData(
+          STORES.documents,
+          cache
+        );
+      } catch (cacheError) {
+        console.warn(
+          "⚠️ Impossible de sauvegarder la conversation hors ligne :",
+          cacheError
+        );
+      }
+    },
+    [getConversationCacheKey]
+  );
+
+  // ==========================================================
+  // LECTURE DU CACHE
+  // ==========================================================
+
+  const chargerDepuisLeCache =
+    useCallback(async (): Promise<Question | null> => {
+      const cacheKey =
+        getConversationCacheKey();
+
+      if (!cacheKey) {
+        return null;
+      }
+
+      try {
+        const cached =
+          await getOfflineData<CachedConversation>(
+            STORES.documents,
+            cacheKey
+          );
+
+        if (
+          cached &&
+          cached.question
+        ) {
+          return cached.question;
+        }
+
+        return null;
+      } catch (cacheError) {
+        console.warn(
+          "⚠️ Impossible de lire la conversation hors ligne :",
+          cacheError
+        );
+
+        return null;
+      }
+    }, [getConversationCacheKey]);
+
+  // ==========================================================
+  // SURVEILLANCE DE LA CONNEXION
+  // ==========================================================
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+    };
+
+    const handleOffline = () => {
+      setIsOffline(true);
+    };
+
+    window.addEventListener(
+      "online",
+      handleOnline
+    );
+
+    window.addEventListener(
+      "offline",
+      handleOffline
+    );
+
+    return () => {
+      window.removeEventListener(
+        "online",
+        handleOnline
+      );
+
+      window.removeEventListener(
+        "offline",
+        handleOffline
+      );
+    };
+  }, []);
+
   // ==========================================================
   // RETOUR À LA PAGE PRÉCÉDENTE
   // ==========================================================
@@ -87,12 +258,6 @@ const Conversation: React.FC = () => {
   const retourPagePrecedente = () => {
     navigate(-1);
   };
-
-  // ==========================================================
-  // VÉRIFICATION DE L'ID
-  // ==========================================================
-
-  const questionIdNumber = Number(questionId);
 
   // ==========================================================
   // CHARGER LA CONVERSATION
@@ -126,6 +291,33 @@ const Conversation: React.FC = () => {
 
         setError(null);
 
+        // ------------------------------------------------------
+        // MODE HORS LIGNE
+        // ------------------------------------------------------
+
+        if (
+          typeof navigator !== "undefined" &&
+          !navigator.onLine
+        ) {
+          const cachedQuestion =
+            await chargerDepuisLeCache();
+
+          if (cachedQuestion) {
+            setQuestion(cachedQuestion);
+            setUsingOfflineCache(true);
+            setIsOffline(true);
+            return;
+          }
+
+          setQuestion(null);
+          setUsingOfflineCache(false);
+          setError(
+            "Cette conversation n'est pas encore disponible hors ligne. Ouvrez-la une première fois avec une connexion Internet."
+          );
+
+          return;
+        }
+
         console.log(
           "📨 Chargement de la conversation :",
           questionIdNumber
@@ -148,11 +340,39 @@ const Conversation: React.FC = () => {
         );
 
         setQuestion(response.data);
+        setUsingOfflineCache(false);
+
+        // ------------------------------------------------------
+        // CACHE LOCAL
+        // ------------------------------------------------------
+
+        await sauvegarderConversation(
+          response.data
+        );
       } catch (err: any) {
         console.error(
           "❌ Erreur lors du chargement de la conversation :",
           err
         );
+
+        // ------------------------------------------------------
+        // TENTATIVE DE RÉCUPÉRATION DU CACHE
+        // ------------------------------------------------------
+
+        const cachedQuestion =
+          await chargerDepuisLeCache();
+
+        if (cachedQuestion) {
+          setQuestion(cachedQuestion);
+          setUsingOfflineCache(true);
+          setIsOffline(true);
+
+          setError(
+            "Le serveur est temporairement inaccessible. La dernière version enregistrée sur cet appareil est affichée."
+          );
+
+          return;
+        }
 
         const statusCode =
           err?.response?.status;
@@ -180,9 +400,14 @@ const Conversation: React.FC = () => {
           );
         } else if (backendMessage) {
           setError(backendMessage);
-        } else if (err?.request) {
+        } else if (
+          err?.request ||
+          !navigator.onLine
+        ) {
+          setIsOffline(true);
+
           setError(
-            "Impossible de contacter le serveur."
+            "Impossible de contacter le serveur et aucune version locale de cette conversation n'est disponible."
           );
         } else {
           setError(
@@ -196,7 +421,12 @@ const Conversation: React.FC = () => {
         setRefreshing(false);
       }
     },
-    [questionId, questionIdNumber]
+    [
+      questionId,
+      questionIdNumber,
+      chargerDepuisLeCache,
+      sauvegarderConversation,
+    ]
   );
 
   // ==========================================================
@@ -245,6 +475,122 @@ const Conversation: React.FC = () => {
       return;
     }
 
+    // ========================================================
+    // MODE HORS LIGNE
+    // ========================================================
+
+    if (
+      isOffline ||
+      (typeof navigator !== "undefined" &&
+        !navigator.onLine)
+    ) {
+      try {
+        setSending(true);
+        setError(null);
+
+        const temporaryId =
+          Date.now();
+
+        // ------------------------------------------------------
+        // Ajouter immédiatement le message à l'interface
+        // ------------------------------------------------------
+
+        const messageLocal: Message = {
+          id: -temporaryId,
+          sender_role: "user",
+          content: contenu,
+          created_at:
+            new Date().toISOString(),
+        };
+
+        setQuestion((previous) => {
+          if (!previous) {
+            return previous;
+          }
+
+          return {
+            ...previous,
+            messages: [
+              ...(previous.messages || []),
+              messageLocal,
+            ],
+          };
+        });
+
+        // ------------------------------------------------------
+        // Ajouter le message à la file de synchronisation
+        // ------------------------------------------------------
+
+        const queueItem: OfflineMessageSubmission =
+          {
+            id: `question-message:${questionIdNumber}:${temporaryId}`,
+            type: "question_message",
+            createdAt: Date.now(),
+            status: "pending",
+            endpoint: `/api/questions/${questionIdNumber}/messages`,
+            method: "POST",
+            payload: {
+              content: contenu,
+            },
+            questionId:
+              questionIdNumber,
+          };
+
+        await saveOfflineData(
+          STORES.syncQueue,
+          queueItem
+        );
+
+        // ------------------------------------------------------
+        // Mettre à jour le cache de conversation
+        // ------------------------------------------------------
+
+        setQuestion((previous) => {
+          if (!previous) {
+            return previous;
+          }
+
+          const updatedQuestion: Question = {
+            ...previous,
+            messages: [
+              ...(previous.messages || []),
+              messageLocal,
+            ],
+          };
+
+          void sauvegarderConversation(
+            updatedQuestion
+          );
+
+          return updatedQuestion;
+        });
+
+        setMessage("");
+        setPendingOfflineMessage(true);
+
+        setError(
+          "Message enregistré sur cet appareil. Il sera envoyé lorsque la connexion sera rétablie et que la synchronisation sera effectuée."
+        );
+      } catch (offlineError) {
+        console.error(
+          "❌ Impossible d'enregistrer le message hors ligne :",
+          offlineError
+        );
+
+        setError(
+          "Impossible d'enregistrer ce message hors ligne."
+        );
+      } finally {
+        setSending(false);
+      }
+
+      return;
+    }
+
+    // ========================================================
+    // MODE EN LIGNE
+    // ========================================================
+
     try {
       setSending(true);
       setError(null);
@@ -281,6 +627,7 @@ const Conversation: React.FC = () => {
       // ------------------------------------------------------
 
       setMessage("");
+      setPendingOfflineMessage(false);
 
       // ------------------------------------------------------
       // Recharger la conversation depuis le backend
@@ -293,6 +640,86 @@ const Conversation: React.FC = () => {
         "❌ Erreur lors de l'envoi du message :",
         err
       );
+
+      // ------------------------------------------------------
+      // Si la connexion vient de tomber pendant l'envoi,
+      // sauvegarder le message localement.
+      // ------------------------------------------------------
+
+      const connectionLost =
+        !navigator.onLine ||
+        !err?.response;
+
+      if (connectionLost) {
+        try {
+          const temporaryId =
+            Date.now();
+
+          const messageLocal: Message = {
+            id: -temporaryId,
+            sender_role: "user",
+            content: contenu,
+            created_at:
+              new Date().toISOString(),
+          };
+
+          const queueItem: OfflineMessageSubmission =
+            {
+              id: `question-message:${questionIdNumber}:${temporaryId}`,
+              type: "question_message",
+              createdAt: Date.now(),
+              status: "pending",
+              endpoint: `/api/questions/${questionIdNumber}/messages`,
+              method: "POST",
+              payload: {
+                content: contenu,
+              },
+              questionId:
+                questionIdNumber,
+            };
+
+          await saveOfflineData(
+            STORES.syncQueue,
+            queueItem
+          );
+
+          const updatedQuestion =
+            question
+              ? {
+                  ...question,
+                  messages: [
+                    ...(question.messages || []),
+                    messageLocal,
+                  ],
+                }
+              : null;
+
+          if (updatedQuestion) {
+            setQuestion(
+              updatedQuestion
+            );
+
+            await sauvegarderConversation(
+              updatedQuestion
+            );
+          }
+
+          setMessage("");
+          setPendingOfflineMessage(true);
+          setIsOffline(true);
+
+          setError(
+            "La connexion a été interrompue. Votre message a été enregistré sur cet appareil et sera synchronisé lorsque la connexion sera rétablie."
+          );
+
+          return;
+        } catch (offlineError) {
+          console.error(
+            "❌ Échec de la mise en file hors ligne :",
+            offlineError
+          );
+        }
+      }
 
       const statusCode =
         err?.response?.status;
@@ -351,14 +778,21 @@ const Conversation: React.FC = () => {
     try {
       const parsedDate = new Date(date);
 
-      if (Number.isNaN(parsedDate.getTime())) {
+      if (
+        Number.isNaN(
+          parsedDate.getTime()
+        )
+      ) {
         return date;
       }
 
-      return new Intl.DateTimeFormat("fr-FR", {
-        dateStyle: "short",
-        timeStyle: "short",
-      }).format(parsedDate);
+      return new Intl.DateTimeFormat(
+        "fr-FR",
+        {
+          dateStyle: "short",
+          timeStyle: "short",
+        }
+      ).format(parsedDate);
     } catch {
       return date;
     }
@@ -422,8 +856,6 @@ const Conversation: React.FC = () => {
     return (
       <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 px-4 dark:bg-slate-950">
 
-        {/* Décoration */}
-
         <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl dark:bg-blue-500/10" />
 
         <div className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl dark:bg-indigo-500/10" />
@@ -461,8 +893,6 @@ const Conversation: React.FC = () => {
   if (!question) {
     return (
       <div className="relative min-h-screen overflow-hidden bg-slate-50 px-4 py-8 dark:bg-slate-950 md:px-8">
-
-        {/* Décoration */}
 
         <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-red-500/10 blur-3xl" />
 
@@ -503,7 +933,6 @@ const Conversation: React.FC = () => {
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
               >
                 <RefreshCw size={17} />
-
                 Réessayer
               </button>
 
@@ -513,7 +942,6 @@ const Conversation: React.FC = () => {
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
               >
                 <ArrowLeft size={17} />
-
                 Retour à la page précédente
               </button>
 
@@ -614,6 +1042,49 @@ const Conversation: React.FC = () => {
         </div>
 
         {/* ==================================================
+            INDICATEUR HORS LIGNE
+            ================================================== */}
+
+        {(isOffline ||
+          usingOfflineCache ||
+          pendingOfflineMessage) && (
+          <div className="mb-5 flex flex-col gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 shadow-sm dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-200 sm:flex-row sm:items-center sm:justify-between">
+
+            <div className="flex items-start gap-3">
+
+              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-500/15">
+
+                <WifiOff
+                  size={17}
+                  className="text-amber-600 dark:text-amber-300"
+                />
+
+              </div>
+
+              <div>
+
+                <p className="text-sm font-bold">
+                  {isOffline
+                    ? "Mode hors ligne"
+                    : "Données locales"}
+                </p>
+
+                <p className="mt-0.5 text-xs leading-5 opacity-80">
+                  {pendingOfflineMessage
+                    ? "Votre message est enregistré sur cet appareil et attend sa synchronisation."
+                    : usingOfflineCache
+                    ? "Cette conversation provient de la dernière version enregistrée sur cet appareil."
+                    : "La connexion Internet est momentanément indisponible."}
+                </p>
+
+              </div>
+
+            </div>
+
+          </div>
+        )}
+
+        {/* ==================================================
             CARTE PRINCIPALE
             ================================================== */}
 
@@ -627,15 +1098,11 @@ const Conversation: React.FC = () => {
 
             <div className="flex flex-col gap-5">
 
-              {/* Ligne supérieure */}
-
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 
                 <div className="min-w-0">
 
                   <div className="mb-3 flex flex-wrap items-center gap-2">
-
-                    {/* DESTINATAIRE */}
 
                     <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-300">
 
@@ -644,8 +1111,6 @@ const Conversation: React.FC = () => {
                       {recipient}
 
                     </span>
-
-                    {/* CLASSE */}
 
                     {question.is_learner &&
                       question.learner_class && (
@@ -657,8 +1122,6 @@ const Conversation: React.FC = () => {
 
                         </span>
                       )}
-
-                    {/* STATUT */}
 
                     <span
                       className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${status.className}`}
@@ -703,8 +1166,6 @@ const Conversation: React.FC = () => {
 
                 </div>
 
-                {/* Icône conversation */}
-
                 <div className="hidden shrink-0 sm:flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-500/10">
 
                   <MessageCircle
@@ -715,8 +1176,6 @@ const Conversation: React.FC = () => {
                 </div>
 
               </div>
-
-              {/* Petite ligne d'information */}
 
               <div className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-800/50">
 
@@ -796,6 +1255,9 @@ const Conversation: React.FC = () => {
                       msg.sender_role ===
                       "admin";
 
+                    const isPending =
+                      msg.id < 0;
+
                     return (
                       <div
                         key={msg.id}
@@ -807,8 +1269,6 @@ const Conversation: React.FC = () => {
                       >
 
                         <div className="max-w-[88%] sm:max-w-[75%]">
-
-                          {/* EXPÉDITEUR */}
 
                           <div
                             className={`mb-1.5 flex items-center gap-2 px-1 text-[11px] font-semibold ${
@@ -851,8 +1311,6 @@ const Conversation: React.FC = () => {
 
                           </div>
 
-                          {/* BULLE */}
-
                           <div
                             className={`rounded-2xl p-4 shadow-sm ${
                               isUser
@@ -865,17 +1323,31 @@ const Conversation: React.FC = () => {
                               {msg.content}
                             </p>
 
-                            <p
-                              className={`mt-3 text-[11px] ${
+                            <div
+                              className={`mt-3 flex items-center gap-2 text-[11px] ${
                                 isUser
-                                  ? "text-right text-blue-100"
+                                  ? "justify-end text-blue-100"
                                   : "text-slate-400 dark:text-slate-500"
                               }`}
                             >
-                              {formatDate(
-                                msg.created_at
+
+                              {isPending && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5">
+
+                                  <Clock size={10} />
+
+                                  En attente de synchronisation
+
+                                </span>
                               )}
-                            </p>
+
+                              <span>
+                                {formatDate(
+                                  msg.created_at
+                                )}
+                              </span>
+
+                            </div>
 
                           </div>
 
@@ -1003,7 +1475,11 @@ const Conversation: React.FC = () => {
                       rows={3}
                       disabled={sending}
                       maxLength={5000}
-                      placeholder="Écrivez votre message..."
+                      placeholder={
+                        isOffline
+                          ? "Écrivez votre message : il sera enregistré hors ligne..."
+                          : "Écrivez votre message..."
+                      }
                       className="min-h-[100px] w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-600 dark:focus:border-blue-500 dark:focus:bg-slate-950"
                     />
 
@@ -1016,7 +1492,11 @@ const Conversation: React.FC = () => {
                       !message.trim()
                     }
                     className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 hover:shadow-blue-600/30 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
-                    title="Envoyer"
+                    title={
+                      isOffline
+                        ? "Enregistrer le message hors ligne"
+                        : "Envoyer"
+                    }
                   >
 
                     {sending ? (
@@ -1027,7 +1507,7 @@ const Conversation: React.FC = () => {
                         />
 
                         <span>
-                          Envoi...
+                          Enregistrement...
                         </span>
                       </>
                     ) : (
@@ -1035,7 +1515,9 @@ const Conversation: React.FC = () => {
                         <Send size={18} />
 
                         <span>
-                          Envoyer
+                          {isOffline
+                            ? "Enregistrer"
+                            : "Envoyer"}
                         </span>
                       </>
                     )}
@@ -1047,10 +1529,23 @@ const Conversation: React.FC = () => {
                 <div className="mt-3 flex flex-col gap-1 text-xs text-slate-400 dark:text-slate-500 sm:flex-row sm:items-center sm:justify-between">
 
                   <span className="inline-flex items-center gap-1.5">
-                    <ShieldCheck size={13} />
 
-                    Votre message sera envoyé à{" "}
-                    {recipient}.
+                    {isOffline ? (
+                      <>
+                        <WifiOff size={13} />
+
+                        Votre message sera conservé
+                        sur cet appareil.
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck size={13} />
+
+                        Votre message sera envoyé à{" "}
+                        {recipient}.
+                      </>
+                    )}
+
                   </span>
 
                   <span>
@@ -1132,4 +1627,3 @@ const Conversation: React.FC = () => {
 };
 
 export default Conversation;
-

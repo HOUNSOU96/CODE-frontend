@@ -67,6 +67,9 @@ import Enseignant from "./pages/Enseignant/Enseignant";
 import MesVideos from "./pages/Enseignant/MesVideos";
 import Projets from "./pages/Projets";
 
+import MesDocuments from "./pages/MesDocuments";
+import SecureDocument from "./pages/SecureDocument";
+
 // ==========================================================
 // PAGES PROTÉGÉES — ANCIENNE STRUCTURE
 // ==========================================================
@@ -823,6 +826,25 @@ const AnimatedRoutes: React.FC = () => {
         <Directeur />
       </Layout>
     </RequireAuth>
+  }
+/>
+
+
+<Route
+  path="/mes-documents"
+  element={
+        <MesDocuments />
+  }
+/>
+
+
+
+<Route
+  path="/secure-document"
+  element={
+    
+        <SecureDocument />
+      
   }
 />
 

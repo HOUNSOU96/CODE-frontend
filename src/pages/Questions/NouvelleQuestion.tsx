@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -18,9 +17,16 @@ import {
   ChevronRight,
   CircleHelp,
   Check,
+  WifiOff,
 } from "lucide-react";
 
 import api from "../../utils/axios";
+
+import {
+  getOfflineData,
+  saveOfflineData,
+  STORES,
+} from "@/offline/offlineDB";
 
 // ============================================================
 // CONSTANTES
@@ -47,6 +53,29 @@ type QuestionCreatedResponse = {
   recipient_type?: RecipientType;
   subject?: string | null;
   status?: string;
+};
+
+type CachedSubjects = {
+  id: string;
+  subjects: string[];
+  cachedAt: number;
+};
+
+type OfflineQuestionSubmission = {
+  id: string;
+  type: "question_create";
+  createdAt: number;
+  status: "pending";
+  endpoint: string;
+  method: "POST";
+  payload: {
+    recipient_type: RecipientType;
+    subject: string | null;
+    is_learner: boolean;
+    learner_class: string | null;
+    title: string;
+    content: string;
+  };
 };
 
 // ============================================================
@@ -105,12 +134,67 @@ const NouvelleQuestion: React.FC = () => {
     useState<string | null>(null);
 
   // ----------------------------------------------------------
+  // MODE HORS LIGNE
+  // ----------------------------------------------------------
+
+  const [isOffline, setIsOffline] =
+    useState<boolean>(() => {
+      if (typeof navigator === "undefined") {
+        return false;
+      }
+
+      return !navigator.onLine;
+    });
+
+  // ----------------------------------------------------------
   // ÉTAPE ACTUELLE
   // ----------------------------------------------------------
 
   const [step, setStep] = useState(1);
 
   const totalSteps = 3;
+
+  // ==========================================================
+  // SURVEILLANCE DE LA CONNEXION
+  // ==========================================================
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+
+      /*
+       * On ne lance pas ici la synchronisation automatique
+       * afin de ne pas modifier le comportement global actuel
+       * de la file syncQueue.
+       */
+    };
+
+    const handleOffline = () => {
+      setIsOffline(true);
+    };
+
+    window.addEventListener(
+      "online",
+      handleOnline
+    );
+
+    window.addEventListener(
+      "offline",
+      handleOffline
+    );
+
+    return () => {
+      window.removeEventListener(
+        "online",
+        handleOnline
+      );
+
+      window.removeEventListener(
+        "offline",
+        handleOffline
+      );
+    };
+  }, []);
 
   // ==========================================================
   // RETOUR À LA PAGE PRÉCÉDENTE
@@ -128,6 +212,59 @@ const NouvelleQuestion: React.FC = () => {
     const chargerMatieres = async () => {
       try {
         setLoadingSubjects(true);
+
+        /*
+         * ----------------------------------------------------
+         * PREMIER ESSAI : CACHE LOCAL
+         * ----------------------------------------------------
+         *
+         * Le cache permet notamment de retrouver les matières
+         * lorsque l'utilisateur ouvre cette page hors ligne.
+         */
+
+        const cachedSubjects =
+          await getOfflineData<CachedSubjects>(
+            STORES.documents,
+            "nouvelle-question-subjects"
+          );
+
+        if (
+          cachedSubjects &&
+          Array.isArray(cachedSubjects.subjects)
+        ) {
+          setSubjects(
+            cachedSubjects.subjects
+          );
+        }
+
+        /*
+         * ----------------------------------------------------
+         * SI HORS LIGNE
+         * ----------------------------------------------------
+         */
+
+        if (
+          typeof navigator !== "undefined" &&
+          !navigator.onLine
+        ) {
+          if (
+            !cachedSubjects ||
+            !Array.isArray(
+              cachedSubjects.subjects
+            ) ||
+            cachedSubjects.subjects.length === 0
+          ) {
+            setSubjects([
+              "Mathématiques",
+              "Français",
+              "Anglais",
+              "Informatique",
+              "Sciences",
+            ]);
+          }
+
+          return;
+        }
 
         console.log(
           "📚 Chargement des matières disponibles..."
@@ -154,6 +291,21 @@ const NouvelleQuestion: React.FC = () => {
 
         if (Array.isArray(response.data)) {
           setSubjects(response.data);
+
+          /*
+           * --------------------------------------------------
+           * MISE EN CACHE DES MATIÈRES
+           * --------------------------------------------------
+           */
+
+          await saveOfflineData<CachedSubjects>(
+            STORES.documents,
+            {
+              id: "nouvelle-question-subjects",
+              subjects: response.data,
+              cachedAt: Date.now(),
+            }
+          );
         } else {
           setSubjects([]);
         }
@@ -172,13 +324,29 @@ const NouvelleQuestion: React.FC = () => {
          * le backend reste l'autorité lors de l'envoi.
          */
 
-        setSubjects([
-          "Mathématiques",
-          "Français",
-          "Anglais",
-          "Informatique",
-          "Sciences",
-        ]);
+        const cachedSubjects =
+          await getOfflineData<CachedSubjects>(
+            STORES.documents,
+            "nouvelle-question-subjects"
+          ).catch(() => null);
+
+        if (
+          cachedSubjects &&
+          Array.isArray(cachedSubjects.subjects) &&
+          cachedSubjects.subjects.length > 0
+        ) {
+          setSubjects(
+            cachedSubjects.subjects
+          );
+        } else {
+          setSubjects([
+            "Mathématiques",
+            "Français",
+            "Anglais",
+            "Informatique",
+            "Sciences",
+          ]);
+        }
       } finally {
         setLoadingSubjects(false);
       }
@@ -212,7 +380,9 @@ const NouvelleQuestion: React.FC = () => {
   // CHANGEMENT APPRENANT
   // ==========================================================
 
-  const choisirApprenant = (value: boolean) => {
+  const choisirApprenant = (
+    value: boolean
+  ) => {
     setIsLearner(value);
 
     setError(null);
@@ -337,8 +507,60 @@ const NouvelleQuestion: React.FC = () => {
     setError(null);
 
     if (step > 1) {
-      setStep((ancienneEtape) => ancienneEtape - 1);
+      setStep(
+        (ancienneEtape) =>
+          ancienneEtape - 1
+      );
     }
+  };
+
+  // ==========================================================
+  // CRÉER UNE IDENTIFIANT LOCAL
+  // ==========================================================
+
+  const creerIdentifiantLocal = (): string => {
+    if (
+      typeof crypto !== "undefined" &&
+      typeof crypto.randomUUID === "function"
+    ) {
+      return `question-${crypto.randomUUID()}`;
+    }
+
+    return `question-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}`;
+  };
+
+  // ==========================================================
+  // ENREGISTRER UNE QUESTION HORS LIGNE
+  // ==========================================================
+
+  const enregistrerQuestionHorsLigne = async (
+    donnees: OfflineQuestionSubmission["payload"]
+  ) => {
+    const offlineSubmission: OfflineQuestionSubmission =
+      {
+        id: creerIdentifiantLocal(),
+
+        type: "question_create",
+
+        createdAt: Date.now(),
+
+        status: "pending",
+
+        endpoint: "/api/questions",
+
+        method: "POST",
+
+        payload: donnees,
+      };
+
+    await saveOfflineData<OfflineQuestionSubmission>(
+      STORES.syncQueue,
+      offlineSubmission
+    );
+
+    return offlineSubmission;
   };
 
   // ==========================================================
@@ -365,44 +587,84 @@ const NouvelleQuestion: React.FC = () => {
       return;
     }
 
+    // --------------------------------------------------------
+    // DONNÉES ENVOYÉES AU BACKEND
+    // --------------------------------------------------------
+
+    const donnees = {
+      recipient_type: recipientType,
+
+      /*
+       * Une question adressée à l'admin n'a pas de matière.
+       */
+
+      subject:
+        recipientType === "subject"
+          ? subject
+          : null,
+
+      is_learner: isLearner,
+
+      /*
+       * Une personne non apprenante n'a pas de classe.
+       */
+
+      learner_class:
+        isLearner
+          ? learnerClass
+          : null,
+
+      title: title.trim(),
+
+      content: content.trim(),
+    };
+
+    // --------------------------------------------------------
+    // MODE HORS LIGNE
+    // --------------------------------------------------------
+
+    if (
+      typeof navigator !== "undefined" &&
+      !navigator.onLine
+    ) {
+      try {
+        setSending(true);
+
+        console.log(
+          "📴 Connexion indisponible : sauvegarde locale de la question..."
+        );
+
+        await enregistrerQuestionHorsLigne(
+          donnees
+        );
+
+        setSuccess(
+          "Votre question a été enregistrée sur cet appareil. Elle sera envoyée au serveur lorsque la synchronisation sera disponible."
+        );
+
+        return;
+      } catch (offlineError) {
+        console.error(
+          "❌ Impossible d'enregistrer la question hors ligne :",
+          offlineError
+        );
+
+        setError(
+          "Impossible d'enregistrer votre question hors connexion. Vérifiez l'espace disponible sur votre appareil."
+        );
+
+        return;
+      } finally {
+        setSending(false);
+      }
+    }
+
     try {
       setSending(true);
 
       console.log(
         "📤 Envoi d'une nouvelle question..."
       );
-
-      // ------------------------------------------------------
-      // DONNÉES ENVOYÉES AU BACKEND
-      // ------------------------------------------------------
-
-      const donnees = {
-        recipient_type: recipientType,
-
-        /*
-         * Une question adressée à l'admin n'a pas de matière.
-         */
-
-        subject:
-          recipientType === "subject"
-            ? subject
-            : null,
-
-        is_learner: isLearner,
-
-        /*
-         * Une personne non apprenante n'a pas de classe.
-         */
-
-        learner_class:
-          isLearner
-            ? learnerClass
-            : null,
-
-        title: title.trim(),
-
-        content: content.trim(),
-      };
 
       console.log(
         "📦 Données envoyées au backend :",
@@ -471,6 +733,49 @@ const NouvelleQuestion: React.FC = () => {
       const backendMessage =
         err?.response?.data?.detail;
 
+      /*
+       * ------------------------------------------------------
+       * IMPORTANT :
+       * Si la requête a échoué parce que le réseau est
+       * indisponible, on conserve la question localement.
+       * ------------------------------------------------------
+       */
+
+      const networkError =
+        !err?.response &&
+        !!err?.request;
+
+      if (
+        networkError ||
+        (typeof navigator !== "undefined" &&
+          !navigator.onLine)
+      ) {
+        try {
+          await enregistrerQuestionHorsLigne(
+            donnees
+          );
+
+          setIsOffline(true);
+
+          setSuccess(
+            "La connexion a été interrompue. Votre question a été enregistrée sur cet appareil et sera envoyée lors de la prochaine synchronisation."
+          );
+
+          return;
+        } catch (offlineError) {
+          console.error(
+            "❌ Impossible de mettre la question en file d'attente :",
+            offlineError
+          );
+
+          setError(
+            "La connexion est indisponible et votre question n'a pas pu être enregistrée localement."
+          );
+
+          return;
+        }
+      }
+
       // ------------------------------------------------------
       // ERREURS HTTP
       // ------------------------------------------------------
@@ -526,19 +831,22 @@ const NouvelleQuestion: React.FC = () => {
     {
       numero: 1,
       titre: "Destinataire",
-      description: "À qui poser votre question ?",
+      description:
+        "À qui poser votre question ?",
       icon: ShieldCheck,
     },
     {
       numero: 2,
       titre: "Votre profil",
-      description: "Quelques informations sur vous",
+      description:
+        "Quelques informations sur vous",
       icon: GraduationCap,
     },
     {
       numero: 3,
       titre: "Votre question",
-      description: "Décrivez votre demande",
+      description:
+        "Décrivez votre demande",
       icon: MessageCircle,
     },
   ];
@@ -582,6 +890,32 @@ const NouvelleQuestion: React.FC = () => {
 
           Retour à la page précédente
         </button>
+
+        {/* ==================================================
+            INDICATEUR HORS LIGNE
+            ================================================== */}
+
+        {isOffline && (
+          <div className="mb-6 flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
+
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-950/50">
+              <WifiOff size={18} />
+            </div>
+
+            <div>
+              <p className="font-semibold">
+                Mode hors ligne
+              </p>
+
+              <p className="mt-0.5 text-xs text-amber-700/80 dark:text-amber-400/80">
+                Vous pouvez rédiger votre question.
+                Elle sera conservée localement si
+                vous l'envoyez maintenant.
+              </p>
+            </div>
+
+          </div>
+        )}
 
         {/* ==================================================
             EN-TÊTE
@@ -854,7 +1188,9 @@ const NouvelleQuestion: React.FC = () => {
                 <div className="pt-1">
 
                   <p className="font-semibold">
-                    Question envoyée
+                    {isOffline
+                      ? "Question enregistrée"
+                      : "Question envoyée"}
                   </p>
 
                   <p className="mt-1 leading-5">
@@ -1436,7 +1772,9 @@ const NouvelleQuestion: React.FC = () => {
                           className="transition-transform group-hover:translate-x-0.5"
                         />
 
-                        Envoyer la question
+                        {isOffline
+                          ? "Enregistrer la question"
+                          : "Envoyer la question"}
                       </>
                     )}
 
@@ -1470,4 +1808,3 @@ const NouvelleQuestion: React.FC = () => {
 };
 
 export default NouvelleQuestion;
-

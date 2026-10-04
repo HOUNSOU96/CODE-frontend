@@ -1,3 +1,5 @@
+// 📁 ExplicationQuestion.tsx
+
 import React, {
   useEffect,
   useMemo,
@@ -39,9 +41,9 @@ import {
 
 import api from "@/utils/axios";
 
-/* ========================================================
+/* ======================================================
    TYPES
-======================================================== */
+====================================================== */
 
 type ModeIA =
   | "comprendre"
@@ -82,89 +84,72 @@ type FenetreActive =
 
 interface TeacherProfile {
   id?: number | string;
-  nom: string;
-  prenom: string;
-  email: string;
+  nom?: string;
+  prenom?: string;
+  email?: string;
   telephone?: string;
   pays_residence?: string;
+
+  // Champ utilisé par ton backend actuel
   teacher_photo?: string;
+
+  // Compatibilité avec d'autres formats éventuels
+  photo?: string;
+  photo_url?: string;
+  avatar?: string;
+  photo_profil?: string;
+  profile_photo?: string;
+  profilePhoto?: string;
+  image?: string;
+  image_url?: string;
+  imageUrl?: string;
+
   subjects?: string[];
+
+  [key: string]: unknown;
 }
 
 interface QuestionContext {
   id?: number | string;
   question?: string;
+  texte?: string;
+  enonce?: string;
   choix?: unknown;
-  bonne_reponse?: string;
-  bonneReponse?: string;
-  bonne_reponse_lettre?: string;
-  bonneReponseLettre?: string;
-  reponse_apprenant?: string;
-  reponseApprenant?: string;
-  reponseUtilisateur?: string;
-  reponse_user?: string;
-  reponse?: string;
-  answer?: string;
-  reponse_attendue?: string;
+  options?: unknown;
+  bonne_reponse?: unknown;
+  bonneReponse?: unknown;
+  reponse_correcte?: unknown;
+  reponseCorrecte?: unknown;
+  reponse_apprenant?: unknown;
+  reponseApprenant?: unknown;
   notion?: string;
   matiere?: string;
   niveau?: string;
   classe?: string;
-  serie?: string | string[] | null;
-  correcte?: boolean;
-  enseignant?: string | null;
+  serie?: string;
+  enseignant?: string;
+  professeur?: string;
+  teacher?: string;
+  duree?: number;
+  duration?: number;
+  [key: string]: unknown;
 }
 
 interface ResultatsContext {
-  matiere?: string;
-  niveau?: string;
-  serie?: string | string[] | null;
-  classe?: string;
-  question?: string;
-  questionActuelle?: QuestionContext;
-  reponse_apprenant?: string;
-  reponseApprenant?: string;
-  reponseUtilisateur?: string;
-  reponse_user?: string;
-  reponse?: string;
-  answer?: string;
-  bonne_reponse?: string;
-  bonneReponse?: string;
-  bonne_reponse_lettre?: string;
-  bonneReponseLettre?: string;
-  reponse_attendue?: string;
-  correcte?: boolean;
+  reponse?: unknown;
+  reponse_apprenant?: unknown;
+  reponseApprenant?: unknown;
+  answer?: unknown;
+  bonne_reponse?: unknown;
+  bonneReponse?: unknown;
+  correct_answer?: unknown;
+  correctAnswer?: unknown;
   [key: string]: unknown;
 }
 
 interface LocationState {
   question?: QuestionContext;
-  questionActuelle?: QuestionContext;
-  reponseUtilisateur?: string;
-  reponseApprenant?: string;
-  reponse_apprenant?: string;
-  reponse_user?: string;
-  reponse?: string;
-  answer?: string;
-  bonneReponse?: string;
-  bonne_reponse?: string;
-  bonne_reponse_lettre?: string;
-  bonneReponseLettre?: string;
-  reponse_attendue?: string;
-  correcte?: boolean;
-  notion?: string;
-  matiereActuelle?: string;
-  matiere?: string;
-  niveauActuel?: string;
-  niveau?: string;
-  classe?: string;
-  serieActuelle?: string | string[] | null;
-  serie?: string | string[] | null;
-  enseignant?: string | null;
-  origineAcces?: string;
-  sourcePage?: string;
-  source?: string;
-  resultats?: ResultatsContext | null;
+  resultats?: ResultatsContext;
   [key: string]: unknown;
 }
 
@@ -176,31 +161,38 @@ interface MessageIA {
 
 interface DiagnosticIA {
   niveauConfiance: number;
+  comprehension: NiveauComprehension;
   tentative: number;
-  niveauAide: number;
-  erreurIdentifiee: string | null;
+  erreurIdentifiee: string;
   notionsMaitrisees: string[];
   notionsFragiles: string[];
-  comprehension: NiveauComprehension;
 }
 
 interface DiagnosticGemini {
-  comprehension?: NiveauComprehension;
-  erreur?: string | null;
+  niveau_confiance?: number;
+  niveauConfiance?: number;
+  comprehension?: NiveauComprehension | string;
+  erreur_identifiee?: string;
+  erreurIdentifiee?: string;
   notions_maitrisees?: string[];
-  notions_fragiles?: string[];
   notionsMaitrisees?: string[];
+  notions_fragiles?: string[];
   notionsFragiles?: string[];
+  tentative?: number;
+  [key: string]: unknown;
 }
 
 interface ReponseGemini {
-  type?: string;
-  message: string;
+  message?: string;
+  contenu?: string;
+  reponse?: string;
   diagnostic?: DiagnosticGemini;
-  niveau_aide?: number;
-  prochaine_etape?: string;
-  doit_reveler_solution?: boolean;
-  attend_reponse_eleve?: boolean;
+  etape_suivante?: string;
+  etapeSuivante?: string;
+  solution_revelee?: boolean;
+  solutionRevelee?: boolean;
+  niveau_aide?: string;
+  [key: string]: unknown;
 }
 
 interface HistoriqueGemini {
@@ -215,37 +207,30 @@ type ActionRapide =
   | "difficile"
   | "application";
 
-/* ========================================================
-   VIDÉOS DE REMÉDIATION
-======================================================== */
-
 interface RemediationVideoQuestion {
-  id: string;
-  question: string;
-  choix: string[];
-  bonne_reponse: string;
+  id: number | string;
   niveau?: string;
   notion?: string;
   duration?: number;
+  question: string;
+  choix: string[];
+  bonne_reponse: string;
+  [key: string]: unknown;
 }
 
 interface RemediationVideo {
-  id: string;
+  id: number | string;
   titre: string;
   niveau?: string;
-  serie?: string | string[];
-  mois?: string[];
   videoUrl?: string;
-  notions?: string[];
-  prerequis?: string[];
+  video_url?: string;
   questions: RemediationVideoQuestion[];
-  enseignant?: string;
-  matiere?: string;
+  [key: string]: unknown;
 }
 
-/* ========================================================
+/* ======================================================
    API
-======================================================== */
+====================================================== */
 
 const API_BASE_URL = (
   import.meta.env.VITE_API_URL ||
@@ -255,9 +240,9 @@ const API_BASE_URL = (
 const API_IA_URL =
   `${API_BASE_URL}/api/ia/explication-question`;
 
-/* ========================================================
-   OUTILS
-======================================================== */
+/* ======================================================
+   UTILITAIRES
+====================================================== */
 
 function convertirEnTexte(
   valeur: unknown
@@ -270,7 +255,7 @@ function convertirEnTexte(
   }
 
   if (typeof valeur === "string") {
-    return valeur;
+    return valeur.trim();
   }
 
   if (
@@ -282,17 +267,24 @@ function convertirEnTexte(
 
   if (Array.isArray(valeur)) {
     return valeur
-      .map(convertirEnTexte)
+      .map((item) => convertirEnTexte(item))
       .filter(Boolean)
       .join(", ");
   }
 
   if (typeof valeur === "object") {
-    try {
-      return JSON.stringify(valeur);
-    } catch {
-      return "";
-    }
+    const objet = valeur as Record<
+      string,
+      unknown
+    >;
+
+    return (
+      convertirEnTexte(objet.texte) ||
+      convertirEnTexte(objet.text) ||
+      convertirEnTexte(objet.value) ||
+      convertirEnTexte(objet.label) ||
+      ""
+    );
   }
 
   return "";
@@ -304,207 +296,206 @@ function normaliserTexte(
   return convertirEnTexte(valeur)
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+    .trim()
+    .toLowerCase();
 }
 
 function normaliserMatiere(
   valeur: unknown
 ): string {
   return convertirEnTexte(valeur)
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/\s+/g, "")
-    .replace(/[-_]/g, "")
-    .trim();
+    .trim()
+    .toLowerCase();
 }
 
 function normaliserNiveau(
   valeur: unknown
 ): string {
-  const niveau =
-    normaliserTexte(valeur);
-
-  const correspondances: Record<
-    string,
-    string
-  > = {
-    terminale: "tle",
-    tle: "tle",
-    "1ere": "1ere",
-    "1re": "1ere",
-    premiere: "1ere",
-    "2nde": "2nde",
-    seconde: "2nde",
-    "6eme": "6e",
-    "5eme": "5e",
-    "4eme": "4e",
-    "3eme": "3e",
-  };
-
-  return (
-    correspondances[niveau] ||
-    niveau
-  );
+  return convertirEnTexte(valeur)
+    .trim()
+    .toLowerCase();
 }
 
 function normaliserSerie(
   valeur: unknown
 ): string {
-  if (
-    valeur === null ||
-    valeur === undefined
-  ) {
-    return "";
-  }
-
-  if (Array.isArray(valeur)) {
-    return valeur
-      .map(normaliserSerie)
-      .filter(Boolean)
-      .join(", ");
-  }
-
-  const serie =
-    normaliserTexte(valeur);
-
-  if (
-    !serie ||
-    serie === "none" ||
-    serie === "null"
-  ) {
-    return "";
-  }
-
-  return serie.toUpperCase();
+  return convertirEnTexte(valeur)
+    .trim()
+    .toUpperCase();
 }
 
 function construireUrlPhoto(
-  photo?: string | null
-): string | null {
-  if (!photo) {
-    return null;
+  valeur: unknown
+): string {
+  const url = convertirEnTexte(valeur);
+
+  if (!url) {
+    return "";
   }
 
-  if (/^https?:\/\//i.test(photo)) {
-    return photo;
+  if (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("data:")
+  ) {
+    return url;
   }
 
-  if (photo.startsWith("/")) {
-    return `${API_BASE_URL}${photo}`;
+  if (url.startsWith("/")) {
+    return `${API_BASE_URL}${url}`;
   }
 
-  return `${API_BASE_URL}/${photo}`;
+  return `${API_BASE_URL}/${url}`;
 }
 
 function construireUrlVideo(
-  videoUrl?: string | null
-): string | null {
-  if (!videoUrl) {
-    return null;
+  valeur: unknown
+): string {
+  const url = convertirEnTexte(valeur);
+
+  if (!url) {
+    return "";
   }
 
-  if (/^https?:\/\//i.test(videoUrl)) {
-    return videoUrl;
+  if (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("blob:")
+  ) {
+    return url;
   }
 
-  if (videoUrl.startsWith("/")) {
-    return `${API_BASE_URL}${videoUrl}`;
+  if (url.startsWith("/")) {
+    return `${API_BASE_URL}${url}`;
   }
 
-  return `${API_BASE_URL}/${videoUrl}`;
+  return `${API_BASE_URL}/${url}`;
 }
 
 function normaliserEtape(
-  valeur?: string
+  valeur: unknown
 ): EtapePedagogique {
-  const etapes: EtapePedagogique[] = [
-    "accueil",
-    "raisonnement",
-    "diagnostic",
-    "indice",
-    "recherche",
-    "verification",
-    "approfondissement",
-    "termine",
-  ];
+  const texte = normaliserTexte(valeur);
 
-  return etapes.includes(
-    valeur as EtapePedagogique
-  )
-    ? (valeur as EtapePedagogique)
-    : "raisonnement";
+  if (
+    texte.includes("raisonnement") ||
+    texte.includes("analyse")
+  ) {
+    return "raisonnement";
+  }
+
+  if (
+    texte.includes("diagnostic")
+  ) {
+    return "diagnostic";
+  }
+
+  if (
+    texte.includes("indice") ||
+    texte.includes("aide")
+  ) {
+    return "indice";
+  }
+
+  if (
+    texte.includes("recherche") ||
+    texte.includes("exercice")
+  ) {
+    return "recherche";
+  }
+
+  if (
+    texte.includes("verification") ||
+    texte.includes("verifier") ||
+    texte.includes("verification")
+  ) {
+    return "verification";
+  }
+
+  if (
+    texte.includes("approfond")
+  ) {
+    return "approfondissement";
+  }
+
+  if (
+    texte.includes("termine") ||
+    texte.includes("terminee") ||
+    texte.includes("fin")
+  ) {
+    return "termine";
+  }
+
+  return "accueil";
 }
 
 function normaliserComprehension(
-  valeur?: string
+  valeur: unknown
 ): NiveauComprehension {
-  const niveaux: NiveauComprehension[] = [
-    "inconnue",
-    "fragile",
-    "partielle",
-    "solide",
-  ];
+  const texte = normaliserTexte(valeur);
 
-  return niveaux.includes(
-    valeur as NiveauComprehension
-  )
-    ? (valeur as NiveauComprehension)
-    : "inconnue";
+  if (
+    texte.includes("solide") ||
+    texte.includes("bonne")
+  ) {
+    return "solide";
+  }
+
+  if (
+    texte.includes("partielle")
+  ) {
+    return "partielle";
+  }
+
+  if (
+    texte.includes("fragile") ||
+    texte.includes("faible")
+  ) {
+    return "fragile";
+  }
+
+  return "inconnue";
 }
 
 function determinerOrigineAcces(
   state: LocationState
 ): OrigineAcces {
   const valeurs = [
-    state.origineAcces,
-    state.sourcePage,
+    state.origine,
     state.source,
+    state.from,
+    state.question?.origine,
+    state.question?.source,
   ]
-    .filter(Boolean)
-    .map(normaliserTexte);
+    .map(normaliserTexte)
+    .filter(Boolean);
 
   if (
     valeurs.some(
-      (valeur) =>
-        valeur === "remediation video" ||
-        valeur === "video"
+      (item) =>
+        item.includes("remediation-video") ||
+        item.includes("video")
     )
   ) {
     return "remediation-video";
   }
 
   if (
-    valeurs.some(
-      (valeur) =>
-        valeur === "remediation" ||
-        valeur.includes("remediation")
+    valeurs.some((item) =>
+      item.includes("remediation")
     )
   ) {
     return "remediation";
   }
 
-  if ("resultats" in state) {
-    return state.resultats == null
-      ? "remediation-video"
-      : "remediation";
-  }
-
   return "inconnue";
 }
 
-/* ========================================================
-   EXTRACTION DES RÉPONSES
-======================================================== */
-
 function estLettreReponse(
-  valeur: string
+  valeur: unknown
 ): boolean {
-  return /^[a-e]$/i.test(
-    valeur.trim()
+  return /^[A-G]$/i.test(
+    convertirEnTexte(valeur)
   );
 }
 
@@ -513,24 +504,55 @@ function normaliserLettre(
 ): string {
   return convertirEnTexte(valeur)
     .trim()
-    .toLowerCase();
+    .toUpperCase();
 }
 
 function convertirChoixEnTableau(
   valeur: unknown
 ): string[] {
-  if (!valeur) {
-    return [];
-  }
-
   if (Array.isArray(valeur)) {
-    return valeur.map(
-      convertirEnTexte
-    );
+    return valeur
+      .map((item) => {
+        if (
+          typeof item === "string"
+        ) {
+          return item;
+        }
+
+        if (
+          typeof item === "object" &&
+          item !== null
+        ) {
+          const objet =
+            item as Record<
+              string,
+              unknown
+            >;
+
+          return (
+            convertirEnTexte(
+              objet.texte
+            ) ||
+            convertirEnTexte(
+              objet.text
+            ) ||
+            convertirEnTexte(
+              objet.label
+            ) ||
+            convertirEnTexte(
+              objet.value
+            )
+          );
+        }
+
+        return convertirEnTexte(item);
+      })
+      .filter(Boolean);
   }
 
   if (
-    typeof valeur === "object"
+    typeof valeur === "object" &&
+    valeur !== null
   ) {
     const objet =
       valeur as Record<
@@ -538,36 +560,21 @@ function convertirChoixEnTableau(
         unknown
       >;
 
-    const ordre = [
-      "a",
-      "b",
-      "c",
-      "d",
-      "e",
-    ];
+    return Object.entries(objet)
+      .sort(([a], [b]) =>
+        a.localeCompare(b)
+      )
+      .map(([, value]) =>
+        convertirEnTexte(value)
+      )
+      .filter(Boolean);
+  }
 
-    const valeursOrdonnees =
-      ordre
-        .filter(
-          (lettre) =>
-            lettre in objet
-        )
-        .map(
-          (lettre) =>
-            convertirEnTexte(
-              objet[lettre]
-            )
-        );
-
-    if (
-      valeursOrdonnees.length > 0
-    ) {
-      return valeursOrdonnees;
-    }
-
-    return Object.values(
-      objet
-    ).map(convertirEnTexte);
+  if (typeof valeur === "string") {
+    return valeur
+      .split(/\n|;|\|/)
+      .map((item) => item.trim())
+      .filter(Boolean);
   }
 
   return [];
@@ -576,149 +583,100 @@ function convertirChoixEnTableau(
 function obtenirChoix(
   question?: QuestionContext
 ): string[] {
+  if (!question) {
+    return [];
+  }
+
   return convertirChoixEnTableau(
-    question?.choix
+    question.choix ??
+      question.options
   );
 }
 
 function lettreVersChoix(
-  lettre: unknown,
+  valeur: unknown,
   choix: string[]
 ): string {
-  const valeur =
-    normaliserLettre(lettre);
+  const lettre =
+    normaliserLettre(valeur);
 
-  if (
-    !estLettreReponse(valeur)
-  ) {
-    return convertirEnTexte(
-      lettre
-    );
+  if (!estLettreReponse(lettre)) {
+    return convertirEnTexte(valeur);
   }
 
   const index =
-    valeur.charCodeAt(0) -
-    "a".charCodeAt(0);
+    lettre.charCodeAt(0) -
+    65;
 
   return (
     choix[index] ||
-    valeur.toUpperCase()
+    convertirEnTexte(valeur)
   );
 }
 
 function rechercherReponseApprenant(
-  state: LocationState,
   question: QuestionContext,
-  resultats:
-    | ResultatsContext
-    | null
-    | undefined
-): string {
-  const candidates = [
-    state.reponseUtilisateur,
-    state.reponseApprenant,
-    state.reponse_apprenant,
-    state.reponse_user,
-    state.reponse,
-    state.answer,
-    question.reponse_apprenant,
-    question.reponseApprenant,
-    question.reponseUtilisateur,
-    question.reponse_user,
-    question.reponse,
-    question.answer,
-    resultats?.reponseUtilisateur,
-    resultats?.reponseApprenant,
-    resultats?.reponse_apprenant,
-    resultats?.reponse_user,
-    resultats?.reponse,
-    resultats?.answer,
-  ];
-
-  for (const candidate of candidates) {
-    const texte =
-      convertirEnTexte(
-        candidate
-      ).trim();
-
-    if (texte) {
-      return texte;
-    }
-  }
-
-  return "";
+  resultats: ResultatsContext
+): unknown {
+  return (
+    resultats.reponse_apprenant ??
+    resultats.reponseApprenant ??
+    resultats.reponse ??
+    resultats.answer ??
+    question.reponse_apprenant ??
+    question.reponseApprenant
+  );
 }
 
 function rechercherBonneReponse(
-  state: LocationState,
   question: QuestionContext,
-  resultats:
-    | ResultatsContext
-    | null
-    | undefined
-): string {
-  const candidates = [
-    state.bonneReponse,
-    state.bonne_reponse,
-    state.reponse_attendue,
-    question.bonne_reponse,
-    question.bonneReponse,
-    question.reponse_attendue,
-    resultats?.bonneReponse,
-    resultats?.bonne_reponse,
-    resultats?.reponse_attendue,
-  ];
-
-  for (const candidate of candidates) {
-    const texte =
-      convertirEnTexte(
-        candidate
-      ).trim();
-
-    if (texte) {
-      return texte;
-    }
-  }
-
-  return "";
+  resultats: ResultatsContext
+): unknown {
+  return (
+    resultats.bonne_reponse ??
+    resultats.bonneReponse ??
+    resultats.correct_answer ??
+    resultats.correctAnswer ??
+    question.bonne_reponse ??
+    question.bonneReponse ??
+    question.reponse_correcte ??
+    question.reponseCorrecte
+  );
 }
 
 function rechercherBonneReponseLettre(
-  state: LocationState,
-  question: QuestionContext,
-  resultats:
-    | ResultatsContext
-    | null
-    | undefined
+  valeur: unknown,
+  choix: string[]
 ): string {
-  const candidates = [
-    state.bonne_reponse_lettre,
-    state.bonneReponseLettre,
-    question.bonne_reponse_lettre,
-    question.bonneReponseLettre,
-    resultats?.bonne_reponse_lettre,
-    resultats?.bonneReponseLettre,
-  ];
+  const texte =
+    convertirEnTexte(valeur);
 
-  for (const candidate of candidates) {
-    const texte =
-      convertirEnTexte(
-        candidate
-      ).trim();
+  if (
+    estLettreReponse(texte)
+  ) {
+    return normaliserLettre(
+      texte
+    );
+  }
 
-    if (texte) {
-      return normaliserLettre(
-        texte
-      );
-    }
+  const index = choix.findIndex(
+    (item) =>
+      normaliserTexte(item) ===
+      normaliserTexte(texte)
+  );
+
+  if (index >= 0) {
+    return String.fromCharCode(
+      65 + index
+    );
   }
 
   return "";
 }
 
-/* ========================================================
+/* ======================================================
    COMPOSANT
-======================================================== */
+====================================================== */
 
 export default function ExplicationQuestion() {
   const location =
@@ -727,80 +685,44 @@ export default function ExplicationQuestion() {
   const navigate =
     useNavigate();
 
-  const state = useMemo(
-    () =>
-      (location.state ||
-        {}) as LocationState,
-    [location.state]
-  );
+  const state =
+    (location.state ||
+      {}) as LocationState;
 
-  /* ======================================================
+  /* ====================================================
      DEBUG
-  ====================================================== */
+  ==================================================== */
 
   useEffect(() => {
     console.log(
-      "=============================================="
-    );
-
-    console.log(
-      "CODE — CONTEXTE ExplicationQuestion"
-    );
-
-    console.log(
-      "location.state :",
+      "[ExplicationQuestion] contexte :",
       state
     );
+  }, []);
 
-    console.log(
-      "question :",
-      state.question
-    );
-
-    console.log(
-      "questionActuelle :",
-      state.questionActuelle
-    );
-
-    console.log(
-      "resultats :",
-      state.resultats
-    );
-
-    console.log(
-      "réponse apprenant brute :",
-      state.reponseUtilisateur ??
-        state.reponseApprenant ??
-        state.reponse_apprenant ??
-        state.reponse_user ??
-        state.reponse ??
-        state.answer
-    );
-
-    console.log(
-      "bonne réponse brute :",
-      state.bonneReponse ??
-        state.bonne_reponse ??
-        state.reponse_attendue
-    );
-
-    console.log(
-      "=============================================="
-    );
-  }, [state]);
-
-  /* ======================================================
+  /* ====================================================
      DARK MODE
-  ====================================================== */
+  ==================================================== */
 
-  const [darkMode, setDarkMode] =
-    useState(() =>
-      document.documentElement.classList.contains(
-        "dark"
-      )
-    );
+  const [
+    darkMode,
+    setDarkMode,
+  ] = useState(() =>
+    typeof document !== "undefined"
+      ? document.documentElement.classList.contains(
+          "dark"
+        )
+      : false
+  );
 
   useEffect(() => {
+    if (
+      typeof document ===
+      "undefined"
+    ) {
+      return;
+    }
+
     const observer =
       new MutationObserver(() => {
         setDarkMode(
@@ -814,7 +736,9 @@ export default function ExplicationQuestion() {
       document.documentElement,
       {
         attributes: true,
-        attributeFilter: ["class"],
+        attributeFilter: [
+          "class",
+        ],
       }
     );
 
@@ -822,343 +746,114 @@ export default function ExplicationQuestion() {
       observer.disconnect();
   }, []);
 
-  /* ======================================================
-     QUESTION
-  ====================================================== */
+  /* ====================================================
+     CONTEXTE QUESTION
+  ==================================================== */
 
   const question =
-    useMemo<QuestionContext>(
-      () =>
-        state.questionActuelle ||
-        state.question || {
-          question: "",
-        },
-      [
-        state.questionActuelle,
-        state.question,
-      ]
-    );
+    state.question || {};
 
   const resultats =
-    state.resultats ?? null;
+    state.resultats || {};
 
   const texteQuestion =
     convertirEnTexte(
       question.question ??
-        resultats?.question ??
-        ""
+        question.texte ??
+        question.enonce
     );
 
-  /* ======================================================
-     CHOIX
-  ====================================================== */
-
   const choix =
-    useMemo(() => {
-      return obtenirChoix(
-        question
-      );
-    }, [question]);
-
-  /* ======================================================
-     RÉPONSE APPRENANT
-  ====================================================== */
+    obtenirChoix(question);
 
   const reponseApprenantBrute =
-    useMemo(
-      () =>
-        rechercherReponseApprenant(
-          state,
-          question,
-          resultats
-        ),
-      [
-        state,
-        question,
-        resultats,
-      ]
+    rechercherReponseApprenant(
+      question,
+      resultats
     );
 
   const reponseApprenant =
-    useMemo(() => {
-      if (
-        !reponseApprenantBrute
-      ) {
-        return "";
-      }
-
-      if (
-        estLettreReponse(
-          reponseApprenantBrute
-        ) &&
-        choix.length > 0
-      ) {
-        return lettreVersChoix(
-          reponseApprenantBrute,
-          choix
-        );
-      }
-
-      return reponseApprenantBrute;
-    }, [
+    lettreVersChoix(
       reponseApprenantBrute,
-      choix,
-    ]);
-
-  /* ======================================================
-     BONNE RÉPONSE
-  ====================================================== */
-
-  const bonneReponseBrute =
-    useMemo(
-      () =>
-        rechercherBonneReponse(
-          state,
-          question,
-          resultats
-        ),
-      [
-        state,
-        question,
-        resultats,
-      ]
+      choix
     );
 
-  const bonneReponseLettre =
-    useMemo(
-      () =>
-        rechercherBonneReponseLettre(
-          state,
-          question,
-          resultats
-        ),
-      [
-        state,
-        question,
-        resultats,
-      ]
+  const bonneReponseBrute =
+    rechercherBonneReponse(
+      question,
+      resultats
     );
 
   const bonneReponse =
-    useMemo(() => {
-      if (
-        bonneReponseBrute
-      ) {
-        if (
-          estLettreReponse(
-            bonneReponseBrute
-          ) &&
-          choix.length > 0
-        ) {
-          return lettreVersChoix(
-            bonneReponseBrute,
-            choix
-          );
-        }
-
-        return bonneReponseBrute;
-      }
-
-      if (
-        bonneReponseLettre &&
-        choix.length > 0
-      ) {
-        return lettreVersChoix(
-          bonneReponseLettre,
-          choix
-        );
-      }
-
-      return "";
-    }, [
+    lettreVersChoix(
       bonneReponseBrute,
-      bonneReponseLettre,
-      choix,
-    ]);
+      choix
+    );
 
-  /* ======================================================
-     NOTION
-  ====================================================== */
+  const correcte =
+    normaliserTexte(
+      reponseApprenant
+    ) ===
+      normaliserTexte(
+        bonneReponse
+      ) &&
+    Boolean(bonneReponse);
 
   const notion =
     convertirEnTexte(
-      state.notion ??
-        question.notion
+      question.notion
     );
 
-  /* ======================================================
-     MATIÈRE
-  ====================================================== */
-
   const matiere =
-    useMemo(() => {
-      const valeur =
-        state.matiereActuelle ??
-        state.matiere ??
-        question.matiere ??
-        resultats?.matiere ??
-        "";
-
-      return normaliserMatiere(
-        valeur
-      );
-    }, [
-      state.matiereActuelle,
-      state.matiere,
-      question.matiere,
-      resultats?.matiere,
-    ]);
-
-  /* ======================================================
-     NIVEAU
-  ====================================================== */
+    normaliserMatiere(
+      question.matiere
+    );
 
   const niveau =
-    useMemo(() => {
-      const valeur =
-        state.niveauActuel ??
-        state.niveau ??
-        question.niveau ??
-        resultats?.niveau ??
-        "";
-
-      return normaliserNiveau(
-        valeur
-      );
-    }, [
-      state.niveauActuel,
-      state.niveau,
-      question.niveau,
-      resultats?.niveau,
-    ]);
-
-  /* ======================================================
-     CLASSE
-  ====================================================== */
+    normaliserNiveau(
+      question.niveau
+    );
 
   const classe =
     convertirEnTexte(
-      state.classe ??
-        question.classe ??
-        resultats?.classe ??
-        niveau
+      question.classe
     );
 
-  /* ======================================================
-     SÉRIE
-  ====================================================== */
-
   const serie =
-    useMemo(() => {
-      const valeur =
-        state.serieActuelle ??
-        state.serie ??
-        question.serie ??
-        resultats?.serie ??
-        "";
-
-      return normaliserSerie(
-        valeur
-      );
-    }, [
-      state.serieActuelle,
-      state.serie,
-      question.serie,
-      resultats?.serie,
-    ]);
+    normaliserSerie(
+      question.serie
+    );
 
   const seriePourAPI =
-    serie || "none";
+    serie || undefined;
 
-  /* ======================================================
-     CORRECTION
-  ====================================================== */
-
-  const correcte =
-    useMemo(() => {
-      if (
-        typeof state.correcte ===
-        "boolean"
-      ) {
-        return state.correcte;
-      }
-
-      if (
-        typeof question.correcte ===
-        "boolean"
-      ) {
-        return question.correcte;
-      }
-
-      if (
-        typeof resultats?.correcte ===
-        "boolean"
-      ) {
-        return resultats.correcte;
-      }
-
-      if (
-        reponseApprenant &&
-        bonneReponse
-      ) {
-        return (
-          normaliserTexte(
-            reponseApprenant
-          ) ===
-          normaliserTexte(
-            bonneReponse
-          )
-        );
-      }
-
-      if (
-        reponseApprenantBrute &&
-        bonneReponseLettre &&
-        estLettreReponse(
-          reponseApprenantBrute
-        )
-      ) {
-        return (
-          normaliserLettre(
-            reponseApprenantBrute
-          ) ===
-          normaliserLettre(
-            bonneReponseLettre
-          )
-        );
-      }
-
-      return false;
-    }, [
-      state.correcte,
-      question.correcte,
-      resultats?.correcte,
-      reponseApprenant,
-      bonneReponse,
-      reponseApprenantBrute,
-      bonneReponseLettre,
-    ]);
-
-  /* ======================================================
-     ORIGINE
-  ====================================================== */
+  const enseignant =
+    convertirEnTexte(
+      question.enseignant ??
+        question.professeur ??
+        question.teacher
+    );
 
   const origineAcces =
-    useMemo(
-      () =>
-        determinerOrigineAcces(
-          state
-        ),
-      [state]
+    determinerOrigineAcces(
+      state
     );
 
   const solutionConnueAuDepart =
+    Boolean(
+      state.solutionConnue ??
+        state.solution_revelee ??
+        state.solutionRevelee ??
+        false
+    ) ||
     origineAcces ===
-    "remediation";
+      "remediation" ||
+    origineAcces ===
+      "remediation-video";
 
-  /* ======================================================
+  /* ====================================================
      ENSEIGNANT
-  ====================================================== */
+  ==================================================== */
 
   const [
     teacherProfile,
@@ -1171,45 +866,26 @@ export default function ExplicationQuestion() {
   const [
     teacherLoading,
     setTeacherLoading,
-  ] =
-    useState(false);
+  ] = useState(false);
 
   const [
     teacherError,
     setTeacherError,
-  ] =
-    useState<string | null>(
-      null
-    );
-
-  const enseignant =
-    state.enseignant ??
-    question.enseignant ??
-    null;
+  ] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
+    if (!enseignant) {
+      return;
+    }
+
     let actif = true;
 
     const chargerProfil =
       async () => {
-        if (
-          !enseignant ||
-          typeof enseignant !==
-            "string"
-        ) {
-          setTeacherProfile(
-            null
-          );
-          return;
-        }
-
-        setTeacherLoading(
-          true
-        );
-
-        setTeacherError(
-          null
-        );
+        setTeacherLoading(true);
+        setTeacherError(null);
 
         try {
           const response =
@@ -1217,19 +893,22 @@ export default function ExplicationQuestion() {
               "/api/teacher/public-profile",
               {
                 params: {
-                  email: enseignant,
+                  email:
+                    enseignant,
                 },
               }
             );
 
-          if (actif) {
-            setTeacherProfile(
-              response.data
-            );
+          if (!actif) {
+            return;
           }
+
+          setTeacherProfile(
+            response.data || null
+          );
         } catch (error) {
           console.error(
-            "Erreur chargement enseignant :",
+            "Erreur profil enseignant :",
             error
           );
 
@@ -1240,9 +919,7 @@ export default function ExplicationQuestion() {
           }
         } finally {
           if (actif) {
-            setTeacherLoading(
-              false
-            );
+            setTeacherLoading(false);
           }
         }
       };
@@ -1255,79 +932,116 @@ export default function ExplicationQuestion() {
   }, [enseignant]);
 
   const teacherPhotoUrl =
-    construireUrlPhoto(
-      teacherProfile?.teacher_photo
-    );
+  construireUrlPhoto(
+    teacherProfile?.teacher_photo ??
+      teacherProfile?.photo_url ??
+      teacherProfile?.photo ??
+      teacherProfile?.avatar ??
+      teacherProfile?.photo_profil ??
+      teacherProfile?.profile_photo ??
+      teacherProfile?.profilePhoto ??
+      teacherProfile?.image_url ??
+      teacherProfile?.imageUrl ??
+      teacherProfile?.image
+  );
 
   const teacherFullName =
-    teacherProfile
-      ? `${teacherProfile.prenom} ${teacherProfile.nom}`
-      : "Enseignant";
+    convertirEnTexte(
+      teacherProfile?.full_name
+    ) ||
+    [
+      convertirEnTexte(
+        teacherProfile?.prenom
+      ),
+      convertirEnTexte(
+        teacherProfile?.nom
+      ),
+    ]
+      .filter(Boolean)
+      .join(" ") ||
+    convertirEnTexte(
+      teacherProfile?.name
+    ) ||
+    enseignant ||
+    "Enseignant";
 
   const teacherInitials =
-    teacherProfile
-      ? `${teacherProfile.prenom?.[0] ?? ""}${teacherProfile.nom?.[0] ?? ""}`
-          .toUpperCase()
-      : "?";
-
-  const teacherProfileUrl =
-    enseignant
-      ? `/enseignant/profil/${encodeURIComponent(
-          enseignant
-        )}`
-      : "";
+    teacherFullName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(
+        (partie) =>
+          partie.charAt(0)
+      )
+      .join("")
+      .toUpperCase() || "E";
 
   const ouvrirProfilEnseignant =
     () => {
-      if (
-        teacherProfileUrl
-      ) {
-        navigate(
-          teacherProfileUrl
-        );
+      if (!enseignant) {
+        return;
       }
+
+      navigate(
+        `/enseignant/profil/${encodeURIComponent(
+          enseignant
+        )}`
+      );
     };
 
-  /* ======================================================
+  /* ====================================================
      ÉTAT PÉDAGOGIQUE
-  ====================================================== */
+  ==================================================== */
 
-  const [mode, setMode] =
-    useState<ModeIA>(
-      solutionConnueAuDepart
-        ? "comprendre"
-        : "corriger"
-    );
+  const [
+    mode,
+    setMode,
+  ] = useState<ModeIA>(
+    solutionConnueAuDepart
+      ? "comprendre"
+      : "corriger"
+  );
 
-  const [etape, setEtape] =
+  const [
+    etape,
+    setEtape,
+  ] =
     useState<EtapePedagogique>(
       solutionConnueAuDepart
         ? "raisonnement"
         : "accueil"
     );
 
-  const [messages, setMessages] =
-    useState<MessageIA[]>([
-      {
-        id: 1,
-        role: "ia",
-        contenu:
-          solutionConnueAuDepart
-            ? "Tu connais déjà la réponse finale. Nous allons maintenant vérifier si tu maîtrises réellement le raisonnement qui permet de l'obtenir."
-            : "Tu as choisi une réponse. Nous allons d'abord analyser ton raisonnement avant de te donner la solution.",
-      },
-      {
-        id: 2,
-        role: "ia",
-        contenu:
-          "Explique-moi simplement comment tu as réfléchi pour arriver à ta réponse.",
-      },
-    ]);
+  const [
+    messages,
+    setMessages,
+  ] = useState<MessageIA[]>([
+    {
+      id: 1,
+      role: "ia",
+      contenu:
+        solutionConnueAuDepart
+          ? "La solution est déjà connue. Nous allons maintenant nous concentrer sur le raisonnement et sur la compréhension de la méthode."
+          : "Je ne vais pas simplement te donner la réponse. Nous allons analyser ton raisonnement pour identifier ce qui est maîtrisé et ce qui doit être renforcé.",
+    },
+    {
+      id: 2,
+      role: "ia",
+      contenu:
+        "Explique-moi simplement comment tu as réfléchi pour arriver à ta réponse.",
+    },
+  ]);
 
-  const [iaEnCours, setIaEnCours] =
-    useState(false);
+  const [
+    iaEnCours,
+    setIaEnCours,
+  ] = useState(false);
 
-  const [erreurAPI, setErreurAPI] =
+  const [
+    erreurAPI,
+    setErreurAPI,
+  ] =
     useState<string | null>(
       null
     );
@@ -1343,38 +1057,27 @@ export default function ExplicationQuestion() {
     fenetreActive,
     setFenetreActive,
   ] =
-    useState<FenetreActive>(
-      null
-    );
+    useState<FenetreActive>(null);
 
-  const [diagnostic, setDiagnostic] =
-    useState<DiagnosticIA>({
-      niveauConfiance:
-        solutionConnueAuDepart
-          ? 40
-          : 20,
+  const [
+    diagnostic,
+    setDiagnostic,
+  ] = useState<DiagnosticIA>({
+    niveauConfiance:
+      solutionConnueAuDepart
+        ? 50
+        : 0,
+    comprehension:
+      "inconnue",
+    tentative: 0,
+    erreurIdentifiee: "",
+    notionsMaitrisees: [],
+    notionsFragiles: [],
+  });
 
-      tentative: 1,
-
-      niveauAide: 0,
-
-      erreurIdentifiee: null,
-
-      notionsMaitrisees: [],
-
-      notionsFragiles: notion
-        ? [notion]
-        : [],
-
-      comprehension:
-        solutionConnueAuDepart
-          ? "partielle"
-          : "fragile",
-    });
-
-  /* ======================================================
-     VIDÉO DE REMÉDIATION — ÉTAT
-  ====================================================== */
+  /* ====================================================
+     VIDÉO DE REMÉDIATION
+  ==================================================== */
 
   const [
     videoSelectionnee,
@@ -1387,8 +1090,7 @@ export default function ExplicationQuestion() {
   const [
     videoLoading,
     setVideoLoading,
-  ] =
-    useState(false);
+  ] = useState(false);
 
   const [
     videoError,
@@ -1401,107 +1103,88 @@ export default function ExplicationQuestion() {
   const [
     videoEtape,
     setVideoEtape,
-  ] =
-    useState<
-      "video" | "questions" | "termine"
-    >("video");
+  ] = useState<
+    "video" | "questions" | "termine"
+  >("video");
 
   const [
     videoQuestionIndex,
     setVideoQuestionIndex,
-  ] =
-    useState(0);
+  ] = useState(0);
 
   const [
     videoReponses,
     setVideoReponses,
-  ] =
-    useState<
-      Record<string, string>
-    >({});
+  ] = useState<
+    Record<string, string>
+  >({});
 
   const [
     videoQuestionValidee,
     setVideoQuestionValidee,
-  ] =
-    useState(false);
+  ] = useState(false);
 
   const [
     videoQuestionCorrecte,
     setVideoQuestionCorrecte,
-  ] =
-    useState<boolean | null>(
-      null
-    );
-
-  /* ======================================================
-     QUESTION VIDÉO ACTUELLE
-  ====================================================== */
+  ] = useState(false);
 
   const videoQuestionActuelle =
     videoSelectionnee?.questions?.[
       videoQuestionIndex
-    ] ?? null;
+    ];
 
-  const videoScore =
-    useMemo(() => {
-      if (
-        !videoSelectionnee
-      ) {
-        return 0;
-      }
+  const videoScore = useMemo(() => {
+    if (!videoSelectionnee) {
+      return 0;
+    }
 
-      return videoSelectionnee.questions.reduce(
-        (
-          total,
-          questionVideo
-        ) => {
-          const reponse =
-            videoReponses[
-              questionVideo.id
-            ] ?? "";
+    return videoSelectionnee.questions.reduce(
+      (score, item) => {
+        const reponse =
+          videoReponses[
+            String(item.id)
+          ];
 
-          if (
-            normaliserTexte(
-              reponse
-            ) ===
-            normaliserTexte(
-              questionVideo.bonne_reponse
-            )
-          ) {
-            return total + 1;
-          }
+        return normaliserTexte(
+          reponse
+        ) ===
+          normaliserTexte(
+            item.bonne_reponse
+          )
+          ? score + 1
+          : score;
+      },
+      0
+    );
+  }, [
+    videoSelectionnee,
+    videoReponses,
+  ]);
 
-          return total;
-        },
-        0
-      );
-    }, [
-      videoSelectionnee,
-      videoReponses,
-    ]);
-
-  /* ======================================================
-     SAISIE IA
-  ====================================================== */
+  /* ====================================================
+     SAISIE / SCROLL
+  ==================================================== */
 
   const [
     texteSaisi,
     setTexteSaisi,
   ] = useState("");
 
-  /* ======================================================
-     RÉFÉRENCE POUR LA FIN DE CONVERSATION
-  ====================================================== */
-
   const finConversationRef =
     useRef<HTMLDivElement | null>(
       null
     );
 
-  /* ======================================================
-     SCROLL AUTOMATIQUE
-  ====================================================== */
+  const conversationRef =
+    useRef<HTMLDivElement | null>(
+      null
+    );
+
+  const [
+    menuIAMobileOuvert,
+    setMenuIAMobileOuvert,
+  ] = useState(false);
 
   useEffect(() => {
     if (
@@ -1529,9 +1212,19 @@ export default function ExplicationQuestion() {
     fenetreActive,
   ]);
 
-  /* ======================================================
+  useEffect(() => {
+    if (
+      fenetreActive !== "ia"
+    ) {
+      setMenuIAMobileOuvert(
+        false
+      );
+    }
+  }, [fenetreActive]);
+
+  /* ====================================================
      BLOQUER LE SCROLL DE LA PAGE
-  ====================================================== */
+  ==================================================== */
 
   useEffect(() => {
     if (!fenetreActive) {
@@ -1539,12 +1232,14 @@ export default function ExplicationQuestion() {
     }
 
     const ancienOverflow =
-      document.body.style.overflow;
+      document.body.style
+        .overflow;
 
-    const ancienPaddingRight =
-      document.body.style.paddingRight;
+    const ancienPadding =
+      document.body.style
+        .paddingRight;
 
-    const largeurAvant =
+    const largeurScrollbar =
       window.innerWidth -
       document.documentElement
         .clientWidth;
@@ -1552,9 +1247,8 @@ export default function ExplicationQuestion() {
     document.body.style.overflow =
       "hidden";
 
-    if (largeurAvant > 0) {
-      document.body.style.paddingRight =
-        `${largeurAvant}px`;
+    if (largeurScrollbar > 0) {
+      document.body.style.paddingRight = `${largeurScrollbar}px`;
     }
 
     return () => {
@@ -1562,21 +1256,23 @@ export default function ExplicationQuestion() {
         ancienOverflow;
 
       document.body.style.paddingRight =
-        ancienPaddingRight;
+        ancienPadding;
     };
   }, [fenetreActive]);
 
-  /* ======================================================
+  /* ====================================================
      MESSAGES
-  ====================================================== */
+  ==================================================== */
 
-  const ajouterMessage = (
-    role: "ia" | "eleve",
-    contenu: string
-  ) => {
-    setMessages(
-      (precedents) => [
-        ...precedents,
+  const ajouterMessage =
+    (
+      role:
+        | "ia"
+        | "eleve",
+      contenu: string
+    ) => {
+      setMessages((precedentes) => [
+        ...precedentes,
         {
           id:
             Date.now() +
@@ -1584,154 +1280,175 @@ export default function ExplicationQuestion() {
           role,
           contenu,
         },
-      ]
-    );
-  };
+      ]);
+    };
 
-  const construireHistorique = (
-    historiqueSource =
-      messages
-  ): HistoriqueGemini[] => {
-    return historiqueSource
-      .slice(-20)
-      .map((message) => ({
-        role: message.role,
-        contenu: message.contenu,
-      }));
-  };
+  const construireHistorique =
+    (): HistoriqueGemini[] =>
+      messages.map(
+        (message) => ({
+          role: message.role,
+          contenu:
+            message.contenu,
+        })
+      );
 
-  /* ======================================================
+  /* ====================================================
      DIAGNOSTIC
-  ====================================================== */
+  ==================================================== */
 
   const resultatComprehension =
     (
-      resultat: ReponseGemini
-    ): NiveauComprehension => {
-      return normaliserComprehension(
-        resultat.diagnostic
-          ?.comprehension
-      );
+      comprehension: NiveauComprehension
+    ): number => {
+      switch (
+        comprehension
+      ) {
+        case "solide":
+          return 85;
+
+        case "partielle":
+          return 60;
+
+        case "fragile":
+          return 30;
+
+        default:
+          return 0;
+      }
     };
 
   const calculerNouvelleConfiance =
     (
       ancienne: number,
-      resultat: ReponseGemini
-    ) => {
-      const comprehension =
+      comprehension: NiveauComprehension
+    ): number => {
+      const base =
         resultatComprehension(
-          resultat
+          comprehension
         );
 
-      if (
-        comprehension ===
-        "solide"
-      ) {
-        return Math.min(
-          100,
-          Math.max(
-            ancienne + 15,
-            75
-          )
-        );
+      if (!ancienne) {
+        return base;
       }
 
-      if (
-        comprehension ===
-        "partielle"
-      ) {
-        return Math.min(
-          85,
-          ancienne + 8
-        );
-      }
-
-      if (
-        comprehension ===
-        "fragile"
-      ) {
-        return Math.max(
-          10,
-          ancienne - 2
-        );
-      }
-
-      return ancienne;
+      return Math.round(
+        ancienne * 0.65 +
+          base * 0.35
+      );
     };
 
   const appliquerDiagnosticGemini =
     (
-      resultat: ReponseGemini
+      diagnosticGemini?: DiagnosticGemini
     ) => {
-      const diag =
-        resultat.diagnostic;
-
-      if (!diag) {
+      if (!diagnosticGemini) {
         return;
       }
 
       const comprehension =
         normaliserComprehension(
-          diag.comprehension
+          diagnosticGemini.comprehension
         );
+
+      const confianceBrute =
+        Number(
+          diagnosticGemini.niveau_confiance ??
+            diagnosticGemini.niveauConfiance ??
+            NaN
+        );
+
+      const confiance =
+        Number.isFinite(
+          confianceBrute
+        )
+          ? Math.max(
+              0,
+              Math.min(
+                100,
+                Math.round(
+                  confianceBrute
+                )
+              )
+            )
+          : calculerNouvelleConfiance(
+              diagnostic.niveauConfiance,
+              comprehension
+            );
+
+      const notionsMaitrisees =
+        Array.isArray(
+          diagnosticGemini.notions_maitrisees
+        )
+          ? diagnosticGemini.notions_maitrisees
+          : Array.isArray(
+                diagnosticGemini.notionsMaitrisees
+              )
+            ? diagnosticGemini.notionsMaitrisees
+            : diagnostic.notionsMaitrisees;
+
+      const notionsFragiles =
+        Array.isArray(
+          diagnosticGemini.notions_fragiles
+        )
+          ? diagnosticGemini.notions_fragiles
+          : Array.isArray(
+                diagnosticGemini.notionsFragiles
+              )
+            ? diagnosticGemini.notionsFragiles
+            : diagnostic.notionsFragiles;
 
       setDiagnostic(
         (precedent) => ({
-          ...precedent,
-
           niveauConfiance:
-            calculerNouvelleConfiance(
-              precedent.niveauConfiance,
-              resultat
-            ),
+            confiance,
+
+          comprehension:
+            comprehension ===
+            "inconnue"
+              ? precedent.comprehension
+              : comprehension,
 
           tentative:
-            precedent.tentative +
-            1,
-
-          niveauAide:
-            typeof resultat.niveau_aide ===
-            "number"
-              ? resultat.niveau_aide
-              : precedent.niveauAide,
+            Number(
+              diagnosticGemini.tentative ??
+                precedent.tentative + 1
+            ),
 
           erreurIdentifiee:
-            diag.erreur ??
-            null,
+            convertirEnTexte(
+              diagnosticGemini.erreur_identifiee ??
+                diagnosticGemini.erreurIdentifiee
+            ) ||
+            precedent.erreurIdentifiee,
 
           notionsMaitrisees:
-            diag.notionsMaitrisees ??
-            diag.notions_maitrisees ??
-            precedent.notionsMaitrisees,
+            notionsMaitrisees.filter(
+              Boolean
+            ),
 
           notionsFragiles:
-            diag.notionsFragiles ??
-            diag.notions_fragiles ??
-            precedent.notionsFragiles,
-
-          comprehension,
+            notionsFragiles.filter(
+              Boolean
+            ),
         })
       );
     };
 
-  /* ======================================================
-     GEMINI
-  ====================================================== */
+  /* ====================================================
+     APPEL GEMINI
+  ==================================================== */
 
   const demanderAIAvecGemini =
     async (
-      messageUtilisateur: string,
-      historiqueSource?: MessageIA[],
-      modeUtilise: ModeIA = mode,
-      etapeUtilisee: EtapePedagogique =
-        etape
-    ) => {
+      messageUtilisateur: string
+    ): Promise<ReponseGemini> => {
       const payload = {
         matiere,
         niveau,
-        serie:
-          seriePourAPI,
+        serie: seriePourAPI,
+        classe,
+        notion,
         question:
           texteQuestion,
         choix,
@@ -1739,137 +1456,103 @@ export default function ExplicationQuestion() {
           reponseApprenant,
         reponse_apprenant_brute:
           reponseApprenantBrute,
-        bonne_reponse:
+        reponse_correcte:
           bonneReponse,
-        bonne_reponse_lettre:
-          bonneReponseLettre,
-        notion,
-        mode: modeUtilise,
-        etape: etapeUtilisee,
+        reponse_correcte_lettre:
+          rechercherBonneReponseLettre(
+            bonneReponseBrute,
+            choix
+          ),
+        correcte,
+        mode,
+        etape,
         tentative:
           diagnostic.tentative,
         niveau_aide:
-          diagnostic.niveauAide,
-        reponse_correcte:
-          correcte,
+          diagnostic.comprehension,
+        solution_revelee:
+          solutionRevelee,
         message_utilisateur:
           messageUtilisateur,
         historique:
-          construireHistorique(
-            historiqueSource ??
-              messages
-          ),
+          construireHistorique(),
+        origine_acces:
+          origineAcces,
       };
 
-      console.log(
-        "CODE IA — payload envoyé :",
-        payload
-      );
-
       const response =
-        await fetch(
+        await api.post(
           API_IA_URL,
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-
-            body: JSON.stringify(
-              payload
-            ),
-          }
+          payload
         );
-
-      if (!response.ok) {
-        let detailsTechniques =
-          "";
-
-        try {
-          detailsTechniques =
-            await response.text();
-        } catch {
-          detailsTechniques =
-            "";
-        }
-
-        console.error(
-          "Erreur API CODE IA :",
-          response.status,
-          detailsTechniques
-        );
-
-        throw new Error(
-          `CODE_IA_API_${response.status}`
-        );
-      }
-
-      const resultat =
-        (await response.json()) as ReponseGemini;
 
       if (
-        !resultat ||
-        typeof resultat.message !==
-          "string"
+        !response ||
+        !response.data
       ) {
-        console.error(
-          "Réponse IA invalide :",
-          resultat
-        );
-
         throw new Error(
-          "CODE_IA_RESPONSE_INVALID"
+          "La réponse de CODE IA est vide."
         );
       }
 
-      return resultat;
+      return response.data as ReponseGemini;
     };
 
   const traiterReponseGemini =
     (
-      resultat: ReponseGemini
+      data: ReponseGemini
     ) => {
       appliquerDiagnosticGemini(
-        resultat
+        data.diagnostic
       );
 
+      const prochaineEtape =
+        normaliserEtape(
+          data.etape_suivante ??
+            data.etapeSuivante
+        );
+
       if (
-        resultat.prochaine_etape
+        prochaineEtape !==
+        "accueil"
       ) {
         setEtape(
-          normaliserEtape(
-            resultat.prochaine_etape
-          )
+          prochaineEtape
         );
       }
 
       if (
-        resultat.doit_reveler_solution ===
-        true
+        data.solution_revelee ===
+          true ||
+        data.solutionRevelee ===
+          true
       ) {
-        setSolutionRevelee(true);
+        setSolutionRevelee(
+          true
+        );
       }
 
-      ajouterMessage(
-        "ia",
-        resultat.message
-      );
-    };
+      const contenu =
+        convertirEnTexte(
+          data.message ??
+            data.contenu ??
+            data.reponse
+        );
 
-  /* ======================================================
-     ENVOYER MESSAGE
-  ====================================================== */
+      if (contenu) {
+        ajouterMessage(
+          "ia",
+          contenu
+        );
+      }
+    };
 
   const envoyerMessage =
     async (
-      contenu: string,
-      modeUtilise?: ModeIA,
-      etapeUtilisee?: EtapePedagogique
+      message: string
     ) => {
       const texte =
-        contenu.trim();
+        message.trim();
 
       if (
         !texte ||
@@ -1878,49 +1561,33 @@ export default function ExplicationQuestion() {
         return;
       }
 
-      const messageEleve: MessageIA =
-        {
-          id:
-            Date.now(),
-
-          role: "eleve",
-
-          contenu: texte,
-        };
-
-      const nouveauxMessages = [
-        ...messages,
-        messageEleve,
-      ];
-
-      setMessages(
-        nouveauxMessages
+      setErreurAPI(null);
+      ajouterMessage(
+        "eleve",
+        texte
       );
-
+      setTexteSaisi("");
       setIaEnCours(true);
 
-      setErreurAPI(null);
-
       try {
-        const resultat =
+        const data =
           await demanderAIAvecGemini(
-            texte,
-            nouveauxMessages,
-            modeUtilise ?? mode,
-            etapeUtilisee ?? etape
+            texte
           );
 
         traiterReponseGemini(
-          resultat
+          data
         );
       } catch (error) {
         console.error(
-          "CODE IA - erreur technique :",
+          "Erreur CODE IA :",
           error
         );
 
         const messageErreur =
-          "CODE IA est momentanément indisponible pour les explications avancées. Tu peux continuer ton apprentissage et réessayer un peu plus tard.";
+          error instanceof Error
+            ? error.message
+            : "Une erreur est survenue lors de la communication avec CODE IA.";
 
         setErreurAPI(
           messageErreur
@@ -1928,201 +1595,168 @@ export default function ExplicationQuestion() {
 
         ajouterMessage(
           "ia",
-          messageErreur
+          "Je rencontre actuellement une difficulté pour répondre. Vérifie ta connexion puis réessaie."
         );
       } finally {
         setIaEnCours(false);
       }
     };
 
-  /* ======================================================
+  /* ====================================================
      ACTIONS RAPIDES
-  ====================================================== */
+  ==================================================== */
 
   const executerAction =
     async (
       action: ActionRapide
     ) => {
-      if (iaEnCours) {
-        return;
-      }
-
-      const actions: Record<
+      const configurations: Record<
         ActionRapide,
-        string
+        {
+          prompt: string;
+          etape: EtapePedagogique;
+        }
       > = {
-        autrement:
-          "Explique-moi autrement, avec une méthode plus simple, sans me donner directement la solution.",
+        autrement: {
+          prompt:
+            "Explique-moi cette notion autrement, avec des mots simples et une progression adaptée à mon niveau. Ne donne pas immédiatement la réponse finale.",
+          etape:
+            "raisonnement",
+        },
 
-        indice:
-          "Donne-moi un indice progressif pour m'aider à trouver la solution moi-même.",
+        indice: {
+          prompt:
+            "Donne-moi un indice progressif pour m'aider à résoudre la question sans me donner directement la réponse.",
+          etape: "indice",
+        },
 
-        similaire:
-          "Donne-moi une question similaire pour vérifier si j'ai compris la méthode.",
+        similaire: {
+          prompt:
+            "Propose-moi une question similaire qui me permettra de vérifier si j'ai compris la notion. Guide-moi ensuite progressivement.",
+          etape: "recherche",
+        },
 
-        difficile:
-          "Propose-moi une question plus difficile qui utilise le même raisonnement.",
+        difficile: {
+          prompt:
+            "Propose-moi une question plus difficile mobilisant la même notion ou les mêmes prérequis.",
+          etape:
+            "approfondissement",
+        },
 
-        application:
-          "Montre-moi une application concrète de cette notion dans la vie réelle ou dans un autre domaine.",
+        application: {
+          prompt:
+            "Montre-moi une application concrète et réelle de cette notion, puis explique comment elle se relie à la question étudiée.",
+          etape:
+            "approfondissement",
+        },
       };
 
-      const etapes: Record<
-        ActionRapide,
-        EtapePedagogique
-      > = {
-        autrement:
-          "raisonnement",
-
-        indice:
-          "indice",
-
-        similaire:
-          "verification",
-
-        difficile:
-          "approfondissement",
-
-        application:
-          "approfondissement",
-      };
-
-      const nouvelleEtape =
-        etapes[action];
+      const configuration =
+        configurations[action];
 
       setEtape(
-        nouvelleEtape
+        configuration.etape
       );
 
       await envoyerMessage(
-        actions[action],
-        mode,
-        nouvelleEtape
+        configuration.prompt
       );
     };
 
-  /* ======================================================
+  /* ====================================================
      CHANGEMENT DE MODE
-  ====================================================== */
+  ==================================================== */
 
   const changerMode =
     async (
       nouveauMode: ModeIA
     ) => {
-      if (
-        iaEnCours ||
-        nouveauMode === mode
-      ) {
-        return;
-      }
+      setMode(
+        nouveauMode
+      );
 
-      let message = "";
+      let prompt = "";
 
-      let nouvelleEtape: EtapePedagogique =
+      let prochaineEtape: EtapePedagogique =
         "raisonnement";
 
       if (
         nouveauMode ===
         "comprendre"
       ) {
-        nouvelleEtape =
+        prompt =
+          "Aide-moi à comprendre le raisonnement nécessaire pour résoudre cette question. Guide-moi sans me donner immédiatement la réponse.";
+        prochaineEtape =
           "raisonnement";
-
-        message =
-          "Je veux comprendre cette question en profondeur. Guide-moi dans le raisonnement sans simplement donner la réponse.";
       }
 
       if (
         nouveauMode ===
         "corriger"
       ) {
-        nouvelleEtape =
+        prompt =
+          "Analyse ma réponse et mon raisonnement afin d'identifier précisément mon erreur ou ma difficulté. Aide-moi ensuite à la corriger progressivement.";
+        prochaineEtape =
           "diagnostic";
-
-        message =
-          "Analyse mon raisonnement, identifie précisément mon erreur éventuelle et aide-moi à la corriger.";
       }
 
       if (
         nouveauMode ===
         "approfondir"
       ) {
-        nouvelleEtape =
+        prompt =
+          "Je veux aller plus loin. Approfondis cette notion avec une explication plus riche, une question supplémentaire ou une application.";
+        prochaineEtape =
           "approfondissement";
-
-        message =
-          "Je veux approfondir cette notion avec des exemples, des variantes et des applications.";
       }
 
-      setMode(
-        nouveauMode
-      );
-
       setEtape(
-        nouvelleEtape
+        prochaineEtape
       );
 
       await envoyerMessage(
-        message,
-        nouveauMode,
-        nouvelleEtape
+        prompt
       );
     };
 
-  /* ======================================================
+  /* ====================================================
      RECOMMENCER
-  ====================================================== */
+  ==================================================== */
 
   const recommencer =
     () => {
-      const connue =
-        solutionConnueAuDepart;
-
-      const nouveauMode: ModeIA =
-        connue
-          ? "comprendre"
-          : "corriger";
-
-      const nouvelleEtape: EtapePedagogique =
-        connue
-          ? "raisonnement"
-          : "accueil";
+      if (iaEnCours) {
+        return;
+      }
 
       setMode(
-        nouveauMode
+        solutionConnueAuDepart
+          ? "comprendre"
+          : "corriger"
       );
 
       setEtape(
-        nouvelleEtape
+        solutionConnueAuDepart
+          ? "raisonnement"
+          : "accueil"
       );
 
       setSolutionRevelee(
-        connue
+        solutionConnueAuDepart
       );
 
       setDiagnostic({
         niveauConfiance:
-          connue ? 40 : 20,
-
-        tentative: 1,
-
-        niveauAide: 0,
-
-        erreurIdentifiee:
-          null,
-
-        notionsMaitrisees:
-          [],
-
-        notionsFragiles:
-          notion
-            ? [notion]
-            : [],
-
+          solutionConnueAuDepart
+            ? 50
+            : 0,
         comprehension:
-          connue
-            ? "partielle"
-            : "fragile",
+          "inconnue",
+        tentative: 0,
+        erreurIdentifiee:
+          "",
+        notionsMaitrisees: [],
+        notionsFragiles: [],
       });
 
       setMessages([
@@ -2130,97 +1764,58 @@ export default function ExplicationQuestion() {
           id: 1,
           role: "ia",
           contenu:
-            connue
-              ? "Nous recommençons l'analyse du raisonnement."
-              : "Nous recommençons l'analyse de ta réponse.",
+            solutionConnueAuDepart
+              ? "La solution est déjà connue. Nous allons maintenant nous concentrer sur le raisonnement et sur la compréhension de la méthode."
+              : "Je ne vais pas simplement te donner la réponse. Nous allons analyser ton raisonnement pour identifier ce qui est maîtrisé et ce qui doit être renforcé.",
         },
-
         {
           id: 2,
           role: "ia",
           contenu:
-            "Explique-moi comment tu as réfléchi.",
+            "Explique-moi simplement comment tu as réfléchi pour arriver à ta réponse.",
         },
       ]);
 
-      setErreurAPI(
-        null
-      );
-
       setTexteSaisi("");
-
-      setFenetreActive(
-        null
+      setErreurAPI(null);
+      setMenuIAMobileOuvert(
+        false
       );
     };
 
-  /* ======================================================
-     VIDÉO — OUVRIR ET RECHERCHER
-  ====================================================== */
+  /* ====================================================
+     VIDÉO
+  ==================================================== */
 
   const ouvrirFenetreVideo =
     async () => {
-      if (videoLoading) {
-        return;
-      }
-
       setFenetreActive(
         "video"
       );
 
-      setVideoLoading(
-        true
-      );
-
-      setVideoError(
-        null
-      );
-
+      setVideoLoading(true);
+      setVideoError(null);
       setVideoSelectionnee(
         null
       );
-
-      setVideoEtape(
-        "video"
-      );
-
-      setVideoQuestionIndex(
-        0
-      );
-
-      setVideoReponses(
-        {}
-      );
-
+      setVideoEtape("video");
+      setVideoQuestionIndex(0);
+      setVideoReponses({});
       setVideoQuestionValidee(
         false
       );
-
       setVideoQuestionCorrecte(
-        null
+        false
       );
 
-      if (!notion) {
+      if (
+        !notion ||
+        !niveau
+      ) {
+        setVideoLoading(false);
         setVideoError(
-          "La notion de la question actuelle n'est pas disponible. CODE ne peut pas rechercher une vidéo de remédiation."
+          "La notion ou le niveau de la question est indisponible."
         );
-
-        setVideoLoading(
-          false
-        );
-
-        return;
-      }
-
-      if (!niveau) {
-        setVideoError(
-          "Le niveau de la question actuelle n'est pas disponible."
-        );
-
-        setVideoLoading(
-          false
-        );
-
         return;
       }
 
@@ -2235,119 +1830,96 @@ export default function ExplicationQuestion() {
             }
           );
 
-        const data =
-          response.data;
-
-        const videosBrutes =
-          Array.isArray(data)
-            ? data
+        const donnees =
+          Array.isArray(
+            response.data
+          )
+            ? response.data
             : Array.isArray(
-                data?.videos
-              )
-            ? data.videos
-            : [];
+                  response.data?.videos
+                )
+              ? response.data.videos
+              : [];
 
-        const videos =
-          videosBrutes.filter(
-            (
-              video: unknown
-            ): video is RemediationVideo => {
-              if (
-                !video ||
-                typeof video !==
-                  "object"
-              ) {
-                return false;
-              }
-
-              const objet =
-                video as Record<
+        const videosValides =
+          donnees
+            .map(
+              (
+                video: Record<
                   string,
                   unknown
-                >;
+                >
+              ) => ({
+                ...video,
+                videoUrl:
+                  convertirEnTexte(
+                    video.videoUrl ??
+                      video.video_url
+                  ),
+                questions:
+                  Array.isArray(
+                    video.questions
+                  )
+                    ? video.questions
+                    : [],
+              })
+            )
+            .filter(
+              (
+                video: RemediationVideo
+              ) =>
+                video.questions
+                  .length > 0
+            );
 
-              return (
-                typeof objet.id ===
-                  "string" &&
-                Array.isArray(
-                  objet.questions
-                )
-              );
-            }
+        const videosCorrespondantes =
+          videosValides.filter(
+            (
+              video: RemediationVideo
+            ) =>
+              video.questions.some(
+                (
+                  videoQuestion
+                ) =>
+                  normaliserTexte(
+                    videoQuestion.notion
+                  ) ===
+                  normaliserTexte(
+                    notion
+                  )
+              )
           );
 
-        const notionNormalisee =
-          normaliserTexte(
-            notion
+        if (
+          videosCorrespondantes.length ===
+          0
+        ) {
+          throw new Error(
+            "Aucune vidéo de remédiation liée à cette notion n'a été trouvée."
           );
-
-        /*
-         * CRITÈRE PRINCIPAL :
-         *
-         * La vidéo doit contenir AU MOINS
-         * UNE question dont la notion
-         * correspond à la notion de la
-         * question actuelle.
-         */
-        const candidats = videos.filter((video: RemediationVideo) => {
-  if (!Array.isArray(video.questions)) {
-    return false;
-  }
-
-  return video.questions.some(
-    (questionVideo: RemediationVideoQuestion) => {
-      const notionQuestion = normaliserTexte(
-        questionVideo.notion ?? ""
-      );
-
-      return (
-        notionQuestion === notionNormalisee
-      );
-    }
-  );
-});
-
-        const videoTrouvee =
-          candidats[0] ??
-          null;
-
-        if (!videoTrouvee) {
-          setVideoError(
-            `Aucune vidéo de remédiation ne contient une question correspondant à la notion « ${notion} ».`
-          );
-
-          return;
         }
 
-        /*
-         * On conserve TOUTES les questions
-         * de la vidéo.
-         *
-         * La notion sert uniquement à
-         * sélectionner la vidéo.
-         */
+        const video =
+          videosCorrespondantes[0] as RemediationVideo;
+
         setVideoSelectionnee(
-          videoTrouvee
+          video
         );
       } catch (error) {
         console.error(
-          "Erreur recherche vidéo de remédiation :",
+          "Erreur vidéo de remédiation :",
           error
         );
 
         setVideoError(
-          "Impossible de charger les vidéos de remédiation. Vérifie que le serveur CODE est accessible."
+          error instanceof Error
+            ? error.message
+            : "Impossible de rechercher une vidéo de remédiation."
         );
       } finally {
-        setVideoLoading(
-          false
-        );
+        setVideoLoading(false);
       }
     };
-
-  /* ======================================================
-     VIDÉO — RÉPONDRE À UNE QUESTION
-  ====================================================== */
 
   const selectionnerReponseVideo =
     (
@@ -2363,15 +1935,12 @@ export default function ExplicationQuestion() {
       setVideoReponses(
         (precedentes) => ({
           ...precedentes,
-          [videoQuestionActuelle.id]:
-            reponse,
+          [String(
+            videoQuestionActuelle.id
+          )]: reponse,
         })
       );
     };
-
-  /* ======================================================
-     VIDÉO — VALIDER UNE QUESTION
-  ====================================================== */
 
   const validerQuestionVideo =
     () => {
@@ -2383,14 +1952,16 @@ export default function ExplicationQuestion() {
 
       const reponse =
         videoReponses[
-          videoQuestionActuelle.id
-        ] ?? "";
+          String(
+            videoQuestionActuelle.id
+          )
+        ];
 
       if (!reponse) {
         return;
       }
 
-      const estCorrecte =
+      const correcteVideo =
         normaliserTexte(
           reponse
         ) ===
@@ -2399,7 +1970,7 @@ export default function ExplicationQuestion() {
         );
 
       setVideoQuestionCorrecte(
-        estCorrecte
+        correcteVideo
       );
 
       setVideoQuestionValidee(
@@ -2407,30 +1978,23 @@ export default function ExplicationQuestion() {
       );
     };
 
-  /* ======================================================
-     VIDÉO — QUESTION SUIVANTE
-  ====================================================== */
-
   const passerQuestionVideo =
     () => {
       if (
-        !videoSelectionnee ||
-        !videoQuestionActuelle ||
-        !videoQuestionValidee
+        !videoSelectionnee
       ) {
         return;
       }
 
-      const derniereQuestion =
+      if (
         videoQuestionIndex >=
-        videoSelectionnee.questions.length -
-          1;
-
-      if (derniereQuestion) {
+        videoSelectionnee
+          .questions.length -
+          1
+      ) {
         setVideoEtape(
           "termine"
         );
-
         return;
       }
 
@@ -2444,40 +2008,28 @@ export default function ExplicationQuestion() {
       );
 
       setVideoQuestionCorrecte(
-        null
+        false
       );
     };
-
-  /* ======================================================
-     VIDÉO — RECOMMENCER LES QUESTIONS
-  ====================================================== */
 
   const recommencerQuestionsVideo =
     () => {
       setVideoEtape(
         "questions"
       );
-
-      setVideoQuestionIndex(
-        0
-      );
-
-      setVideoReponses(
-        {}
-      );
-
+      setVideoQuestionIndex(0);
+      setVideoReponses({});
       setVideoQuestionValidee(
         false
       );
-
       setVideoQuestionCorrecte(
-        null
+        false
       );
     };
 
-  /* ======================================================
+  /* ====================================================
      PROGRESSION
-  ====================================================== */
+  ==================================================== */
 
   const progression =
     useMemo(() => {
@@ -2489,8 +2041,8 @@ export default function ExplicationQuestion() {
         raisonnement: 25,
         diagnostic: 40,
         indice: 55,
-        recherche: 70,
-        verification: 85,
+        recherche: 65,
+        verification: 80,
         approfondissement: 90,
         termine: 100,
       };
@@ -2498,83 +2050,62 @@ export default function ExplicationQuestion() {
       return valeurs[etape];
     }, [etape]);
 
-  /* ======================================================
-     TITRES
-  ====================================================== */
-
   const titreEtape =
     useMemo(() => {
-      const titres: Record<
+      const valeurs: Record<
         EtapePedagogique,
         string
       > = {
         accueil:
           "Accueil",
-
         raisonnement:
-          "Raisonnement",
-
+          "Analyse du raisonnement",
         diagnostic:
           "Diagnostic",
-
         indice:
-          "Indice",
-
+          "Aide progressive",
         recherche:
           "Recherche",
-
         verification:
           "Vérification",
-
         approfondissement:
           "Approfondissement",
-
         termine:
           "Terminé",
       };
 
-      return titres[etape];
+      return valeurs[etape];
     }, [etape]);
 
-  /* ======================================================
-     ENVOI DU TEXTE
-  ====================================================== */
+  /* ====================================================
+     SAISIE
+  ==================================================== */
 
   const envoyerTexteSaisi =
     async () => {
-      const texte =
-        texteSaisi.trim();
-
-      if (
-        !texte ||
-        iaEnCours
-      ) {
-        return;
-      }
-
-      setTexteSaisi("");
-
       await envoyerMessage(
-        texte
+        texteSaisi
       );
     };
 
-  const gererTouche = (
-    event: React.KeyboardEvent<HTMLTextAreaElement>
-  ) => {
-    if (
-      event.key === "Enter" &&
-      !event.shiftKey
-    ) {
-      event.preventDefault();
+  const gererTouche =
+    (
+      event: React.KeyboardEvent<HTMLTextAreaElement>
+    ) => {
+      if (
+        event.key ===
+          "Enter" &&
+        !event.shiftKey
+      ) {
+        event.preventDefault();
 
-      void envoyerTexteSaisi();
-    }
-  };
+        void envoyerTexteSaisi();
+      }
+    };
 
-  /* ======================================================
+  /* ====================================================
      STYLES
-  ====================================================== */
+  ==================================================== */
 
   const pageClass =
     darkMode
@@ -2586,54 +2117,47 @@ export default function ExplicationQuestion() {
       ? "bg-gray-900 border-gray-800"
       : "bg-white border-gray-200";
 
-  /* ======================================================
-     OUVERTURE DES FENÊTRES
-  ====================================================== */
+  /* ====================================================
+     FENÊTRES
+  ==================================================== */
 
   const ouvrirFenetre =
     (
-      fenetre: Exclude<
-        FenetreActive,
-        null
-      >
+      fenetre: FenetreActive
     ) => {
       setFenetreActive(
         fenetre
       );
+
+      if (fenetre !== "ia") {
+        setMenuIAMobileOuvert(
+          false
+        );
+      }
     };
 
   const fermerFenetre =
     () => {
-      if (
-        iaEnCours
-      ) {
+      if (iaEnCours) {
         return;
       }
 
-      setFenetreActive(
-        null
+      setFenetreActive(null);
+      setMenuIAMobileOuvert(
+        false
       );
     };
 
-  /* ======================================================
-     PORTAIL
-  ====================================================== */
-
   const portail = (
     contenu: React.ReactNode
-  ) => {
-    if (
-      typeof document ===
-      "undefined"
-    ) {
-      return null;
-    }
-
-    return createPortal(
-      contenu,
-      document.body
-    );
-  };
+  ) =>
+    typeof document !==
+    "undefined"
+      ? createPortal(
+          contenu,
+          document.body
+        )
+      : null;
 
   /* ======================================================
      FENÊTRE CLASSIQUE
@@ -2641,112 +2165,108 @@ export default function ExplicationQuestion() {
 
   const fenetreClassique =
     fenetreActive &&
-    fenetreActive !==
-      "ia"
+    fenetreActive !== "ia"
       ? portail(
           <div
-            className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm sm:p-6"
-            onClick={
-              fermerFenetre
-            }
+            className={`fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-black/60 p-3 backdrop-blur-sm sm:p-4 ${
+              darkMode
+                ? "text-gray-100"
+                : "text-gray-900"
+            }`}
           >
             <div
-              className={`${surfaceClass} my-4 flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border shadow-2xl sm:my-6 sm:max-h-[calc(100dvh-3rem)]`}
-              onClick={(
-                event
-              ) =>
-                event.stopPropagation()
-              }
+              className={`my-1 flex max-h-[calc(100dvh-0.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border shadow-2xl sm:my-4 sm:max-h-[calc(100dvh-2rem)] ${surfaceClass}`}
             >
-              {/* EN-TÊTE */}
+              {/* HEADER */}
 
-              <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-800">
+              <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
                 <div className="flex min-w-0 items-center gap-3">
-                  {fenetreActive ===
-                    "actions" && (
-                    <ListChecks
-                      size={20}
-                      className="shrink-0 text-blue-600"
-                    />
-                  )}
-
-                  {fenetreActive ===
-                    "question" && (
-                    <CircleHelp
-                      size={20}
-                      className="shrink-0 text-blue-600"
-                    />
-                  )}
-
-                  {fenetreActive ===
-                    "parcours" && (
-                    <Route
-                      size={20}
-                      className="shrink-0 text-blue-600"
-                    />
-                  )}
-
-                  {fenetreActive ===
-                    "diagnostic" && (
-                    <BarChart3
-                      size={20}
-                      className="shrink-0 text-blue-600"
-                    />
-                  )}
-
-                  {fenetreActive ===
-                    "objectif" && (
-                    <Target
-                      size={20}
-                      className="shrink-0 text-blue-600"
-                    />
-                  )}
-
-                  {fenetreActive ===
-                    "enseignant" && (
-                    <GraduationCap
-                      size={20}
-                      className="shrink-0 text-blue-600"
-                    />
-                  )}
-
-                  {fenetreActive ===
-                    "video" && (
-                    <Video
-                      size={20}
-                      className="shrink-0 text-blue-600"
-                    />
-                  )}
-
-                  <h3 className="truncate font-bold">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                     {fenetreActive ===
-                      "actions" &&
-                      "Types de questions et aides"}
+                      "question" && (
+                      <CircleHelp
+                        size={20}
+                      />
+                    )}
 
                     {fenetreActive ===
-                      "question" &&
-                      "Détails de la question"}
+                      "parcours" && (
+                      <Route
+                        size={20}
+                      />
+                    )}
 
                     {fenetreActive ===
-                      "parcours" &&
-                      "Parcours pédagogique"}
+                      "diagnostic" && (
+                      <BarChart3
+                        size={20}
+                      />
+                    )}
 
                     {fenetreActive ===
-                      "diagnostic" &&
-                      "Diagnostic"}
+                      "objectif" && (
+                      <Target
+                        size={20}
+                      />
+                    )}
 
                     {fenetreActive ===
-                      "objectif" &&
-                      "Objectif de CODE IA"}
+                      "enseignant" && (
+                      <GraduationCap
+                        size={20}
+                      />
+                    )}
 
                     {fenetreActive ===
-                      "enseignant" &&
-                      "Enseignant"}
+                      "actions" && (
+                      <ListChecks
+                        size={20}
+                      />
+                    )}
 
                     {fenetreActive ===
-                      "video" &&
-                      "Vidéo de remédiation"}
-                  </h3>
+                      "video" && (
+                      <Video
+                        size={20}
+                      />
+                    )}
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="truncate font-bold">
+                      {fenetreActive ===
+                        "question" &&
+                        "Détails de la question"}
+
+                      {fenetreActive ===
+                        "parcours" &&
+                        "Parcours pédagogique"}
+
+                      {fenetreActive ===
+                        "diagnostic" &&
+                        "Diagnostic"}
+
+                      {fenetreActive ===
+                        "objectif" &&
+                        "Objectif de CODE IA"}
+
+                      {fenetreActive ===
+                        "enseignant" &&
+                        "Enseignant"}
+
+                      {fenetreActive ===
+                        "actions" &&
+                        "Types de questions et aides"}
+
+                      {fenetreActive ===
+                        "video" &&
+                        "Vidéo de remédiation"}
+                    </p>
+
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      CODE
+                    </p>
+                  </div>
                 </div>
 
                 <button
@@ -2754,19 +2274,21 @@ export default function ExplicationQuestion() {
                   onClick={
                     fermerFenetre
                   }
-                  className="ml-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition hover:bg-gray-100 dark:hover:bg-gray-800"
+                  disabled={
+                    iaEnCours
+                  }
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-gray-800"
                   title="Fermer"
                 >
                   <X
-                    size={20}
+                    size={21}
                   />
                 </button>
               </div>
 
               {/* CONTENU */}
 
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
-
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">
                 {/* ==================================================
                     ACTIONS
                 ================================================== */}
@@ -2774,21 +2296,17 @@ export default function ExplicationQuestion() {
                 {fenetreActive ===
                   "actions" && (
                   <div className="space-y-3">
-                    <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-                      Choisis ce que tu veux faire avec cette question.
-                    </p>
-
                     {[
                       {
                         action:
                           "autrement" as ActionRapide,
                         icon: (
-                          <MessageCircle className="shrink-0 text-blue-600" />
+                          <MessageCircle className="shrink-0 text-blue-500" />
                         ),
                         titre:
                           "Explique autrement",
                         texte:
-                          "Une autre explication plus simple.",
+                          "Obtenir une explication plus simple et différente.",
                       },
                       {
                         action:
@@ -2799,29 +2317,29 @@ export default function ExplicationQuestion() {
                         titre:
                           "Donne-moi un indice",
                         texte:
-                          "Un indice progressif sans donner directement la solution.",
+                          "Recevoir une aide progressive sans dévoiler immédiatement la solution.",
                       },
                       {
                         action:
                           "similaire" as ActionRapide,
                         icon: (
-                          <RotateCcw className="shrink-0 text-green-600" />
+                          <RotateCcw className="shrink-0 text-green-500" />
                         ),
                         titre:
                           "Question similaire",
                         texte:
-                          "Vérifier si la méthode est réellement comprise.",
+                          "S'entraîner avec une nouvelle question du même type.",
                       },
                       {
                         action:
                           "difficile" as ActionRapide,
                         icon: (
-                          <Brain className="shrink-0 text-purple-600" />
+                          <Brain className="shrink-0 text-purple-500" />
                         ),
                         titre:
                           "Question plus difficile",
                         texte:
-                          "Aller plus loin avec le même raisonnement.",
+                          "Aller plus loin avec un niveau de difficulté supérieur.",
                       },
                       {
                         action:
@@ -3285,15 +2803,12 @@ export default function ExplicationQuestion() {
                 )}
 
                 {/* ==================================================
-                    VIDÉO DE REMÉDIATION
+                    VIDÉO
                 ================================================== */}
 
                 {fenetreActive ===
                   "video" && (
                   <div className="space-y-5">
-
-                    {/* CHARGEMENT */}
-
                     {videoLoading && (
                       <div className="flex min-h-[260px] flex-col items-center justify-center text-center">
                         <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
@@ -3317,8 +2832,6 @@ export default function ExplicationQuestion() {
                         </span>
                       </div>
                     )}
-
-                    {/* ERREUR */}
 
                     {!videoLoading &&
                       videoError && (
@@ -3351,17 +2864,12 @@ export default function ExplicationQuestion() {
                         </div>
                       )}
 
-                    {/* ==================================================
-                        VIDÉO
-                    ================================================== */}
-
                     {!videoLoading &&
                       !videoError &&
                       videoSelectionnee &&
                       videoEtape ===
                         "video" && (
                         <div className="space-y-5">
-
                           <div>
                             <div className="mb-3 flex flex-wrap items-center gap-2">
                               <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
@@ -3490,10 +2998,6 @@ export default function ExplicationQuestion() {
                         </div>
                       )}
 
-                    {/* ==================================================
-                        QUESTIONS
-                    ================================================== */}
-
                     {!videoLoading &&
                       !videoError &&
                       videoSelectionnee &&
@@ -3501,7 +3005,6 @@ export default function ExplicationQuestion() {
                         "questions" &&
                       videoQuestionActuelle && (
                         <div className="space-y-5">
-
                           <div>
                             <div className="mb-2 flex items-center justify-between">
                               <span className="text-xs font-semibold uppercase text-gray-500">
@@ -3581,7 +3084,9 @@ export default function ExplicationQuestion() {
                               ) => {
                                 const selectionnee =
                                   videoReponses[
-                                    videoQuestionActuelle.id
+                                    String(
+                                      videoQuestionActuelle.id
+                                    )
                                   ] ===
                                   choixVideo;
 
@@ -3733,7 +3238,9 @@ export default function ExplicationQuestion() {
                               }
                               disabled={
                                 !videoReponses[
-                                  videoQuestionActuelle.id
+                                  String(
+                                    videoQuestionActuelle.id
+                                  )
                                 ]
                               }
                               className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
@@ -3762,17 +3269,12 @@ export default function ExplicationQuestion() {
                         </div>
                       )}
 
-                    {/* ==================================================
-                        RÉSULTAT FINAL
-                    ================================================== */}
-
                     {!videoLoading &&
                       !videoError &&
                       videoSelectionnee &&
                       videoEtape ===
                         "termine" && (
                         <div className="space-y-5 text-center">
-
                           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-300">
                             <CheckCircle2
                               size={42}
@@ -3852,6 +3354,25 @@ export default function ExplicationQuestion() {
       : null;
 
   /* ======================================================
+     MENU INTERNE CODE IA
+  ====================================================== */
+
+  const ouvrirDepuisMenuIA =
+    (
+      fenetre: Exclude<
+        FenetreActive,
+        "ia" | null
+      >
+    ) => {
+      setMenuIAMobileOuvert(
+        false
+      );
+      setFenetreActive(
+        fenetre
+      );
+    };
+
+  /* ======================================================
      FENÊTRE CODE IA
   ====================================================== */
 
@@ -3866,17 +3387,19 @@ export default function ExplicationQuestion() {
                 : "bg-white text-gray-900"
             }`}
           >
-            {/* EN-TÊTE IA */}
+            {/* ==================================================
+                EN-TÊTE
+            ================================================== */}
 
             <header
-              className={`shrink-0 border-b ${
+              className={`relative z-30 shrink-0 border-b ${
                 darkMode
                   ? "border-gray-800 bg-gray-950"
                   : "border-gray-200 bg-white"
               }`}
             >
-              <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-3 py-3 sm:px-6">
-                <div className="flex min-w-0 items-center gap-3">
+              <div className="mx-auto flex w-full max-w-[1500px] items-center justify-between gap-2 px-3 py-2.5 sm:px-5 lg:px-7">
+                <div className="flex min-w-0 items-center gap-2.5">
                   <button
                     type="button"
                     onClick={
@@ -3889,7 +3412,7 @@ export default function ExplicationQuestion() {
                     title="Fermer CODE IA"
                   >
                     <X
-                      size={22}
+                      size={21}
                     />
                   </button>
 
@@ -3900,36 +3423,63 @@ export default function ExplicationQuestion() {
                   </div>
 
                   <div className="min-w-0">
-                    <p className="font-bold">
+                    <p className="font-bold leading-tight">
                       CODE IA
                     </p>
 
-                    <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                    <p className="hidden truncate text-[11px] text-gray-500 dark:text-gray-400 sm:block">
                       Ton accompagnateur pédagogique
                     </p>
                   </div>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2">
-                  <div className="hidden items-center gap-1 sm:flex">
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {/* BADGES DESKTOP */}
+
+                  <div className="hidden items-center gap-1 lg:flex">
                     {matiere && (
-                      <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+                      <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
                         {matiere.toUpperCase()}
                       </span>
                     )}
 
                     {niveau && (
-                      <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                      <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                         {niveau}
                       </span>
                     )}
 
                     {serie && (
-                      <span className="rounded-full bg-cyan-100 px-2.5 py-1 text-[11px] font-semibold text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300">
+                      <span className="rounded-full bg-cyan-100 px-2.5 py-1 text-[10px] font-semibold text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300">
                         {serie}
                       </span>
                     )}
                   </div>
+
+                  {/* MENU MOBILE */}
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setMenuIAMobileOuvert(
+                        (ouvert) =>
+                          !ouvert
+                      )
+                    }
+                    className="flex h-10 items-center gap-2 rounded-xl border border-gray-200 px-3 text-sm font-semibold transition hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800 sm:hidden"
+                    aria-expanded={
+                      menuIAMobileOuvert
+                    }
+                    title="Ouvrir le menu CODE IA"
+                  >
+                    <ListChecks
+                      size={18}
+                    />
+
+                    <span>
+                      Menu
+                    </span>
+                  </button>
 
                   <button
                     type="button"
@@ -3939,7 +3489,7 @@ export default function ExplicationQuestion() {
                     disabled={
                       iaEnCours
                     }
-                    className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-gray-800"
+                    className="flex h-10 items-center gap-2 rounded-xl px-2.5 text-sm font-semibold transition hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-gray-800 sm:px-3"
                   >
                     <RotateCcw
                       size={17}
@@ -3951,26 +3501,307 @@ export default function ExplicationQuestion() {
                   </button>
                 </div>
               </div>
-            </header>
 
-            {/* CORPS IA */}
+              {/* ==================================================
+                  MENU MOBILE DANS LA FENÊTRE IA
+              ================================================== */}
 
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <div className="mx-auto flex h-full w-full max-w-7xl flex-col">
-                {/* CONTEXTE QUESTION */}
+              {menuIAMobileOuvert && (
+                <div className="absolute left-0 right-0 top-full z-50 border-b border-gray-200 bg-white p-3 shadow-2xl dark:border-gray-800 dark:bg-gray-950 sm:hidden">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div>
+                      <p className="font-bold">
+                        Menu CODE IA
+                      </p>
 
-                <div className="shrink-0 border-b border-gray-200 px-3 py-3 dark:border-gray-800 sm:px-6">
-                  <div className="rounded-xl bg-gray-50 px-4 py-3 dark:bg-gray-900">
-                    <div className="mb-2 flex flex-wrap items-center gap-2">
-                      <CircleHelp
-                        size={14}
-                        className="text-gray-500"
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                        Tous les espaces d'apprentissage
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setMenuIAMobileOuvert(
+                          false
+                        )
+                      }
+                      className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                    >
+                      <X
+                        size={17}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setMenuIAMobileOuvert(
+                          false
+                        )
+                      }
+                      className="rounded-xl border border-blue-500 bg-blue-50 p-3 text-left dark:bg-blue-900/20"
+                    >
+                      <Brain
+                        size={18}
+                        className="mb-1 text-blue-600"
                       />
 
-                      <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                        Question étudiée
-                      </span>
+                      <p className="text-xs font-bold">
+                        Discussion IA
+                      </p>
+                    </button>
 
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void changerMode(
+                          "comprendre"
+                        )
+                      }
+                      disabled={
+                        iaEnCours
+                      }
+                      className="rounded-xl border border-gray-200 p-3 text-left dark:border-gray-700"
+                    >
+                      <BookOpen
+                        size={18}
+                        className="mb-1"
+                      />
+
+                      <p className="text-xs font-bold">
+                        Comprendre
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void changerMode(
+                          "corriger"
+                        )
+                      }
+                      disabled={
+                        iaEnCours
+                      }
+                      className="rounded-xl border border-gray-200 p-3 text-left dark:border-gray-700"
+                    >
+                      <CircleHelp
+                        size={18}
+                        className="mb-1"
+                      />
+
+                      <p className="text-xs font-bold">
+                        Corriger
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void changerMode(
+                          "approfondir"
+                        )
+                      }
+                      disabled={
+                        iaEnCours
+                      }
+                      className="rounded-xl border border-gray-200 p-3 text-left dark:border-gray-700"
+                    >
+                      <Sparkles
+                        size={18}
+                        className="mb-1"
+                      />
+
+                      <p className="text-xs font-bold">
+                        Approfondir
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        ouvrirDepuisMenuIA(
+                          "question"
+                        )
+                      }
+                      className="rounded-xl border border-gray-200 p-3 text-left dark:border-gray-700"
+                    >
+                      <CircleHelp
+                        size={18}
+                        className="mb-1"
+                      />
+
+                      <p className="text-xs font-bold">
+                        Question
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        ouvrirDepuisMenuIA(
+                          "diagnostic"
+                        )
+                      }
+                      className="rounded-xl border border-gray-200 p-3 text-left dark:border-gray-700"
+                    >
+                      <BarChart3
+                        size={18}
+                        className="mb-1"
+                      />
+
+                      <p className="text-xs font-bold">
+                        Diagnostic
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        ouvrirDepuisMenuIA(
+                          "parcours"
+                        )
+                      }
+                      className="rounded-xl border border-gray-200 p-3 text-left dark:border-gray-700"
+                    >
+                      <Route
+                        size={18}
+                        className="mb-1"
+                      />
+
+                      <p className="text-xs font-bold">
+                        Parcours
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        ouvrirDepuisMenuIA(
+                          "objectif"
+                        )
+                      }
+                      className="rounded-xl border border-gray-200 p-3 text-left dark:border-gray-700"
+                    >
+                      <Target
+                        size={18}
+                        className="mb-1"
+                      />
+
+                      <p className="text-xs font-bold">
+                        Objectif
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        ouvrirDepuisMenuIA(
+                          "actions"
+                        )
+                      }
+                      className="rounded-xl border border-gray-200 p-3 text-left dark:border-gray-700"
+                    >
+                      <ListChecks
+                        size={18}
+                        className="mb-1"
+                      />
+
+                      <p className="text-xs font-bold">
+                        Aides
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        ouvrirDepuisMenuIA(
+                          "enseignant"
+                        )
+                      }
+                      className="rounded-xl border border-gray-200 p-3 text-left dark:border-gray-700"
+                    >
+                      <GraduationCap
+                        size={18}
+                        className="mb-1"
+                      />
+
+                      <p className="text-xs font-bold">
+                        Enseignant
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void ouvrirFenetreVideo()
+                      }
+                      disabled={
+                        videoLoading
+                      }
+                      className="rounded-xl border border-gray-200 p-3 text-left disabled:opacity-50 dark:border-gray-700"
+                    >
+                      <Video
+                        size={18}
+                        className="mb-1 text-blue-600"
+                      />
+
+                      <p className="text-xs font-bold">
+                        Remédiation vidéo
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={
+                        recommencer
+                      }
+                      disabled={
+                        iaEnCours
+                      }
+                      className="col-span-2 flex items-center justify-center gap-2 rounded-xl bg-gray-100 p-3 text-xs font-bold transition hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700"
+                    >
+                      <RotateCcw
+                        size={16}
+                      />
+
+                      Recommencer la discussion
+                    </button>
+                  </div>
+                </div>
+              )}
+            </header>
+
+            {/* ==================================================
+                CORPS IA
+            ================================================== */}
+
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <div className="mx-auto flex h-full w-full max-w-[1500px] flex-col">
+                {/* ==================================================
+                    CONTEXTE COMPACT
+                ================================================== */}
+
+                <div className="shrink-0 border-b border-gray-200 px-3 py-2 dark:border-gray-800 sm:px-5 lg:px-7">
+                  <div className="flex items-center gap-2">
+                    <CircleHelp
+                      size={14}
+                      className="shrink-0 text-gray-500"
+                    />
+
+                    <span className="hidden text-[11px] font-semibold uppercase tracking-wide text-gray-500 sm:inline">
+                      Question étudiée
+                    </span>
+
+                    <p className="min-w-0 flex-1 truncate text-xs font-medium sm:text-sm">
+                      {texteQuestion ||
+                        "Question non disponible"}
+                    </p>
+
+                    <div className="hidden shrink-0 items-center gap-1.5 md:flex">
                       {matiere && (
                         <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
                           {matiere.toUpperCase()}
@@ -3985,430 +3816,680 @@ export default function ExplicationQuestion() {
 
                       {serie && (
                         <span className="rounded-full bg-cyan-100 px-2 py-0.5 text-[10px] font-semibold text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300">
-                          Série{" "}
                           {serie}
                         </span>
                       )}
                     </div>
-
-                    <p className="line-clamp-2 text-sm font-medium">
-                      {texteQuestion ||
-                        "Question non disponible"}
-                    </p>
-
-                    <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <div className="rounded-lg bg-blue-50 p-2.5 dark:bg-blue-900/20">
-                        <p className="text-[10px] font-semibold uppercase text-blue-600 dark:text-blue-400">
-                          Réponse de l'apprenant
-                        </p>
-
-                        <p className="mt-1 text-xs font-medium">
-                          {reponseApprenant ||
-                            "Non disponible"}
-                        </p>
-                      </div>
-
-                      <div className="rounded-lg bg-green-50 p-2.5 dark:bg-green-900/20">
-                        <p className="text-[10px] font-semibold uppercase text-green-600 dark:text-green-400">
-                          Réponse attendue
-                        </p>
-
-                        <p className="mt-1 text-xs font-medium">
-                          {solutionRevelee
-                            ? bonneReponse ||
-                              "Non disponible"
-                            : "Non révélée pour le moment"}
-                        </p>
-                      </div>
-                    </div>
                   </div>
                 </div>
 
-                {/* MODES IA */}
+                {/* ==================================================
+                    CONTENU PRINCIPAL : DISCUSSION + SIDEBAR
+                ================================================== */}
 
-                <div className="shrink-0 border-b border-gray-200 px-3 py-3 dark:border-gray-800 sm:px-6">
-                  <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-2 sm:grid-cols-3">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void changerMode(
-                          "comprendre"
-                        )
-                      }
-                      disabled={
-                        iaEnCours
-                      }
-                      className={`rounded-xl border p-3 text-left transition ${
-                        mode ===
-                        "comprendre"
-                          ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                          : "border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-                      }`}
-                    >
-                      <BookOpen
-                        size={18}
-                        className="mb-2"
-                      />
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  <div className="flex h-full min-h-0">
+                    {/* ==================================================
+                        DISCUSSION
+                    ================================================== */}
 
-                      <p className="font-semibold">
-                        Comprendre
-                      </p>
+                    <section className="flex min-w-0 flex-1 flex-col">
+                      {/* MODES COMPACTS DESKTOP */}
 
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        Comprendre le raisonnement
-                      </p>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void changerMode(
-                          "corriger"
-                        )
-                      }
-                      disabled={
-                        iaEnCours
-                      }
-                      className={`rounded-xl border p-3 text-left transition ${
-                        mode ===
-                        "corriger"
-                          ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                          : "border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-                      }`}
-                    >
-                      <CircleHelp
-                        size={18}
-                        className="mb-2"
-                      />
-
-                      <p className="font-semibold">
-                        Corriger
-                      </p>
-
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        Identifier et corriger l'erreur
-                      </p>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void changerMode(
-                          "approfondir"
-                        )
-                      }
-                      disabled={
-                        iaEnCours
-                      }
-                      className={`rounded-xl border p-3 text-left transition ${
-                        mode ===
-                        "approfondir"
-                          ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                          : "border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-                      }`}
-                    >
-                      <Sparkles
-                        size={18}
-                        className="mb-2"
-                      />
-
-                      <p className="font-semibold">
-                        Approfondir
-                      </p>
-
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        Aller plus loin
-                      </p>
-                    </button>
-                  </div>
-                </div>
-
-                {/* CONVERSATION */}
-
-                <div
-                  className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-5 sm:px-6"
-                  style={{
-                    scrollbarWidth:
-                      "thin",
-                  }}
-                >
-                  <div className="mx-auto w-full max-w-6xl space-y-5">
-                    {messages.map(
-                      (
-                        message
-                      ) => {
-                        const estEleve =
-                          message.role ===
-                          "eleve";
-
-                        return (
-                          <div
-                            key={
-                              message.id
+                      <div className="hidden shrink-0 border-b border-gray-200 px-4 py-2.5 dark:border-gray-800 lg:block">
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void changerMode(
+                                "comprendre"
+                              )
                             }
-                            className={`flex w-full ${
-                              estEleve
-                                ? "justify-end"
-                                : "justify-start"
+                            disabled={
+                              iaEnCours
+                            }
+                            className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition ${
+                              mode ===
+                              "comprendre"
+                                ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
+                                : "border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
                             }`}
                           >
-                            <div
-                              className={`w-fit max-w-[96%] rounded-2xl px-5 py-4 text-sm leading-relaxed shadow-sm sm:max-w-[88%] lg:max-w-[82%] ${
-                                estEleve
-                                  ? "bg-blue-600 text-white"
-                                  : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100"
-                              }`}
-                            >
+                            <BookOpen
+                              size={16}
+                            />
+
+                            Comprendre
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void changerMode(
+                                "corriger"
+                              )
+                            }
+                            disabled={
+                              iaEnCours
+                            }
+                            className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition ${
+                              mode ===
+                              "corriger"
+                                ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
+                                : "border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                            }`}
+                          >
+                            <CircleHelp
+                              size={16}
+                            />
+
+                            Corriger
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void changerMode(
+                                "approfondir"
+                              )
+                            }
+                            disabled={
+                              iaEnCours
+                            }
+                            className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition ${
+                              mode ===
+                              "approfondir"
+                                ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
+                                : "border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                            }`}
+                          >
+                            <Sparkles
+                              size={16}
+                            />
+
+                            Approfondir
+                          </button>
+
+                          <div className="ml-auto flex items-center gap-2 text-[11px] text-gray-500 dark:text-gray-400">
+                            <span>
+                              {titreEtape}
+                            </span>
+
+                            <div className="h-1.5 w-20 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                               <div
-                                className={`mb-2 flex items-center gap-2 text-xs font-semibold ${
-                                  estEleve
-                                    ? "text-blue-100"
-                                    : "text-gray-500 dark:text-gray-400"
-                                }`}
-                              >
-                                {estEleve ? (
-                                  <>
-                                    <User
-                                      size={
-                                        14
-                                      }
-                                    />
-
-                                    <span>
-                                      Toi
-                                    </span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Brain
-                                      size={
-                                        14
-                                      }
-                                    />
-
-                                    <span>
-                                      CODE IA
-                                    </span>
-                                  </>
-                                )}
-                              </div>
-
-                              <div className="whitespace-pre-wrap break-words">
-                                {
-                                  message.contenu
-                                }
-                              </div>
+                                className="h-full rounded-full bg-blue-600 transition-all duration-500"
+                                style={{
+                                  width: `${progression}%`,
+                                }}
+                              />
                             </div>
                           </div>
-                        );
-                      }
-                    )}
+                        </div>
+                      </div>
 
-                    {iaEnCours && (
-                      <div className="flex justify-start">
-                        <div className="max-w-[96%] rounded-2xl bg-gray-100 px-5 py-4 text-sm text-gray-500 shadow-sm dark:bg-gray-800 dark:text-gray-400">
-                          <div className="mb-2 flex items-center gap-2 text-xs font-semibold">
+                      {/* CONVERSATION */}
+
+                      <div
+                        ref={
+                          conversationRef
+                        }
+                        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-5 sm:py-5 lg:px-8"
+                        style={{
+                          scrollbarWidth:
+                            "thin",
+                        }}
+                      >
+                        <div className="mx-auto w-full max-w-5xl space-y-4">
+                          {messages.map(
+                            (
+                              message
+                            ) => {
+                              const estEleve =
+                                message.role ===
+                                "eleve";
+
+                              return (
+                                <div
+                                  key={
+                                    message.id
+                                  }
+                                  className={`flex w-full ${
+                                    estEleve
+                                      ? "justify-end"
+                                      : "justify-start"
+                                  }`}
+                                >
+                                  <div
+                                    className={`rounded-2xl px-4 py-3.5 text-sm leading-relaxed shadow-sm sm:px-5 sm:py-4 ${
+                                      estEleve
+                                        ? "w-fit max-w-[94%] bg-blue-600 text-white sm:max-w-[82%]"
+                                        : "w-fit max-w-[98%] bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100 sm:max-w-[88%]"
+                                    }`}
+                                  >
+                                    <div
+                                      className={`mb-2 flex items-center gap-2 text-[11px] font-semibold ${
+                                        estEleve
+                                          ? "text-blue-100"
+                                          : "text-gray-500 dark:text-gray-400"
+                                      }`}
+                                    >
+                                      {estEleve ? (
+                                        <>
+                                          <User
+                                            size={
+                                              14
+                                            }
+                                          />
+
+                                          <span>
+                                            Toi
+                                          </span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Brain
+                                            size={
+                                              14
+                                            }
+                                          />
+
+                                          <span>
+                                            CODE IA
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
+
+                                    <div className="whitespace-pre-wrap break-words">
+                                      {
+                                        message.contenu
+                                      }
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            }
+                          )}
+
+                          {iaEnCours && (
+                            <div className="flex justify-start">
+                              <div className="max-w-[95%] rounded-2xl bg-gray-100 px-5 py-4 text-sm text-gray-500 shadow-sm dark:bg-gray-800 dark:text-gray-400">
+                                <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold">
+                                  <Brain
+                                    size={
+                                      14
+                                    }
+                                  />
+
+                                  <span>
+                                    CODE IA
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <span>
+                                    CODE IA réfléchit
+                                  </span>
+
+                                  <span className="animate-pulse">
+                                    ...
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          <div
+                            ref={
+                              finConversationRef
+                            }
+                            className="h-px w-full"
+                            aria-hidden="true"
+                          />
+                        </div>
+                      </div>
+
+                      {/* ERREUR */}
+
+                      {erreurAPI && (
+                        <div className="shrink-0 px-3 pb-2 sm:px-5 lg:px-8">
+                          <div className="mx-auto max-w-5xl rounded-xl border border-blue-200 bg-blue-50 p-2.5 text-xs text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+                            {
+                              erreurAPI
+                            }
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ==================================================
+                          ZONE DE SAISIE
+                      ================================================== */}
+
+                      <div className="shrink-0 border-t border-gray-200 bg-white p-2.5 dark:border-gray-800 dark:bg-gray-950 sm:p-3 lg:px-8 lg:py-3">
+                        <div className="mx-auto w-full max-w-5xl">
+                          <div className="flex items-end gap-2">
+                            <textarea
+                              value={
+                                texteSaisi
+                              }
+                              onChange={(
+                                event
+                              ) =>
+                                setTexteSaisi(
+                                  event
+                                    .target
+                                    .value
+                                )
+                              }
+                              onKeyDown={
+                                gererTouche
+                              }
+                              disabled={
+                                iaEnCours
+                              }
+                              rows={2}
+                              placeholder="Écris ta question ou explique ton raisonnement à CODE IA..."
+                              className="min-h-[58px] min-w-0 flex-1 resize-none rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm leading-relaxed outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-900"
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void envoyerTexteSaisi()
+                              }
+                              disabled={
+                                iaEnCours ||
+                                !texteSaisi.trim()
+                              }
+                              className="flex h-[58px] w-[56px] shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                              title="Envoyer"
+                            >
+                              <Send
+                                size={20}
+                              />
+                            </button>
+                          </div>
+
+                          <p className="mt-1 text-center text-[10px] text-gray-400">
+                            Entrée pour envoyer · Maj + Entrée pour une nouvelle ligne
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* ACTIONS RAPIDES COMPACTES */}
+
+                      <div className="shrink-0 border-t border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-900/70 sm:px-5 lg:px-8">
+                        <div className="mx-auto flex max-w-5xl gap-2 overflow-x-auto overscroll-contain pb-0.5">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void executerAction(
+                                "autrement"
+                              )
+                            }
+                            disabled={
+                              iaEnCours
+                            }
+                            className="flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-semibold transition hover:border-blue-400 hover:bg-blue-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800"
+                          >
+                            <MessageCircle
+                              size={14}
+                            />
+
+                            Explique autrement
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void executerAction(
+                                "indice"
+                              )
+                            }
+                            disabled={
+                              iaEnCours
+                            }
+                            className="flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-semibold transition hover:border-yellow-400 hover:bg-yellow-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800"
+                          >
+                            <Lightbulb
+                              size={14}
+                            />
+
+                            Indice
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void executerAction(
+                                "similaire"
+                              )
+                            }
+                            disabled={
+                              iaEnCours
+                            }
+                            className="flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-semibold transition hover:border-green-400 hover:bg-green-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800"
+                          >
+                            <RotateCcw
+                              size={14}
+                            />
+
+                            Similaire
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void executerAction(
+                                "difficile"
+                              )
+                            }
+                            disabled={
+                              iaEnCours
+                            }
+                            className="flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-semibold transition hover:border-purple-400 hover:bg-purple-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800"
+                          >
                             <Brain
                               size={14}
                             />
 
-                            <span>
-                              CODE IA
-                            </span>
-                          </div>
+                            Plus difficile
+                          </button>
 
-                          <div className="flex items-center gap-2">
-                            <span>
-                              CODE IA réfléchit
-                            </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void executerAction(
+                                "application"
+                              )
+                            }
+                            disabled={
+                              iaEnCours
+                            }
+                            className="flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-semibold transition hover:border-orange-400 hover:bg-orange-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800"
+                          >
+                            <Sparkles
+                              size={14}
+                            />
 
-                            <span className="animate-pulse">
-                              ...
-                            </span>
+                            Application
+                          </button>
+                        </div>
+                      </div>
+                    </section>
+
+                    {/* ==================================================
+                        PANNEAU DROIT DESKTOP
+                    ================================================== */}
+
+                    <aside className="hidden w-[280px] shrink-0 flex-col border-l border-gray-200 bg-gray-50/70 dark:border-gray-800 dark:bg-gray-900/40 xl:flex">
+                      <div className="border-b border-gray-200 p-4 dark:border-gray-800">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                          Outils d'apprentissage
+                        </p>
+
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Accède rapidement aux informations de cette séance.
+                        </p>
+                      </div>
+
+                      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+                        <div className="space-y-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFenetreActive(
+                                "question"
+                              )
+                            }
+                            className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-left transition hover:border-blue-400 hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-blue-900/20"
+                          >
+                            <CircleHelp
+                              size={18}
+                              className="shrink-0 text-blue-600"
+                            />
+
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold">
+                                Question
+                              </p>
+
+                              <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
+                                Voir les détails
+                              </p>
+                            </div>
+
+                            <ChevronRight
+                              size={16}
+                              className="ml-auto shrink-0 text-gray-400"
+                            />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFenetreActive(
+                                "diagnostic"
+                              )
+                            }
+                            className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-left transition hover:border-purple-400 hover:bg-purple-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-purple-900/20"
+                          >
+                            <BarChart3
+                              size={18}
+                              className="shrink-0 text-purple-600"
+                            />
+
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold">
+                                Diagnostic
+                              </p>
+
+                              <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                {
+                                  diagnostic.niveauConfiance
+                                }
+                                % de confiance
+                              </p>
+                            </div>
+
+                            <ChevronRight
+                              size={16}
+                              className="ml-auto shrink-0 text-gray-400"
+                            />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFenetreActive(
+                                "parcours"
+                              )
+                            }
+                            className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-left transition hover:border-green-400 hover:bg-green-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-green-900/20"
+                          >
+                            <Route
+                              size={18}
+                              className="shrink-0 text-green-600"
+                            />
+
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold">
+                                Parcours
+                              </p>
+
+                              <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                {
+                                  progression
+                                }
+                                % terminé
+                              </p>
+                            </div>
+
+                            <ChevronRight
+                              size={16}
+                              className="ml-auto shrink-0 text-gray-400"
+                            />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFenetreActive(
+                                "objectif"
+                              )
+                            }
+                            className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-left transition hover:border-yellow-400 hover:bg-yellow-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-yellow-900/20"
+                          >
+                            <Target
+                              size={18}
+                              className="shrink-0 text-yellow-600"
+                            />
+
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold">
+                                Objectif
+                              </p>
+
+                              <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                Pourquoi CODE IA t'aide
+                              </p>
+                            </div>
+
+                            <ChevronRight
+                              size={16}
+                              className="ml-auto shrink-0 text-gray-400"
+                            />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFenetreActive(
+                                "actions"
+                              )
+                            }
+                            className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-left transition hover:border-orange-400 hover:bg-orange-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-orange-900/20"
+                          >
+                            <ListChecks
+                              size={18}
+                              className="shrink-0 text-orange-600"
+                            />
+
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold">
+                                Aides
+                              </p>
+
+                              <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                Actions rapides
+                              </p>
+                            </div>
+
+                            <ChevronRight
+                              size={16}
+                              className="ml-auto shrink-0 text-gray-400"
+                            />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFenetreActive(
+                                "enseignant"
+                              )
+                            }
+                            className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-left transition hover:border-blue-400 hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-blue-900/20"
+                          >
+                            <GraduationCap
+                              size={18}
+                              className="shrink-0 text-blue-600"
+                            />
+
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold">
+                                Enseignant
+                              </p>
+
+                              <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
+                                {
+                                  teacherFullName
+                                }
+                              </p>
+                            </div>
+
+                            <ChevronRight
+                              size={16}
+                              className="ml-auto shrink-0 text-gray-400"
+                            />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void ouvrirFenetreVideo()
+                            }
+                            disabled={
+                              videoLoading
+                            }
+                            className="flex w-full items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-left transition hover:border-blue-400 hover:bg-blue-100 disabled:opacity-50 dark:border-blue-800 dark:bg-blue-900/20 dark:hover:bg-blue-900/40"
+                          >
+                            <Video
+                              size={18}
+                              className="shrink-0 text-blue-600"
+                            />
+
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold">
+                                Remédiation vidéo
+                              </p>
+
+                              <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                Vidéo + questions
+                              </p>
+                            </div>
+
+                            <ChevronRight
+                              size={16}
+                              className="ml-auto shrink-0 text-gray-400"
+                            />
+                          </button>
+                        </div>
+
+                        {/* RÉSUMÉ RÉPONSES */}
+
+                        <div className="mt-4 rounded-xl bg-white p-3 dark:bg-gray-900">
+                          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            Réponses
+                          </p>
+
+                          <div className="space-y-2">
+                            <div className="rounded-lg bg-blue-50 p-2 dark:bg-blue-900/20">
+                              <p className="text-[10px] font-semibold uppercase text-blue-600 dark:text-blue-400">
+                                Ta réponse
+                              </p>
+
+                              <p className="mt-1 line-clamp-2 text-xs font-medium">
+                                {reponseApprenant ||
+                                  "Non disponible"}
+                              </p>
+                            </div>
+
+                            <div className="rounded-lg bg-green-50 p-2 dark:bg-green-900/20">
+                              <p className="text-[10px] font-semibold uppercase text-green-600 dark:text-green-400">
+                                Réponse attendue
+                              </p>
+
+                              <p className="mt-1 line-clamp-2 text-xs font-medium">
+                                {solutionRevelee
+                                  ? bonneReponse ||
+                                    "Non disponible"
+                                  : "Non révélée"}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    )}
-
-                    <div
-                      ref={
-                        finConversationRef
-                      }
-                      className="h-px w-full"
-                      aria-hidden="true"
-                    />
-                  </div>
-                </div>
-
-                {/* ERREUR */}
-
-                {erreurAPI && (
-                  <div className="shrink-0 px-3 pb-2 sm:px-6">
-                    <div className="mx-auto max-w-6xl rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
-                      {
-                        erreurAPI
-                      }
-                    </div>
-                  </div>
-                )}
-
-                {/* ZONE DE SAISIE */}
-
-                <div className="shrink-0 border-t border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-950 sm:p-4">
-                  <div className="mx-auto w-full max-w-6xl">
-                    <div className="flex items-end gap-2">
-                      <textarea
-                        value={
-                          texteSaisi
-                        }
-                        onChange={(
-                          event
-                        ) =>
-                          setTexteSaisi(
-                            event
-                              .target
-                              .value
-                          )
-                        }
-                        onKeyDown={
-                          gererTouche
-                        }
-                        disabled={
-                          iaEnCours
-                        }
-                        rows={3}
-                        placeholder="Écris ta question ou explique ton raisonnement à CODE IA..."
-                        className="min-h-[72px] min-w-0 flex-1 resize-none rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm leading-relaxed outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-900"
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void envoyerTexteSaisi()
-                        }
-                        disabled={
-                          iaEnCours ||
-                          !texteSaisi.trim()
-                        }
-                        className="flex h-[72px] w-[58px] shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                        title="Envoyer"
-                      >
-                        <Send
-                          size={20}
-                        />
-                      </button>
-                    </div>
-
-                    <p className="mt-2 text-center text-[11px] text-gray-400">
-                      Entrée pour envoyer · Maj + Entrée pour une nouvelle ligne
-                    </p>
-                  </div>
-                </div>
-
-                {/* ACTIONS */}
-
-                <div className="shrink-0 border-t border-gray-200 bg-gray-50 px-3 py-3 dark:border-gray-800 dark:bg-gray-900/70 sm:px-6">
-                  <div className="mx-auto w-full max-w-6xl">
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                      Actions rapides
-                    </p>
-
-                    <div className="flex gap-2 overflow-x-auto overscroll-contain pb-1">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void executerAction(
-                            "autrement"
-                          )
-                        }
-                        disabled={
-                          iaEnCours
-                        }
-                        className="flex shrink-0 items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-semibold transition hover:border-blue-400 hover:bg-blue-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800"
-                      >
-                        <MessageCircle
-                          size={15}
-                        />
-
-                        Explique autrement
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void executerAction(
-                            "indice"
-                          )
-                        }
-                        disabled={
-                          iaEnCours
-                        }
-                        className="flex shrink-0 items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-semibold transition hover:border-yellow-400 hover:bg-yellow-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800"
-                      >
-                        <Lightbulb
-                          size={15}
-                        />
-
-                        Indice
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void executerAction(
-                            "similaire"
-                          )
-                        }
-                        disabled={
-                          iaEnCours
-                        }
-                        className="flex shrink-0 items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-semibold transition hover:border-green-400 hover:bg-green-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800"
-                      >
-                        <RotateCcw
-                          size={15}
-                        />
-
-                        Similaire
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void executerAction(
-                            "difficile"
-                          )
-                        }
-                        disabled={
-                          iaEnCours
-                        }
-                        className="flex shrink-0 items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-semibold transition hover:border-purple-400 hover:bg-purple-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800"
-                      >
-                        <Brain
-                          size={15}
-                        />
-
-                        Plus difficile
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void executerAction(
-                            "application"
-                          )
-                        }
-                        disabled={
-                          iaEnCours
-                        }
-                        className="flex shrink-0 items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-semibold transition hover:border-orange-400 hover:bg-orange-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800"
-                      >
-                        <Sparkles
-                          size={15}
-                        />
-
-                        Application
-                      </button>
-                    </div>
+                    </aside>
                   </div>
                 </div>
               </div>
@@ -4646,15 +4727,13 @@ export default function ExplicationQuestion() {
               </p>
 
               {reponseApprenantBrute &&
-                reponseApprenantBrute !==
-                  reponseApprenant && (
-                  <p className="mt-1 text-xs text-gray-400">
-                    Réponse enregistrée :{" "}
-                    {
-                      reponseApprenantBrute
-                    }
-                  </p>
-                )}
+                reponseApprenantBrute !== reponseApprenant ? (
+                   <p className="mt-1 text-xs text-gray-400">
+                    <p className="mt-1 text-xs text-gray-400">
+                       Réponse enregistrée : {String(reponseApprenantBrute)}
+                    </p>
+                   </p>
+                 ) : null}
 
               {bonneReponse && (
                 <div className="mt-4 border-t border-gray-200 pt-4 dark:border-gray-700">
@@ -4699,7 +4778,6 @@ export default function ExplicationQuestion() {
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-
               {/* CODE IA */}
 
               <button
@@ -4898,9 +4976,7 @@ export default function ExplicationQuestion() {
                 </p>
               </button>
 
-              {/* ==================================================
-                  VIDÉO
-              ================================================== */}
+              {/* VIDÉO */}
 
               <button
                 type="button"

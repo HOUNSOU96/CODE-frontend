@@ -1,4 +1,3 @@
-
 import React, {
   useEffect,
   useRef,
@@ -18,14 +17,11 @@ import {
   Info,
   Loader2,
   Mail,
-  MapPin,
   ShieldCheck,
   Sparkles,
   User,
   Users,
-  Video,
   Volume2,
-  VolumeX,
   XCircle,
 } from "lucide-react";
 
@@ -53,6 +49,13 @@ interface UserInfo {
   nationalite?: string | null;
   pays_residence?: string | null;
 }
+
+// ============================================================
+// CONSTANTE IDENTIFIANT APPAREIL
+// ============================================================
+
+const DEVICE_ID_STORAGE_KEY =
+  "CODE_DEVICE_ID";
 
 // ============================================================
 // COMPOSANT
@@ -116,7 +119,8 @@ const Activation: React.FC = () => {
   // IDENTITÉ
   // ==========================================================
 
-  const [userExists, setUserExists] = useState(false);
+  const [userExists, setUserExists] =
+    useState(false);
 
   const [user, setUser] =
     useState<UserInfo | null>(null);
@@ -169,6 +173,68 @@ const Activation: React.FC = () => {
 
   const documentName =
     document?.name || "votre document";
+
+  // ==========================================================
+  // IDENTIFIANT TECHNIQUE DE L'APPAREIL
+  // ==========================================================
+
+  const getOrCreateDeviceId = (): string => {
+    try {
+      const existingDeviceId =
+        window.localStorage.getItem(
+          DEVICE_ID_STORAGE_KEY
+        );
+
+      if (
+        existingDeviceId &&
+        existingDeviceId.trim()
+      ) {
+        return existingDeviceId.trim();
+      }
+
+      let newDeviceId = "";
+
+      if (
+        typeof crypto !== "undefined" &&
+        typeof crypto.randomUUID === "function"
+      ) {
+        newDeviceId =
+          crypto.randomUUID();
+      } else {
+        newDeviceId =
+          `${Date.now()}-${Math.random()
+            .toString(36)
+            .slice(2)}-${Math.random()
+            .toString(36)
+            .slice(2)}`;
+      }
+
+      window.localStorage.setItem(
+        DEVICE_ID_STORAGE_KEY,
+        newDeviceId
+      );
+
+      return newDeviceId;
+    } catch {
+      /*
+       * Dans le cas exceptionnel où localStorage serait
+       * indisponible, on génère tout de même un identifiant
+       * temporaire pour permettre à la requête de continuer.
+       */
+      if (
+        typeof crypto !== "undefined" &&
+        typeof crypto.randomUUID === "function"
+      ) {
+        return crypto.randomUUID();
+      }
+
+      return `${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2)}-${Math.random()
+        .toString(36)
+        .slice(2)}`;
+    }
+  };
 
   // ==========================================================
   // FONCTION UTILITAIRE — NOM DE FICHIER
@@ -279,6 +345,15 @@ const Activation: React.FC = () => {
 
             case "DOCUMENT_PDF_INVALID":
               return "Le PDF généré est invalide ou vide.";
+
+            case "DEVICE_ID_REQUIRED":
+              return "Impossible d'identifier cet appareil. Veuillez réessayer.";
+
+            case "DEVICE_ALREADY_ASSOCIATED":
+              return "Cet appareil est déjà associé à un autre bénéficiaire.";
+
+            case "DEVICE_ACTIVATION_FAILED":
+              return "Le document a été généré, mais son association avec cet appareil a échoué. Veuillez contacter CODE.";
 
             default:
               return data.detail;
@@ -816,6 +891,20 @@ const Activation: React.FC = () => {
       }
 
       // ------------------------------------------------------
+      // IDENTIFIANT DE L'APPAREIL
+      // ------------------------------------------------------
+
+      const deviceId =
+        getOrCreateDeviceId();
+
+      if (!deviceId) {
+        setError(
+          "Impossible d'identifier cet appareil."
+        );
+        return;
+      }
+
+      // ------------------------------------------------------
       // FormData
       // ------------------------------------------------------
 
@@ -840,6 +929,35 @@ const Activation: React.FC = () => {
       formData.append(
         "beneficiary_email",
         finalBeneficiaryEmail
+      );
+
+      // ------------------------------------------------------
+      // IDENTIFIANT APPAREIL
+      // ------------------------------------------------------
+
+      /*
+       * Cet identifiant ne contient aucune donnée personnelle.
+       * Il permet au serveur d'associer l'activation à ce
+       * navigateur/appareil afin que le document puisse être
+       * retrouvé ultérieurement depuis « Mes documents »,
+       * même sans connexion au compte.
+       */
+      formData.append(
+        "device_id",
+        deviceId
+      );
+
+      formData.append(
+        "device_type",
+        /Android/i.test(
+          navigator.userAgent
+        )
+          ? "android"
+          : /iPhone|iPad|iPod/i.test(
+              navigator.userAgent
+            )
+          ? "ios"
+          : "pc"
       );
 
       // ------------------------------------------------------
@@ -1132,10 +1250,6 @@ const Activation: React.FC = () => {
           overflow-hidden
         "
       >
-        {/* ====================================================
-            VIDÉO
-        ==================================================== */}
-
         <video
           ref={videoIntroRef}
           className="
@@ -1164,10 +1278,6 @@ const Activation: React.FC = () => {
           la lecture vidéo.
         </video>
 
-        {/* ====================================================
-            VOILE LÉGER
-        ==================================================== */}
-
         <div
           className="
             absolute
@@ -1179,10 +1289,6 @@ const Activation: React.FC = () => {
             pointer-events-none
           "
         />
-
-        {/* ====================================================
-            IDENTITÉ CODE
-        ==================================================== */}
 
         <div
           className="
@@ -1250,10 +1356,6 @@ const Activation: React.FC = () => {
             </p>
           </div>
         </div>
-
-        {/* ====================================================
-            SON
-        ==================================================== */}
 
         {!videoSoundEnabled && (
           <button
@@ -1323,10 +1425,6 @@ const Activation: React.FC = () => {
           </div>
         )}
 
-        {/* ====================================================
-            ZONE BASSE
-        ==================================================== */}
-
         <div
           className="
             absolute
@@ -1342,10 +1440,6 @@ const Activation: React.FC = () => {
             justify-end
           "
         >
-          {/* --------------------------------------------------
-              MESSAGE PENDANT LES 5 SECONDES
-          -------------------------------------------------- */}
-
           {!videoContinueReady && (
             <div
               className="
@@ -1418,10 +1512,6 @@ const Activation: React.FC = () => {
             </div>
           )}
 
-          {/* --------------------------------------------------
-              BOUTON CONTINUER APRÈS 5 SECONDES
-          -------------------------------------------------- */}
-
           {videoContinueReady && (
             <div
               className="
@@ -1431,8 +1521,6 @@ const Activation: React.FC = () => {
                 gap-3
               "
             >
-              
-
               <button
                 type="button"
                 onClick={
@@ -1507,10 +1595,6 @@ const Activation: React.FC = () => {
         dark:to-blue-950/30
       "
     >
-      {/* ======================================================
-          DÉCORATIONS
-      ====================================================== */}
-
       <div
         className="
           pointer-events-none
@@ -1555,10 +1639,6 @@ const Activation: React.FC = () => {
         "
       />
 
-      {/* ======================================================
-          CONTENU
-      ====================================================== */}
-
       <div
         className="
           relative
@@ -1572,10 +1652,6 @@ const Activation: React.FC = () => {
           sm:py-10
         "
       >
-        {/* ====================================================
-            EN-TÊTE
-        ==================================================== */}
-
         <div
           className="
             mb-6
@@ -1703,10 +1779,6 @@ const Activation: React.FC = () => {
             Accueil
           </Link>
         </div>
-
-        {/* ====================================================
-            INDICATEUR D'ÉTAPES
-        ==================================================== */}
 
         <div
           className="
@@ -1836,10 +1908,6 @@ const Activation: React.FC = () => {
           </div>
         </div>
 
-        {/* ====================================================
-            ERREUR
-        ==================================================== */}
-
         {error && (
           <div
             className="
@@ -1898,10 +1966,6 @@ const Activation: React.FC = () => {
             </div>
           </div>
         )}
-
-        {/* ====================================================
-            ÉTAPE 1 — CODE
-        ==================================================== */}
 
         {step === 1 && (
           <div
@@ -1991,11 +2055,6 @@ const Activation: React.FC = () => {
                 Saisissez l'adresse e-mail utilisée lors de
                 l'achat ainsi que votre code d'activation.
               </p>
-
-
-              {/* =================================================
-                  FORMULAIRE
-              ================================================= */}
 
               <div
                 className="
@@ -2200,10 +2259,6 @@ const Activation: React.FC = () => {
             </div>
           </div>
         )}
-
-        {/* ====================================================
-            ÉTAPE 2 — BÉNÉFICIAIRE
-        ==================================================== */}
 
         {step === 2 && (
           <div
@@ -2509,10 +2564,6 @@ const Activation: React.FC = () => {
           </div>
         )}
 
-        {/* ====================================================
-            ÉTAPE 3 — E-MAIL BÉNÉFICIAIRE
-        ==================================================== */}
-
         {step === 3 && (
           <div
             className={`
@@ -2720,20 +2771,12 @@ const Activation: React.FC = () => {
           </div>
         )}
 
-        {/* ====================================================
-            ÉTAPE 4
-        ==================================================== */}
-
         {step === 4 && (
           <div
             className="
               space-y-6
             "
           >
-            {/* ==================================================
-                IDENTITÉ
-            ================================================== */}
-
             <div
               className={`
                 ${cardClass}
@@ -3316,10 +3359,6 @@ const Activation: React.FC = () => {
               )}
             </div>
 
-            {/* ==================================================
-                PERSONNALISATION
-            ================================================== */}
-
             <div
               className={`
                 ${cardClass}
@@ -3617,10 +3656,6 @@ const Activation: React.FC = () => {
               </div>
             </div>
 
-            {/* ==================================================
-                RÉCAPITULATIF
-            ================================================== */}
-
             <div
               className="
                 bg-gray-100/85
@@ -3845,10 +3880,6 @@ const Activation: React.FC = () => {
               </div>
             </div>
 
-            {/* ==================================================
-                BOUTONS
-            ================================================== */}
-
             {!downloaded && (
               <div
                 className="
@@ -3951,10 +3982,6 @@ const Activation: React.FC = () => {
               </div>
             )}
 
-            {/* ==================================================
-                SUCCÈS
-            ================================================== */}
-
             {downloaded && (
               <div
                 className={`
@@ -4019,10 +4046,6 @@ const Activation: React.FC = () => {
                   </p>
                 </div>
 
-                {/* =================================================
-                    TÉLÉCHARGEMENT
-                ================================================= */}
-
                 <div
                   className="
                     mt-7
@@ -4072,10 +4095,6 @@ const Activation: React.FC = () => {
                     personnalisé a été téléchargé sur votre appareil.
                   </p>
                 </div>
-
-                {/* =================================================
-                    E-MAIL
-                ================================================= */}
 
                 {emailSent ===
                   true && (
@@ -4184,10 +4203,6 @@ const Activation: React.FC = () => {
                   </div>
                 )}
 
-                {/* =================================================
-                    COMPTE
-                ================================================= */}
-
                 <div
                   className="
                     mt-7
@@ -4229,10 +4244,6 @@ const Activation: React.FC = () => {
             )}
           </div>
         )}
-
-        {/* ====================================================
-            PIED DE PAGE
-        ==================================================== */}
 
         <div
           className="
@@ -4292,4 +4303,3 @@ const Activation: React.FC = () => {
 };
 
 export default Activation;
-

@@ -25,6 +25,12 @@ import {
 import api from "@/utils/axios";
 import { useAuth } from "@/context/AuthContext";
 
+import {
+  getOfflineData,
+  saveOfflineData,
+  STORES,
+} from "@/offline/offlineDB";
+
 /* ============================================================
    TYPES
 ============================================================ */
@@ -135,6 +141,47 @@ type SectionId =
   | "requests";
 
 /* ============================================================
+   TYPES CACHE HORS LIGNE
+============================================================ */
+
+type CachedDirectorSchools = {
+  id: string;
+  type: "director_schools";
+  schools: DirectorSchool[];
+  cachedAt: number;
+};
+
+type CachedDirectorTeachers = {
+  id: string;
+  type: "director_teachers";
+  schoolId: number;
+  teachers: DirectorTeacher[];
+  cachedAt: number;
+};
+
+type CachedDirectorStudents = {
+  id: string;
+  type: "director_students";
+  schoolId: number;
+  students: DirectorStudent[];
+  cachedAt: number;
+};
+
+type CachedDirectorRequests = {
+  id: string;
+  type: "director_requests";
+  requests: DirectorRequest[];
+  cachedAt: number;
+};
+
+type CachedDirectorPhone = {
+  id: string;
+  type: "director_phone";
+  phone: string | null;
+  cachedAt: number;
+};
+
+/* ============================================================
    COMPOSANT
 ============================================================ */
 
@@ -191,6 +238,44 @@ const Directeur: React.FC = () => {
     useState<string | null>(null);
 
   /* ==========================================================
+     ETAT HORS LIGNE
+  ========================================================== */
+
+  const [isOffline, setIsOffline] = useState<boolean>(() => {
+    if (typeof navigator === "undefined") {
+      return false;
+    }
+
+    return !navigator.onLine;
+  });
+
+  const [usingOfflineCache, setUsingOfflineCache] =
+    useState(false);
+
+  /* ==========================================================
+     SURVEILLANCE DE LA CONNEXION
+  ========================================================== */
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      setUsingOfflineCache(false);
+    };
+
+    const handleOffline = () => {
+      setIsOffline(true);
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  /* ==========================================================
      ECOLE SELECTIONNEE
   ========================================================== */
 
@@ -212,41 +297,92 @@ const Directeur: React.FC = () => {
 
   const fetchDirectorSchools = useCallback(
     async (): Promise<DirectorSchool[]> => {
-      const response =
-        await api.get<DirectorSchoolsResponse>(
-          "/api/schools/director/my-schools"
-        );
+      try {
+        const response =
+          await api.get<DirectorSchoolsResponse>(
+            "/api/schools/director/my-schools"
+          );
 
-      const directorSchools =
-        response.data.schools || [];
+        const directorSchools =
+          response.data.schools || [];
 
-      setSchools(directorSchools);
+        setSchools(directorSchools);
+        setUsingOfflineCache(false);
 
-      if (directorSchools.length > 0) {
-        setSelectedSchoolId((currentId) => {
-          if (
-            currentId !== null &&
-            directorSchools.some(
-              (school) => school.id === currentId
-            )
-          ) {
-            return currentId;
+        await saveOfflineData<CachedDirectorSchools>(
+          STORES.documents,
+          {
+            id: "director_schools",
+            type: "director_schools",
+            schools: directorSchools,
+            cachedAt: Date.now(),
+          }
+        ).catch((cacheError) => {
+          console.warn(
+            "Impossible de mettre en cache les écoles du directeur :",
+            cacheError
+          );
+        });
+
+        if (directorSchools.length > 0) {
+          setSelectedSchoolId((currentId) => {
+            if (
+              currentId !== null &&
+              directorSchools.some(
+                (school) => school.id === currentId
+              )
+            ) {
+              return currentId;
+            }
+
+            return directorSchools[0].id;
+          });
+        } else {
+          setSelectedSchoolId(null);
+        }
+
+        return directorSchools;
+      } catch (err) {
+        const cached =
+          await getOfflineData<CachedDirectorSchools>(
+            STORES.documents,
+            "director_schools"
+          ).catch(() => null);
+
+        if (cached?.schools) {
+          setSchools(cached.schools);
+          setUsingOfflineCache(true);
+
+          if (cached.schools.length > 0) {
+            setSelectedSchoolId((currentId) => {
+              if (
+                currentId !== null &&
+                cached.schools.some(
+                  (school) =>
+                    school.id === currentId
+                )
+              ) {
+                return currentId;
+              }
+
+              return cached.schools[0].id;
+            });
+          } else {
+            setSelectedSchoolId(null);
           }
 
-          return directorSchools[0].id;
-        });
-      } else {
-        setSelectedSchoolId(null);
-      }
+          return cached.schools;
+        }
 
-      return directorSchools;
+        throw err;
+      }
     },
     []
   );
 
   /* ==========================================================
      CHARGER LE TELEPHONE DU DIRECTEUR
-     
+
      Le téléphone est récupéré depuis l'utilisateur en base,
      comme dans ListeInscrits.tsx.
   ========================================================== */
@@ -279,16 +415,50 @@ const Directeur: React.FC = () => {
             Number((user as any).id)
         );
 
-        setDirectorPhone(
-          director?.telephone || null
-        );
+        const phone =
+          director?.telephone || null;
+
+        setDirectorPhone(phone);
+        setUsingOfflineCache(false);
+
+        await saveOfflineData<CachedDirectorPhone>(
+          STORES.documents,
+          {
+            id: `director_phone_${String(
+              (user as any).id
+            )}`,
+            type: "director_phone",
+            phone,
+            cachedAt: Date.now(),
+          }
+        ).catch((cacheError) => {
+          console.warn(
+            "Impossible de mettre en cache le téléphone du directeur :",
+            cacheError
+          );
+        });
       } catch (err: any) {
         console.error(
           "Erreur récupération téléphone du directeur :",
           err
         );
 
-        setDirectorPhone(null);
+        const cacheId = `director_phone_${String(
+          (user as any).id
+        )}`;
+
+        const cached =
+          await getOfflineData<CachedDirectorPhone>(
+            STORES.documents,
+            cacheId
+          ).catch(() => null);
+
+        if (cached) {
+          setDirectorPhone(cached.phone);
+          setUsingOfflineCache(true);
+        } else {
+          setDirectorPhone(null);
+        }
       }
     },
     [user]
@@ -308,12 +478,44 @@ const Directeur: React.FC = () => {
             `/api/schools/director/${schoolId}/teachers`
           );
 
-        setTeachers(response.data.teachers || []);
+        const schoolTeachers =
+          response.data.teachers || [];
+
+        setTeachers(schoolTeachers);
+        setUsingOfflineCache(false);
+
+        await saveOfflineData<CachedDirectorTeachers>(
+          STORES.documents,
+          {
+            id: `director_teachers_${schoolId}`,
+            type: "director_teachers",
+            schoolId,
+            teachers: schoolTeachers,
+            cachedAt: Date.now(),
+          }
+        ).catch((cacheError) => {
+          console.warn(
+            "Impossible de mettre en cache les enseignants :",
+            cacheError
+          );
+        });
       } catch (err: any) {
         console.error(
           "Erreur chargement enseignants :",
           err
         );
+
+        const cached =
+          await getOfflineData<CachedDirectorTeachers>(
+            STORES.documents,
+            `director_teachers_${schoolId}`
+          ).catch(() => null);
+
+        if (cached) {
+          setTeachers(cached.teachers || []);
+          setUsingOfflineCache(true);
+          return;
+        }
 
         setTeachers([]);
 
@@ -344,12 +546,44 @@ const Directeur: React.FC = () => {
             `/api/schools/director/${schoolId}/students`
           );
 
-        setStudents(response.data.students || []);
+        const schoolStudents =
+          response.data.students || [];
+
+        setStudents(schoolStudents);
+        setUsingOfflineCache(false);
+
+        await saveOfflineData<CachedDirectorStudents>(
+          STORES.documents,
+          {
+            id: `director_students_${schoolId}`,
+            type: "director_students",
+            schoolId,
+            students: schoolStudents,
+            cachedAt: Date.now(),
+          }
+        ).catch((cacheError) => {
+          console.warn(
+            "Impossible de mettre en cache les apprenants :",
+            cacheError
+          );
+        });
       } catch (err: any) {
         console.error(
           "Erreur chargement apprenants :",
           err
         );
+
+        const cached =
+          await getOfflineData<CachedDirectorStudents>(
+            STORES.documents,
+            `director_students_${schoolId}`
+          ).catch(() => null);
+
+        if (cached) {
+          setStudents(cached.students || []);
+          setUsingOfflineCache(true);
+          return;
+        }
 
         setStudents([]);
 
@@ -379,12 +613,43 @@ const Directeur: React.FC = () => {
           "/api/schools/director/requests"
         );
 
-      setRequests(response.data.requests || []);
+      const directorRequests =
+        response.data.requests || [];
+
+      setRequests(directorRequests);
+      setUsingOfflineCache(false);
+
+      await saveOfflineData<CachedDirectorRequests>(
+        STORES.documents,
+        {
+          id: "director_requests",
+          type: "director_requests",
+          requests: directorRequests,
+          cachedAt: Date.now(),
+        }
+      ).catch((cacheError) => {
+        console.warn(
+          "Impossible de mettre en cache les demandes :",
+          cacheError
+        );
+      });
     } catch (err: any) {
       console.error(
         "Erreur chargement demandes :",
         err
       );
+
+      const cached =
+        await getOfflineData<CachedDirectorRequests>(
+          STORES.documents,
+          "director_requests"
+        ).catch(() => null);
+
+      if (cached) {
+        setRequests(cached.requests || []);
+        setUsingOfflineCache(true);
+        return;
+      }
 
       setRequests([]);
 
@@ -452,10 +717,12 @@ const Directeur: React.FC = () => {
             "Impossible de charger les données de l'administration de l'école."
         );
 
-        setSchools([]);
-        setTeachers([]);
-        setStudents([]);
-        setRequests([]);
+        if (!isOffline) {
+          setSchools([]);
+          setTeachers([]);
+          setStudents([]);
+          setRequests([]);
+        }
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -468,6 +735,7 @@ const Directeur: React.FC = () => {
       fetchTeachers,
       fetchStudents,
       selectedSchoolId,
+      isOffline,
     ]
   );
 
@@ -506,6 +774,17 @@ const Directeur: React.FC = () => {
   ]);
 
   /* ==========================================================
+     REVENIR AUTOMATIQUEMENT AUX DONNEES SERVEUR
+     LORSQUE LA CONNEXION REVIENT
+  ========================================================== */
+
+  useEffect(() => {
+    if (!isOffline) {
+      void loadData(true);
+    }
+  }, [isOffline]);
+
+  /* ==========================================================
      CHANGER D'ECOLE
   ========================================================== */
 
@@ -526,6 +805,13 @@ const Directeur: React.FC = () => {
     membershipId: number,
     decision: "approved" | "rejected"
   ) => {
+    if (isOffline) {
+      setError(
+        "Cette action nécessite une connexion Internet. La demande ne peut pas être traitée hors ligne."
+      );
+      return;
+    }
+
     setProcessingRequestId(membershipId);
     setError("");
 
@@ -587,6 +873,13 @@ const Directeur: React.FC = () => {
 
   const handleRemoveTeacher = async () => {
     if (!teacherToRemove) {
+      return;
+    }
+
+    if (isOffline) {
+      setError(
+        "Cette action nécessite une connexion Internet. L'enseignant ne peut pas être retiré hors ligne."
+      );
       return;
     }
 
@@ -674,10 +967,6 @@ const Directeur: React.FC = () => {
 
   /* ==========================================================
      COORDONNEES DU DIRECTEUR
-     
-     L'email vient du compte authentifié.
-     Le téléphone vient de la fiche utilisateur récupérée
-     depuis la base via /api/admin/liste-inscrits.
   ========================================================== */
 
   const directorEmail = useMemo(() => {
@@ -804,6 +1093,10 @@ const Directeur: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {isOffline && (
+          <OfflineIndicator />
+        )}
       </div>
     );
   }
@@ -836,6 +1129,12 @@ const Directeur: React.FC = () => {
                     <span className="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
                       Directeur
                     </span>
+
+                    {usingOfflineCache && (
+                      <span className="rounded-full bg-slate-200 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                        Données en cache
+                      </span>
+                    )}
                   </div>
 
                   <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white sm:text-3xl">
@@ -1230,13 +1529,11 @@ const Directeur: React.FC = () => {
                     value={selectedSchool.statut}
                   />
 
-                  {/* EMAIL DU DIRECTEUR */}
                   <InfoItem
                     label="Email du directeur"
                     value={directorEmail}
                   />
 
-                  {/* TELEPHONE DU DIRECTEUR */}
                   <InfoItem
                     label="Téléphone du directeur"
                     value={directorPhone}
@@ -1475,12 +1772,15 @@ const Directeur: React.FC = () => {
                               }
                               disabled={
                                 removingTeacherId ===
-                                teacher.id
+                                  teacher.id ||
+                                isOffline
                               }
                               className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-black text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/15"
                             >
                               <Trash2 className="h-4 w-4" />
-                              Retirer
+                              {isOffline
+                                ? "Hors ligne"
+                                : "Retirer"}
                             </button>
                           </td>
                         </tr>
@@ -1830,7 +2130,8 @@ const Directeur: React.FC = () => {
                   void handleRemoveTeacher()
                 }
                 disabled={
-                  removingTeacherId !== null
+                  removingTeacherId !== null ||
+                  isOffline
                 }
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -1840,11 +2141,21 @@ const Directeur: React.FC = () => {
                   <Trash2 className="h-4 w-4" />
                 )}
 
-                Retirer de l'école
+                {isOffline
+                  ? "Connexion requise"
+                  : "Retirer de l'école"}
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* ======================================================
+          INDICATEUR HORS LIGNE
+      ====================================================== */}
+
+      {isOffline && (
+        <OfflineIndicator />
       )}
     </div>
   );
@@ -2085,6 +2396,20 @@ const EmptyBlock: React.FC<EmptyBlockProps> = ({
       <p className="mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">
         {text}
       </p>
+    </div>
+  );
+};
+
+/* ============================================================
+   INDICATEUR HORS LIGNE
+============================================================ */
+
+const OfflineIndicator: React.FC = () => {
+  return (
+    <div className="pointer-events-none fixed bottom-3 left-1/2 z-[100] -translate-x-1/2">
+      <div className="rounded-full border border-slate-700 bg-slate-950/90 px-4 py-2 text-xs font-bold text-slate-300 shadow-2xl backdrop-blur-sm">
+        Mode hors ligne · données disponibles sur cet appareil
+      </div>
     </div>
   );
 };

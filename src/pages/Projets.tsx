@@ -1,4 +1,3 @@
-
 import React, { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -7,7 +6,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  ChevronDown,
   FileText,
   Globe2,
   Lightbulb,
@@ -22,6 +20,16 @@ import {
   Info,
 } from "lucide-react";
 
+// ============================================================
+// 📦 STOCKAGE HORS CONNEXION
+// ============================================================
+
+import {
+  getOfflineData,
+  saveOfflineData,
+  STORES,
+} from "@/offline/offlineDB";
+
 interface ProjetPublic {
   id: number;
   nom: string;
@@ -30,10 +38,54 @@ interface ProjetPublic {
   titre: string;
   description: string;
   probleme?: string | null;
+  solution?: string | null;
   vision?: string | null;
+  impact?: string | null;
   categorie?: string | null;
   date_publication?: string | null;
 }
+
+// ============================================================
+// 📦 DONNÉES CACHE
+// ============================================================
+
+type CachedProjets = {
+  id: string;
+  type: "projets_publics";
+  projets: ProjetPublic[];
+  cachedAt: number;
+};
+
+// ============================================================
+// 📤 SOUMISSION HORS CONNEXION
+// ============================================================
+
+type OfflineProjetSubmission = {
+  id: string;
+  type: "projet_submission";
+  createdAt: number;
+  status: "pending";
+  endpoint: string;
+  method: "POST";
+  payload: {
+    nom: string;
+    prenom: string;
+    email: string;
+    telephone: string;
+    pays: string;
+    titre: string;
+    description: string;
+    probleme: string | null;
+    solution: string | null;
+    vision: string | null;
+    impact: string | null;
+    categorie: string;
+    consentement_publication: boolean;
+    declaration_droits: boolean;
+  };
+};
+
+const PROJETS_CACHE_ID = "projets_publics_current";
 
 const categories = [
   "Éducation",
@@ -50,7 +102,11 @@ const categories = [
   "Autre",
 ];
 
-type FenetreActive = "soumission" | "memoire" | "fonctionnement" | null;
+type FenetreActive =
+  | "soumission"
+  | "memoire"
+  | "fonctionnement"
+  | null;
 
 const Projets: React.FC = () => {
   const navigate = useNavigate();
@@ -73,6 +129,18 @@ const Projets: React.FC = () => {
   const [fenetreActive, setFenetreActive] =
     useState<FenetreActive>(null);
 
+  /*
+   * 🌐 ÉTAT DE LA CONNEXION
+   */
+  const [isOffline, setIsOffline] = useState(
+    typeof navigator !== "undefined"
+      ? !navigator.onLine
+      : false
+  );
+
+  /*
+   * FORMULAIRE DE SOUMISSION
+   */
   const [form, setForm] = useState({
     nom: "",
     prenom: "",
@@ -82,11 +150,49 @@ const Projets: React.FC = () => {
     titre: "",
     description: "",
     probleme: "",
+    solution: "",
     vision: "",
+    impact: "",
     categorie: "",
     consentement_publication: false,
     declaration_droits: false,
   });
+
+  /*
+   * ============================================================
+   * 🌐 SURVEILLANCE DE LA CONNEXION
+   * ============================================================
+   */
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+    };
+
+    const handleOffline = () => {
+      setIsOffline(true);
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  /*
+   * ============================================================
+   * 📦 CHARGEMENT DES PROJETS PUBLICS
+   *
+   * Stratégie :
+   *
+   * 1. On tente l'API.
+   * 2. Si ça fonctionne, on sauvegarde dans IndexedDB.
+   * 3. Si ça échoue, on récupère le dernier cache disponible.
+   * ============================================================
+   */
 
   const chargerProjets = async () => {
     try {
@@ -95,13 +201,85 @@ const Projets: React.FC = () => {
 
       const response = await api.get("/api/projets");
 
-      setProjets(Array.isArray(response.data) ? response.data : []);
+      const donnees =
+        Array.isArray(response.data)
+          ? response.data
+          : [];
+
+      setProjets(donnees);
+
+      /*
+       * 💾 Sauvegarde locale
+       */
+      try {
+        const cache: CachedProjets = {
+          id: PROJETS_CACHE_ID,
+          type: "projets_publics",
+          projets: donnees,
+          cachedAt: Date.now(),
+        };
+
+        await saveOfflineData(
+          STORES.documents,
+          cache
+        );
+      } catch (cacheError) {
+        /*
+         * Une erreur de cache ne doit jamais
+         * empêcher l'utilisation normale de CODE.
+         */
+        console.warn(
+          "⚠️ Impossible de mettre les projets en cache :",
+          cacheError
+        );
+      }
     } catch (err) {
       console.error("Erreur chargement projets :", err);
 
-      setError(
-        "Impossible de charger les idées actuellement. Veuillez réessayer."
-      );
+      /*
+       * 🔄 FALLBACK INDEXEDDB
+       */
+      try {
+        const cached =
+          await getOfflineData<CachedProjets>(
+            STORES.documents,
+            PROJETS_CACHE_ID
+          );
+
+        if (
+          cached &&
+          Array.isArray(cached.projets)
+        ) {
+          setProjets(cached.projets);
+
+          console.info(
+            "📦 Projets publics récupérés depuis le cache hors connexion."
+          );
+
+          /*
+           * On ne considère pas cela comme une erreur
+           * si le cache existe.
+           */
+          setError("");
+        } else {
+          setProjets([]);
+
+          setError(
+            "Impossible de charger les idées actuellement. Veuillez réessayer."
+          );
+        }
+      } catch (cacheError) {
+        console.error(
+          "Erreur récupération cache projets :",
+          cacheError
+        );
+
+        setProjets([]);
+
+        setError(
+          "Impossible de charger les idées actuellement. Veuillez réessayer."
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -112,8 +290,29 @@ const Projets: React.FC = () => {
   }, []);
 
   /*
-   * BLOQUER LE SCROLL DE LA PAGE LORSQU'UNE FENÊTRE EST OUVERTE
+   * ============================================================
+   * 🔄 RECHARGEMENT LORS DU RETOUR DE LA CONNEXION
+   * ============================================================
    */
+
+  useEffect(() => {
+    const handleOnline = () => {
+      chargerProjets();
+    };
+
+    window.addEventListener("online", handleOnline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+    };
+  }, []);
+
+  /*
+   * ============================================================
+   * BLOQUER LE SCROLL DE LA PAGE LORSQU'UNE FENÊTRE EST OUVERTE
+   * ============================================================
+   */
+
   useEffect(() => {
     if (fenetreActive || projetSelectionne) {
       document.body.style.overflow = "hidden";
@@ -127,8 +326,11 @@ const Projets: React.FC = () => {
   }, [fenetreActive, projetSelectionne]);
 
   /*
+   * ============================================================
    * ÉCHAP POUR FERMER LES FENÊTRES
+   * ============================================================
    */
+
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -143,6 +345,12 @@ const Projets: React.FC = () => {
       window.removeEventListener("keydown", handleEscape);
     };
   }, []);
+
+  /*
+   * ============================================================
+   * GESTION DES CHAMPS DU FORMULAIRE
+   * ============================================================
+   */
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -172,6 +380,12 @@ const Projets: React.FC = () => {
     setError(texte);
   };
 
+  /*
+   * ============================================================
+   * VALIDATION DES ÉTAPES
+   * ============================================================
+   */
+
   const validerEtape = () => {
     setError("");
 
@@ -187,24 +401,32 @@ const Projets: React.FC = () => {
       }
 
       if (!form.email.trim()) {
-        afficherErreur("Veuillez renseigner votre adresse email.");
+        afficherErreur(
+          "Veuillez renseigner votre adresse email."
+        );
         return false;
       }
 
       if (!form.telephone.trim()) {
-        afficherErreur("Veuillez renseigner votre numéro de téléphone.");
+        afficherErreur(
+          "Veuillez renseigner votre numéro de téléphone."
+        );
         return false;
       }
 
       if (!form.pays.trim()) {
-        afficherErreur("Veuillez renseigner votre pays.");
+        afficherErreur(
+          "Veuillez renseigner votre pays."
+        );
         return false;
       }
     }
 
     if (etape === 2) {
       if (!form.titre.trim()) {
-        afficherErreur("Veuillez donner un titre à votre idée.");
+        afficherErreur(
+          "Veuillez donner un titre à votre idée."
+        );
         return false;
       }
 
@@ -222,14 +444,24 @@ const Projets: React.FC = () => {
   const allerEtapeSuivante = () => {
     if (!validerEtape()) return;
 
-    setEtape((ancienne) => Math.min(3, ancienne + 1));
+    setEtape((ancienne) =>
+      Math.min(3, ancienne + 1)
+    );
   };
 
   const allerEtapePrecedente = () => {
     setError("");
 
-    setEtape((ancienne) => Math.max(1, ancienne - 1));
+    setEtape((ancienne) =>
+      Math.max(1, ancienne - 1)
+    );
   };
+
+  /*
+   * ============================================================
+   * OUVRIR LA FENÊTRE DE SOUMISSION
+   * ============================================================
+   */
 
   const ouvrirSoumission = () => {
     setMessage("");
@@ -237,6 +469,12 @@ const Projets: React.FC = () => {
     setEtape(1);
     setFenetreActive("soumission");
   };
+
+  /*
+   * ============================================================
+   * OUVRIR LA MÉMOIRE DES IDÉES
+   * ============================================================
+   */
 
   const ouvrirMemoire = async () => {
     setMessage("");
@@ -255,7 +493,70 @@ const Projets: React.FC = () => {
     setError("");
   };
 
-  const soumettreProjet = async (e: FormEvent) => {
+  /*
+   * ============================================================
+   * 💾 ENREGISTRER UNE SOUMISSION HORS CONNEXION
+   * ============================================================
+   */
+
+  const enregistrerSoumissionHorsConnexion =
+    async () => {
+      const offlineSubmission: OfflineProjetSubmission = {
+        id: `projet_submission_${Date.now()}_${Math.random()
+          .toString(36)
+          .slice(2, 10)}`,
+
+        type: "projet_submission",
+
+        createdAt: Date.now(),
+
+        status: "pending",
+
+        endpoint: "/api/projets/soumettre",
+
+        method: "POST",
+
+        payload: {
+          nom: form.nom.trim(),
+          prenom: form.prenom.trim(),
+          email: form.email.trim(),
+          telephone: form.telephone.trim(),
+          pays: form.pays.trim(),
+          titre: form.titre.trim(),
+          description: form.description.trim(),
+          probleme:
+            form.probleme.trim() || null,
+          solution:
+            form.solution.trim() || null,
+          vision:
+            form.vision.trim() || null,
+          impact:
+            form.impact.trim() || null,
+          categorie: form.categorie,
+          consentement_publication:
+            form.consentement_publication,
+          declaration_droits:
+            form.declaration_droits,
+        },
+      };
+
+      await saveOfflineData(
+        STORES.syncQueue,
+        offlineSubmission
+      );
+
+      return offlineSubmission;
+    };
+
+  /*
+   * ============================================================
+   * 📤 SOUMISSION DU PROJET
+   * ============================================================
+   */
+
+  const soumettreProjet = async (
+    e: FormEvent
+  ) => {
     e.preventDefault();
 
     setMessage("");
@@ -280,9 +581,77 @@ const Projets: React.FC = () => {
     try {
       setSubmitting(true);
 
+      /*
+       * ========================================================
+       * 📡 MODE HORS CONNEXION
+       * ========================================================
+       *
+       * L'idée est conservée localement.
+       * Elle sera envoyée au backend par le mécanisme
+       * de synchronisation de syncQueue lorsque la
+       * connexion sera disponible.
+       */
+
+      if (
+        typeof navigator !== "undefined" &&
+        !navigator.onLine
+      ) {
+        await enregistrerSoumissionHorsConnexion();
+
+        setMessage(
+          "Votre idée a été enregistrée sur cet appareil. Elle sera envoyée à l'équipe CODE dès que la connexion Internet sera rétablie."
+        );
+
+        /*
+         * RÉINITIALISATION DU FORMULAIRE
+         */
+        setForm({
+          nom: "",
+          prenom: "",
+          email: "",
+          telephone: "",
+          pays: "",
+          titre: "",
+          description: "",
+          probleme: "",
+          solution: "",
+          vision: "",
+          impact: "",
+          categorie: "",
+          consentement_publication: false,
+          declaration_droits: false,
+        });
+
+        setEtape(1);
+        setFenetreActive(null);
+
+        window.scrollTo({
+          top: 0,
+          behavior: "smooth",
+        });
+
+        return;
+      }
+
+      /*
+       * ========================================================
+       * 🌐 MODE CONNECTÉ
+       * ========================================================
+       */
+
       const response = await api.post(
         "/api/projets/soumettre",
-        form
+        {
+          ...form,
+          probleme:
+            form.probleme.trim() || null,
+          solution:
+            form.solution.trim() || null,
+          vision:
+            form.vision.trim() || null,
+          impact:
+            form.impact.trim() || null,
+        }
       );
 
       setMessage(
@@ -290,6 +659,9 @@ const Projets: React.FC = () => {
           "Votre idée a bien été soumise à l'équipe CODE pour examen."
       );
 
+      /*
+       * RÉINITIALISATION DU FORMULAIRE
+       */
       setForm({
         nom: "",
         prenom: "",
@@ -299,7 +671,9 @@ const Projets: React.FC = () => {
         titre: "",
         description: "",
         probleme: "",
+        solution: "",
         vision: "",
+        impact: "",
         categorie: "",
         consentement_publication: false,
         declaration_droits: false,
@@ -319,23 +693,87 @@ const Projets: React.FC = () => {
         behavior: "smooth",
       });
     } catch (err: any) {
-      console.error("Erreur soumission projet :", err);
-
-      setError(
-        err?.response?.data?.detail ||
-          err?.response?.data?.message ||
-          "Impossible de soumettre votre idée."
+      console.error(
+        "Erreur soumission projet :",
+        err
       );
+
+      /*
+       * ========================================================
+       * 🔄 FALLBACK
+       *
+       * Même si navigator.onLine indique "connecté",
+       * la requête peut échouer à cause d'une connexion
+       * instable ou inexistante.
+       *
+       * Dans ce cas, on place également la soumission
+       * dans la file hors connexion.
+       * ========================================================
+       */
+
+      try {
+        await enregistrerSoumissionHorsConnexion();
+
+        setMessage(
+          "La connexion n'a pas permis d'envoyer votre idée. Elle a été enregistrée sur cet appareil et sera envoyée dès que la connexion sera rétablie."
+        );
+
+        setForm({
+          nom: "",
+          prenom: "",
+          email: "",
+          telephone: "",
+          pays: "",
+          titre: "",
+          description: "",
+          probleme: "",
+          solution: "",
+          vision: "",
+          impact: "",
+          categorie: "",
+          consentement_publication: false,
+          declaration_droits: false,
+        });
+
+        setEtape(1);
+        setFenetreActive(null);
+
+        window.scrollTo({
+          top: 0,
+          behavior: "smooth",
+        });
+      } catch (queueError) {
+        console.error(
+          "Erreur enregistrement soumission hors connexion :",
+          queueError
+        );
+
+        setError(
+          err?.response?.data?.detail ||
+            err?.response?.data?.message ||
+            "Impossible de soumettre votre idée."
+        );
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const formatDate = (date?: string | null) => {
+  /*
+   * ============================================================
+   * FORMATAGE DES DATES
+   * ============================================================
+   */
+
+  const formatDate = (
+    date?: string | null
+  ) => {
     if (!date) return "";
 
     try {
-      return new Date(date).toLocaleDateString("fr-FR", {
+      return new Date(
+        date
+      ).toLocaleDateString("fr-FR", {
         day: "2-digit",
         month: "long",
         year: "numeric",
@@ -353,6 +791,35 @@ const Projets: React.FC = () => {
       className="min-h-screen bg-slate-50 dark:bg-slate-950"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10">
+
+        {/* =========================================================
+            INDICATEUR HORS CONNEXION
+        ========================================================= */}
+
+        {isOffline && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="
+              mb-5
+              rounded-xl
+              border border-orange-200 dark:border-orange-900
+              bg-orange-50 dark:bg-orange-950/30
+              px-4 py-3
+              text-sm
+              text-orange-800 dark:text-orange-200
+            "
+          >
+            <div className="flex items-center gap-2">
+              <Globe2 size={17} />
+              <span>
+                📡 Vous êtes hors connexion. Les idées déjà
+                chargées restent accessibles et vos nouvelles
+                soumissions peuvent être enregistrées localement.
+              </span>
+            </div>
+          </motion.div>
+        )}
 
         {/* =========================================================
             BARRE SUPÉRIEURE
@@ -430,6 +897,7 @@ const Projets: React.FC = () => {
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
 
                 {/* BOUTON 1 */}
+
                 <button
                   type="button"
                   onClick={ouvrirSoumission}
@@ -450,6 +918,7 @@ const Projets: React.FC = () => {
                 </button>
 
                 {/* BOUTON 2 */}
+
                 <button
                   type="button"
                   onClick={ouvrirMemoire}
@@ -528,9 +997,7 @@ const Projets: React.FC = () => {
 
         <section className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
 
-          {/* =====================================================
-              BLOC 1
-          ===================================================== */}
+          {/* BLOC 1 */}
 
           <motion.div
             initial={{ opacity: 0, y: 15 }}
@@ -584,9 +1051,7 @@ const Projets: React.FC = () => {
             </button>
           </motion.div>
 
-          {/* =====================================================
-              BLOC 2
-          ===================================================== */}
+          {/* BLOC 2 */}
 
           <motion.div
             initial={{ opacity: 0, y: 15 }}
@@ -620,7 +1085,9 @@ const Projets: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => setFenetreActive("fonctionnement")}
+              onClick={() =>
+                setFenetreActive("fonctionnement")
+              }
               className="
                 mt-5
                 inline-flex items-center justify-center gap-2
@@ -639,9 +1106,7 @@ const Projets: React.FC = () => {
             </button>
           </motion.div>
 
-          {/* =====================================================
-              BLOC 3
-          ===================================================== */}
+          {/* BLOC 3 */}
 
           <motion.div
             initial={{ opacity: 0, y: 15 }}
@@ -716,9 +1181,21 @@ const Projets: React.FC = () => {
               onClick={fermerFenetre}
             >
               <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                initial={{
+                  opacity: 0,
+                  scale: 0.95,
+                  y: 20,
+                }}
+                animate={{
+                  opacity: 1,
+                  scale: 1,
+                  y: 0,
+                }}
+                exit={{
+                  opacity: 0,
+                  scale: 0.95,
+                  y: 20,
+                }}
                 transition={{ duration: 0.25 }}
                 onClick={(e) => e.stopPropagation()}
                 className="
@@ -858,9 +1335,18 @@ const Projets: React.FC = () => {
                   <AnimatePresence>
                     {error && (
                       <motion.div
-                        initial={{ opacity: 0, y: -8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
+                        initial={{
+                          opacity: 0,
+                          y: -8,
+                        }}
+                        animate={{
+                          opacity: 1,
+                          y: 0,
+                        }}
+                        exit={{
+                          opacity: 0,
+                          y: -8,
+                        }}
                         className="
                           mb-6
                           rounded-xl
@@ -895,10 +1381,21 @@ const Projets: React.FC = () => {
                       {etape === 1 && (
                         <motion.div
                           key="etape1"
-                          initial={{ opacity: 0, x: 30 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -30 }}
-                          transition={{ duration: 0.25 }}
+                          initial={{
+                            opacity: 0,
+                            x: 30,
+                          }}
+                          animate={{
+                            opacity: 1,
+                            x: 0,
+                          }}
+                          exit={{
+                            opacity: 0,
+                            x: -30,
+                          }}
+                          transition={{
+                            duration: 0.25,
+                          }}
                         >
 
                           <div className="mb-6">
@@ -1092,10 +1589,21 @@ const Projets: React.FC = () => {
                       {etape === 2 && (
                         <motion.div
                           key="etape2"
-                          initial={{ opacity: 0, x: 30 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -30 }}
-                          transition={{ duration: 0.25 }}
+                          initial={{
+                            opacity: 0,
+                            x: 30,
+                          }}
+                          animate={{
+                            opacity: 1,
+                            x: 0,
+                          }}
+                          exit={{
+                            opacity: 0,
+                            x: -30,
+                          }}
+                          transition={{
+                            duration: 0.25,
+                          }}
                         >
 
                           <div className="mb-6">
@@ -1113,8 +1621,9 @@ const Projets: React.FC = () => {
                                 </h3>
 
                                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                                  Décrivez votre vision avec suffisamment
-                                  de détails.
+                                  Décrivez votre idée, le problème,
+                                  la solution, la vision et l'impact
+                                  que vous imaginez.
                                 </p>
 
                               </div>
@@ -1180,14 +1689,16 @@ const Projets: React.FC = () => {
                                   Choisir une catégorie
                                 </option>
 
-                                {categories.map((categorie) => (
-                                  <option
-                                    key={categorie}
-                                    value={categorie}
-                                  >
-                                    {categorie}
-                                  </option>
-                                ))}
+                                {categories.map(
+                                  (categorie) => (
+                                    <option
+                                      key={categorie}
+                                      value={categorie}
+                                    >
+                                      {categorie}
+                                    </option>
+                                  )
+                                )}
 
                               </select>
 
@@ -1251,6 +1762,40 @@ const Projets: React.FC = () => {
 
                             </div>
 
+                            {/* SOLUTION */}
+
+                            <div>
+
+                              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                                Quelle solution proposez-vous ?
+                              </label>
+
+                              <textarea
+                                name="solution"
+                                value={form.solution}
+                                onChange={handleChange}
+                                placeholder="Expliquez la solution que vous imaginez pour répondre au problème identifié..."
+                                rows={5}
+                                className="
+                                  w-full px-4 py-3
+                                  rounded-xl
+                                  border border-cyan-300 dark:border-cyan-800
+                                  bg-white dark:bg-slate-800
+                                  text-slate-900 dark:text-white
+                                  outline-none
+                                  focus:ring-2 focus:ring-cyan-500
+                                  resize-y
+                                "
+                              />
+
+                              <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+                                Décrivez les moyens, méthodes ou principes
+                                qui pourraient permettre de résoudre le
+                                problème.
+                              </p>
+
+                            </div>
+
                             {/* VISION */}
 
                             <div>
@@ -1279,6 +1824,40 @@ const Projets: React.FC = () => {
 
                             </div>
 
+                            {/* IMPACT */}
+
+                            <div>
+
+                              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                                Quel impact espérez-vous ?
+                              </label>
+
+                              <textarea
+                                name="impact"
+                                value={form.impact}
+                                onChange={handleChange}
+                                placeholder="Expliquez les effets positifs que votre projet pourrait produire pour les personnes, les communautés, l'environnement ou la société..."
+                                rows={5}
+                                className="
+                                  w-full px-4 py-3
+                                  rounded-xl
+                                  border border-orange-300 dark:border-orange-800
+                                  bg-white dark:bg-slate-800
+                                  text-slate-900 dark:text-white
+                                  outline-none
+                                  focus:ring-2 focus:ring-orange-500
+                                  resize-y
+                                "
+                              />
+
+                              <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+                                Vous pouvez expliquer les changements
+                                que cette idée pourrait produire à court,
+                                moyen ou long terme.
+                              </p>
+
+                            </div>
+
                           </div>
 
                         </motion.div>
@@ -1291,10 +1870,21 @@ const Projets: React.FC = () => {
                       {etape === 3 && (
                         <motion.div
                           key="etape3"
-                          initial={{ opacity: 0, x: 30 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -30 }}
-                          transition={{ duration: 0.25 }}
+                          initial={{
+                            opacity: 0,
+                            x: 30,
+                          }}
+                          animate={{
+                            opacity: 1,
+                            x: 0,
+                          }}
+                          exit={{
+                            opacity: 0,
+                            x: -30,
+                          }}
+                          transition={{
+                            duration: 0.25,
+                          }}
                         >
 
                           <div className="mb-6">
@@ -1336,7 +1926,7 @@ const Projets: React.FC = () => {
                               Résumé de votre proposition
                             </h4>
 
-                            <div className="space-y-2 text-sm">
+                            <div className="space-y-4 text-sm">
 
                               <p className="text-slate-600 dark:text-slate-300">
                                 <strong>Nom :</strong>{" "}
@@ -1350,13 +1940,74 @@ const Projets: React.FC = () => {
 
                               <p className="text-slate-600 dark:text-slate-300">
                                 <strong>Titre :</strong>{" "}
-                                {form.titre || "Non renseigné"}
+                                {form.titre ||
+                                  "Non renseigné"}
                               </p>
 
                               <p className="text-slate-600 dark:text-slate-300">
                                 <strong>Catégorie :</strong>{" "}
-                                {form.categorie || "Non renseignée"}
+                                {form.categorie ||
+                                  "Non renseignée"}
                               </p>
+
+                              <div>
+                                <p className="font-bold text-slate-700 dark:text-slate-200">
+                                  Description :
+                                </p>
+
+                                <p className="mt-1 text-slate-600 dark:text-slate-400 whitespace-pre-line line-clamp-4">
+                                  {form.description ||
+                                    "Non renseignée"}
+                                </p>
+                              </div>
+
+                              {form.probleme.trim() && (
+                                <div>
+                                  <p className="font-bold text-purple-700 dark:text-purple-400">
+                                    Problème :
+                                  </p>
+
+                                  <p className="mt-1 text-slate-600 dark:text-slate-400 whitespace-pre-line line-clamp-4">
+                                    {form.probleme}
+                                  </p>
+                                </div>
+                              )}
+
+                              {form.solution.trim() && (
+                                <div>
+                                  <p className="font-bold text-cyan-700 dark:text-cyan-400">
+                                    Solution :
+                                  </p>
+
+                                  <p className="mt-1 text-slate-600 dark:text-slate-400 whitespace-pre-line line-clamp-4">
+                                    {form.solution}
+                                  </p>
+                                </div>
+                              )}
+
+                              {form.vision.trim() && (
+                                <div>
+                                  <p className="font-bold text-green-700 dark:text-green-400">
+                                    Vision :
+                                  </p>
+
+                                  <p className="mt-1 text-slate-600 dark:text-slate-400 whitespace-pre-line line-clamp-4">
+                                    {form.vision}
+                                  </p>
+                                </div>
+                              )}
+
+                              {form.impact.trim() && (
+                                <div>
+                                  <p className="font-bold text-orange-700 dark:text-orange-400">
+                                    Impact :
+                                  </p>
+
+                                  <p className="mt-1 text-slate-600 dark:text-slate-400 whitespace-pre-line line-clamp-4">
+                                    {form.impact}
+                                  </p>
+                                </div>
+                              )}
 
                             </div>
 
@@ -1448,6 +2099,23 @@ const Projets: React.FC = () => {
                             liés à votre soumission.
                           </div>
 
+                          {isOffline && (
+                            <div className="
+                              mt-4
+                              rounded-xl
+                              bg-orange-50 dark:bg-orange-950/30
+                              border border-orange-200 dark:border-orange-900
+                              p-4
+                              text-sm
+                              text-orange-800 dark:text-orange-200
+                            ">
+                              <strong>Mode hors connexion :</strong>{" "}
+                              votre idée sera enregistrée sur cet appareil
+                              et envoyée automatiquement lorsque CODE
+                              pourra de nouveau communiquer avec le serveur.
+                            </div>
+                          )}
+
                         </motion.div>
                       )}
 
@@ -1484,7 +2152,9 @@ const Projets: React.FC = () => {
                         "
                       >
                         <ArrowLeft size={18} />
-                        {etape === 1 ? "Annuler" : "Précédent"}
+                        {etape === 1
+                          ? "Annuler"
+                          : "Précédent"}
                       </button>
 
                       {etape < 3 ? (
@@ -1538,7 +2208,9 @@ const Projets: React.FC = () => {
                           ) : (
                             <>
                               <Send size={18} />
-                              Soumettre mon idée
+                              {isOffline
+                                ? "Enregistrer mon idée"
+                                : "Soumettre mon idée"}
                             </>
                           )}
                         </button>
@@ -1574,9 +2246,21 @@ const Projets: React.FC = () => {
               onClick={fermerFenetre}
             >
               <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                initial={{
+                  opacity: 0,
+                  scale: 0.95,
+                  y: 20,
+                }}
+                animate={{
+                  opacity: 1,
+                  scale: 1,
+                  y: 0,
+                }}
+                exit={{
+                  opacity: 0,
+                  scale: 0.95,
+                  y: 20,
+                }}
                 transition={{ duration: 0.25 }}
                 onClick={(e) => e.stopPropagation()}
                 className="
@@ -1684,170 +2368,180 @@ const Projets: React.FC = () => {
                     </div>
                   )}
 
-                  {!loading && projets.length === 0 && (
-                    <div className="text-center py-20">
+                  {!loading &&
+                    projets.length === 0 && (
+                      <div className="text-center py-20">
 
-                      <div className="
-                        mx-auto
-                        w-16 h-16
-                        rounded-2xl
-                        bg-slate-100 dark:bg-slate-800
-                        flex items-center justify-center
-                        text-slate-400
-                      ">
-                        <Lightbulb size={28} />
-                      </div>
+                        <div className="
+                          mx-auto
+                          w-16 h-16
+                          rounded-2xl
+                          bg-slate-100 dark:bg-slate-800
+                          flex items-center justify-center
+                          text-slate-400
+                        ">
+                          <Lightbulb size={28} />
+                        </div>
 
-                      <h3 className="mt-5 text-lg font-bold text-slate-900 dark:text-white">
-                        La mémoire est encore vide
-                      </h3>
+                        <h3 className="mt-5 text-lg font-bold text-slate-900 dark:text-white">
+                          La mémoire est encore vide
+                        </h3>
 
-                      <p className="mt-2 max-w-md mx-auto text-sm text-slate-500 dark:text-slate-400">
-                        Aucune idée n'a encore été publiée.
-                        Vous pouvez être parmi les premières personnes
-                        à transmettre une idée aux générations futures.
-                      </p>
+                        <p className="mt-2 max-w-md mx-auto text-sm text-slate-500 dark:text-slate-400">
+                          Aucune idée n'a encore été publiée.
+                          Vous pouvez être parmi les premières personnes
+                          à transmettre une idée aux générations futures.
+                        </p>
 
-                      <button
-                        type="button"
-                        onClick={ouvrirSoumission}
-                        className="
-                          mt-6
-                          inline-flex items-center gap-2
-                          px-5 py-3
-                          rounded-xl
-                          bg-blue-600
-                          hover:bg-blue-700
-                          text-white
-                          font-bold
-                          transition
-                        "
-                      >
-                        <Lightbulb size={18} />
-                        Déposer une idée
-                      </button>
-
-                    </div>
-                  )}
-
-                  {!loading && projets.length > 0 && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
-                      {projets.map((projet, index) => (
-                        <motion.article
-                          key={projet.id}
-                          initial={{
-                            opacity: 0,
-                            y: 15,
-                          }}
-                          animate={{
-                            opacity: 1,
-                            y: 0,
-                          }}
-                          transition={{
-                            delay: Math.min(index * 0.05, 0.4),
-                          }}
+                        <button
+                          type="button"
+                          onClick={ouvrirSoumission}
                           className="
-                            group
-                            rounded-2xl
-                            border border-slate-200 dark:border-slate-800
-                            bg-slate-50/70 dark:bg-slate-800/40
-                            p-5
-                            hover:bg-white dark:hover:bg-slate-800
-                            hover:shadow-lg
+                            mt-6
+                            inline-flex items-center gap-2
+                            px-5 py-3
+                            rounded-xl
+                            bg-blue-600
+                            hover:bg-blue-700
+                            text-white
+                            font-bold
                             transition
                           "
                         >
+                          <Lightbulb size={18} />
+                          Déposer une idée
+                        </button>
 
-                          <div className="flex flex-wrap gap-2 mb-3">
+                      </div>
+                    )}
 
-                            {projet.categorie && (
-                              <span className="
-                                px-2.5 py-1
-                                rounded-full
-                                bg-purple-100 dark:bg-purple-950/50
-                                text-purple-700 dark:text-purple-300
-                                text-xs font-bold
-                              ">
-                                {projet.categorie}
-                              </span>
-                            )}
+                  {!loading &&
+                    projets.length > 0 && (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-                            <span className="
-                              px-2.5 py-1
-                              rounded-full
-                              bg-green-100 dark:bg-green-950/50
-                              text-green-700 dark:text-green-300
-                              text-xs font-bold
-                            ">
-                              Publié
-                            </span>
-
-                          </div>
-
-                          <h3 className="
-                            text-lg
-                            font-extrabold
-                            text-slate-900 dark:text-white
-                            line-clamp-2
-                          ">
-                            {projet.titre}
-                          </h3>
-
-                          <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-                            {projet.prenom} {projet.nom} ·{" "}
-                            {projet.pays}
-                          </p>
-
-                          {projet.date_publication && (
-                            <p className="text-xs text-slate-400 mt-1">
-                              Publié le{" "}
-                              {formatDate(
-                                projet.date_publication
-                              )}
-                            </p>
-                          )}
-
-                          <p className="
-                            mt-4
-                            text-sm
-                            text-slate-600 dark:text-slate-300
-                            leading-relaxed
-                            line-clamp-3
-                          ">
-                            {projet.description}
-                          </p>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setProjetSelectionne(projet)
-                            }
-                            className="
-                              mt-5
-                              inline-flex items-center gap-2
-                              text-sm
-                              font-bold
-                              text-blue-600 dark:text-blue-400
-                              hover:text-blue-800 dark:hover:text-blue-300
-                              transition
-                            "
-                          >
-                            Découvrir cette idée
-                            <ArrowRight
-                              size={16}
+                        {projets.map(
+                          (projet, index) => (
+                            <motion.article
+                              key={projet.id}
+                              initial={{
+                                opacity: 0,
+                                y: 15,
+                              }}
+                              animate={{
+                                opacity: 1,
+                                y: 0,
+                              }}
+                              transition={{
+                                delay: Math.min(
+                                  index * 0.05,
+                                  0.4
+                                ),
+                              }}
                               className="
-                                group-hover:translate-x-1
+                                group
+                                rounded-2xl
+                                border border-slate-200 dark:border-slate-800
+                                bg-slate-50/70 dark:bg-slate-800/40
+                                p-5
+                                hover:bg-white dark:hover:bg-slate-800
+                                hover:shadow-lg
                                 transition
                               "
-                            />
-                          </button>
+                            >
 
-                        </motion.article>
-                      ))}
+                              <div className="flex flex-wrap gap-2 mb-3">
 
-                    </div>
-                  )}
+                                {projet.categorie && (
+                                  <span className="
+                                    px-2.5 py-1
+                                    rounded-full
+                                    bg-purple-100 dark:bg-purple-950/50
+                                    text-purple-700 dark:text-purple-300
+                                    text-xs font-bold
+                                  ">
+                                    {projet.categorie}
+                                  </span>
+                                )}
+
+                                <span className="
+                                  px-2.5 py-1
+                                  rounded-full
+                                  bg-green-100 dark:bg-green-950/50
+                                  text-green-700 dark:text-green-300
+                                  text-xs font-bold
+                                ">
+                                  Publié
+                                </span>
+
+                              </div>
+
+                              <h3 className="
+                                text-lg
+                                font-extrabold
+                                text-slate-900 dark:text-white
+                                line-clamp-2
+                              ">
+                                {projet.titre}
+                              </h3>
+
+                              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
+                                {projet.prenom}{" "}
+                                {projet.nom} ·{" "}
+                                {projet.pays}
+                              </p>
+
+                              {projet.date_publication && (
+                                <p className="text-xs text-slate-400 mt-1">
+                                  Publié le{" "}
+                                  {formatDate(
+                                    projet.date_publication
+                                  )}
+                                </p>
+                              )}
+
+                              <p className="
+                                mt-4
+                                text-sm
+                                text-slate-600 dark:text-slate-300
+                                leading-relaxed
+                                line-clamp-3
+                              ">
+                                {projet.description}
+                              </p>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setProjetSelectionne(
+                                    projet
+                                  )
+                                }
+                                className="
+                                  mt-5
+                                  inline-flex items-center gap-2
+                                  text-sm
+                                  font-bold
+                                  text-blue-600 dark:text-blue-400
+                                  hover:text-blue-800 dark:hover:text-blue-300
+                                  transition
+                                "
+                              >
+                                Découvrir cette idée
+                                <ArrowRight
+                                  size={16}
+                                  className="
+                                    group-hover:translate-x-1
+                                    transition
+                                  "
+                                />
+                              </button>
+
+                            </motion.article>
+                          )
+                        )}
+
+                      </div>
+                    )}
 
                 </div>
 
@@ -2160,7 +2854,9 @@ const Projets: React.FC = () => {
                 flex items-center justify-center
                 p-4
               "
-              onClick={() => setProjetSelectionne(null)}
+              onClick={() =>
+                setProjetSelectionne(null)
+              }
             >
 
               <motion.div
@@ -2281,6 +2977,8 @@ const Projets: React.FC = () => {
 
                 <div className="p-6 md:p-8 space-y-7">
 
+                  {/* L'IDÉE */}
+
                   <div>
 
                     <h3 className="
@@ -2303,6 +3001,8 @@ const Projets: React.FC = () => {
                     </p>
 
                   </div>
+
+                  {/* LE PROBLÈME */}
 
                   {projetSelectionne.probleme && (
                     <div>
@@ -2329,6 +3029,35 @@ const Projets: React.FC = () => {
                     </div>
                   )}
 
+                  {/* LA SOLUTION */}
+
+                  {projetSelectionne.solution && (
+                    <div>
+
+                      <h3 className="
+                        text-sm
+                        uppercase
+                        tracking-wider
+                        font-bold
+                        text-cyan-600 dark:text-cyan-400
+                      ">
+                        La solution
+                      </h3>
+
+                      <p className="
+                        mt-3
+                        text-slate-700 dark:text-slate-300
+                        leading-relaxed
+                        whitespace-pre-line
+                      ">
+                        {projetSelectionne.solution}
+                      </p>
+
+                    </div>
+                  )}
+
+                  {/* LA VISION */}
+
                   {projetSelectionne.vision && (
                     <div>
 
@@ -2353,6 +3082,35 @@ const Projets: React.FC = () => {
 
                     </div>
                   )}
+
+                  {/* L'IMPACT */}
+
+                  {projetSelectionne.impact && (
+                    <div>
+
+                      <h3 className="
+                        text-sm
+                        uppercase
+                        tracking-wider
+                        font-bold
+                        text-orange-600 dark:text-orange-400
+                      ">
+                        L'impact
+                      </h3>
+
+                      <p className="
+                        mt-3
+                        text-slate-700 dark:text-slate-300
+                        leading-relaxed
+                        whitespace-pre-line
+                      ">
+                        {projetSelectionne.impact}
+                      </p>
+
+                    </div>
+                  )}
+
+                  {/* DATE */}
 
                   {projetSelectionne.date_publication && (
                     <div className="
@@ -2404,4 +3162,3 @@ const Projets: React.FC = () => {
 };
 
 export default Projets;
-

@@ -1,3 +1,4 @@
+
 // 📁 Layout.tsx
 
 import React, {
@@ -31,6 +32,9 @@ import {
   X,
   CheckCircle2,
   Clock3,
+  BookOpen,
+  Menu,
+  ChevronRight,
 } from "lucide-react";
 
 import api from "@/utils/axios";
@@ -169,6 +173,15 @@ const Layout: React.FC<LayoutProps> = ({
     isVisible,
     setIsVisible,
   ] = useState(true);
+
+  // ==========================================================
+  // 📂 MENU LATÉRAL
+  // ==========================================================
+
+  const [
+    menuOpen,
+    setMenuOpen,
+  ] = useState(false);
 
   // ==========================================================
   // 🌐 ÉTAT TRADUCTION
@@ -472,6 +485,46 @@ const Layout: React.FC<LayoutProps> = ({
       );
     };
   }, [user]);
+
+  // ============================================================
+  // 📂 FERMER LE MENU LORS D'UN CHANGEMENT DE PAGE
+  // ============================================================
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
+
+  // ============================================================
+  // 📂 FERMER AVEC LA TOUCHE ESC
+  // ============================================================
+
+  useEffect(() => {
+    if (!menuOpen) {
+      return;
+    }
+
+    const handleKeyDown = (
+      event: KeyboardEvent
+    ) => {
+      if (
+        event.key === "Escape"
+      ) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener(
+      "keydown",
+      handleKeyDown
+    );
+
+    return () => {
+      document.removeEventListener(
+        "keydown",
+        handleKeyDown
+      );
+    };
+  }, [menuOpen]);
 
   // ============================================================
   // 🌆 DIAPORAMA BACKGROUND
@@ -1575,14 +1628,6 @@ const Layout: React.FC<LayoutProps> = ({
   // 🏫 LOGIQUE ECOLE
   // ============================================================
 
-  /*
-   * Un apprenant simple est un utilisateur :
-   * - qui n'est pas admin ;
-   * - qui n'est pas enseignant.
-   *
-   * Le directeur est ensuite exclu avec schoolIsDirector.
-   */
-
   const isSimpleLearner =
     !!user &&
     user.is_admin !== true &&
@@ -1663,17 +1708,6 @@ const Layout: React.FC<LayoutProps> = ({
   // ============================================================
   // 🏫 RAFRAÎCHISSEMENT PÉRIODIQUE
   // ============================================================
-
-  /*
-   * Toutes les heures, on vérifie auprès du backend.
-   *
-   * Cela permet notamment de détecter le changement
-   * d'année scolaire même si l'apprenant garde
-   * CODE ouvert.
-   *
-   * Le backend reste la source de vérité pour
-   * le 1er septembre.
-   */
 
   useEffect(() => {
     if (!isSimpleLearner) {
@@ -1787,6 +1821,8 @@ const Layout: React.FC<LayoutProps> = ({
 
   const handleOpenSchoolModal =
     async () => {
+      setMenuOpen(false);
+
       setSchoolModalOpen(true);
       setSchoolError("");
       setSchoolSuccess("");
@@ -1840,11 +1876,6 @@ const Layout: React.FC<LayoutProps> = ({
           "Votre demande a été envoyée. Elle doit maintenant être validée par le directeur de l'école."
         );
 
-        /*
-         * Actualiser immédiatement la liste
-         * et surtout can_choose_school.
-         */
-
         await loadSchoolData();
 
         await refreshLearnerSchoolStatus();
@@ -1869,20 +1900,6 @@ const Layout: React.FC<LayoutProps> = ({
   // ============================================================
   // 🏫 BOUTON CHOIX ECOLE
   // ============================================================
-
-  /*
-   * Le backend décide si l'apprenant peut choisir.
-   *
-   * Donc :
-   *
-   * admin       => false
-   * enseignant  => false
-   * directeur   => false
-   * pending     => false
-   * approved    => false
-   * rejected    => true
-   * nouvelle année => true si aucune école
-   */
 
   const showSchoolChoiceButton =
     isSimpleLearner &&
@@ -1921,6 +1938,8 @@ const Layout: React.FC<LayoutProps> = ({
 
   const handleLogout =
     async () => {
+      setMenuOpen(false);
+
       if (user?.email) {
         try {
           await api.post(
@@ -2038,120 +2057,972 @@ const Layout: React.FC<LayoutProps> = ({
       <AudioManager />
 
       {/* ======================================================
-          🌐 BOUTON TRADUCTION
+          ☰ BOUTON UNIQUE DU MENU
+          
+          Le bouton du mode sombre n'est volontairement
+          PAS regroupé ici.
           ====================================================== */}
 
       <div
-        data-no-translate
-        className="
-          fixed
-          top-16
-          right-4
-          z-50
-        "
-      >
-        <div
+  data-no-translate
+  className="
+    fixed
+    bottom-10
+    right-4
+    z-[70]
+  "
+>
+        <button
+          type="button"
+          onClick={() =>
+            setMenuOpen(true)
+          }
           className="
-            group
-            relative
+            flex
+            h-12
+            w-12
+            items-center
+            justify-center
+            rounded-full
+            border
+            border-white/20
+            bg-black/70
+            text-white
+            shadow-xl
+            backdrop-blur-md
+            transition-all
+            duration-300
+            hover:scale-110
+            hover:bg-black/85
+            focus:outline-none
+            focus:ring-2
+            focus:ring-white/70
+          "
+          aria-label="Ouvrir le menu"
+          title="Menu"
+        >
+          <Menu size={24} />
+        </button>
+      </div>
+
+      {/* ======================================================
+          📂 FENÊTRE LATÉRALE DU MENU
+          ====================================================== */}
+
+      {menuOpen && (
+        <div
+          data-no-translate
+          className="
+            fixed
+            inset-0
+            z-[200]
           "
         >
+
+          {/* ==================================================
+              FOND SOMBRE
+              ================================================== */}
+
           <button
             type="button"
-            onClick={
-              traductionActive
-                ? restaurerFrancais
-                : traduirePage
+            aria-label="Fermer le menu"
+            onClick={() =>
+              setMenuOpen(false)
             }
-            disabled={
-              traductionEnCours
-            }
-            className={`
-              flex
-              items-center
-              gap-2
-              rounded-full
-              px-4
-              py-3
-              text-white
-              shadow-xl
-              transition-all
-              duration-300
-              hover:scale-105
-              focus:outline-none
-              focus:ring-2
-              disabled:cursor-not-allowed
-              disabled:opacity-70
-              ${
-                traductionActive
-                  ? "bg-gray-700 hover:bg-gray-800 focus:ring-gray-500"
-                  : "bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500"
-              }
-            `}
-            aria-label={
-              traductionActive
-                ? "Revenir au français"
-                : "Traduire la page en anglais"
-            }
-          >
-            {traductionEnCours ? (
-              <Loader2
-                size={20}
-                className="
-                  animate-spin
-                "
-              />
-            ) : traductionActive ? (
-              <RotateCcw
-                size={20}
-              />
-            ) : (
-              <Languages
-                size={20}
-              />
-            )}
+            className="
+              absolute
+              inset-0
+              h-full
+              w-full
+              cursor-default
+              bg-black/55
+              backdrop-blur-[2px]
+            "
+          />
 
-            <span
-              className="
-                hidden
-                sm:inline
-                font-semibold
-                text-sm
-              "
-            >
-              {traductionEnCours
-                ? "Traduction..."
-                : traductionActive
-                  ? "Français"
-                  : "English"}
-            </span>
-          </button>
+          {/* ==================================================
+              BARRE LATÉRALE
+              ================================================== */}
 
-          <span
+          <aside
             className="
               absolute
               right-0
-              top-14
-              opacity-0
-              group-hover:opacity-100
-              bg-black/80
-              text-white
-              text-xs
-              rounded-md
-              px-3
-              py-2
-              whitespace-nowrap
-              transition-opacity
-              duration-300
-              pointer-events-none
+              top-0
+              flex
+              h-full
+              w-full
+              max-w-sm
+              flex-col
+              overflow-hidden
+              border-l
+              border-slate-200
+              bg-white
+              shadow-2xl
+              dark:border-slate-700
+              dark:bg-slate-950
             "
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu principal"
           >
-            {traductionActive
-              ? "Revenir au français"
-              : "Traduire cette page en anglais"}
-          </span>
+
+            {/* ==================================================
+                HEADER
+                ================================================== */}
+
+            <div
+              className="
+                flex
+                shrink-0
+                items-center
+                justify-between
+                border-b
+                border-slate-200
+                bg-white
+                px-5
+                py-4
+                dark:border-slate-800
+                dark:bg-slate-950
+              "
+            >
+              <div>
+                <p
+                  className="
+                    text-xs
+                    font-semibold
+                    uppercase
+                    tracking-[0.15em]
+                    text-emerald-600
+                    dark:text-emerald-400
+                  "
+                >
+                  CODE
+                </p>
+
+                <h2
+                  className="
+                    mt-0.5
+                    text-xl
+                    font-bold
+                    text-slate-900
+                    dark:text-white
+                  "
+                >
+                  Menu
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setMenuOpen(false)
+                }
+                className="
+                  flex
+                  h-10
+                  w-10
+                  items-center
+                  justify-center
+                  rounded-full
+                  text-slate-500
+                  transition
+                  hover:bg-slate-100
+                  hover:text-slate-900
+                  focus:outline-none
+                  focus:ring-2
+                  focus:ring-emerald-500
+                  dark:text-slate-400
+                  dark:hover:bg-slate-800
+                  dark:hover:text-white
+                "
+                aria-label="Fermer le menu"
+                title="Fermer"
+              >
+                <X size={23} />
+              </button>
+            </div>
+
+            {/* ==================================================
+                CONTENU DU MENU
+                ================================================== */}
+
+            <div
+              className="
+                flex-1
+                overflow-y-auto
+                px-4
+                py-5
+              "
+            >
+
+              {/* =================================================
+                  SECTION : ACCÈS RAPIDES
+                  ================================================= */}
+
+              <div className="mb-6">
+                <p
+                  className="
+                    mb-3
+                    px-2
+                    text-xs
+                    font-bold
+                    uppercase
+                    tracking-wider
+                    text-slate-400
+                    dark:text-slate-500
+                  "
+                >
+                  Accès rapides
+                </p>
+
+                <div className="space-y-2">
+
+                  {/* =============================================
+                      MES DOCUMENTS
+                      ============================================= */}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigate(
+                        "/mes-documents"
+                      );
+                    }}
+                    className="
+                      flex
+                      w-full
+                      items-center
+                      gap-3
+                      rounded-xl
+                      border
+                      border-emerald-100
+                      bg-emerald-50
+                      px-4
+                      py-3.5
+                      text-left
+                      transition
+                      hover:border-emerald-200
+                      hover:bg-emerald-100
+                      focus:outline-none
+                      focus:ring-2
+                      focus:ring-emerald-500
+                      dark:border-emerald-900/50
+                      dark:bg-emerald-950/40
+                      dark:hover:bg-emerald-900/50
+                    "
+                  >
+                    <span
+                      className="
+                        flex
+                        h-10
+                        w-10
+                        shrink-0
+                        items-center
+                        justify-center
+                        rounded-xl
+                        bg-emerald-600
+                        text-white
+                        shadow-sm
+                      "
+                    >
+                      <BookOpen
+                        size={21}
+                      />
+                    </span>
+
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className="
+                          block
+                          font-semibold
+                          text-slate-900
+                          dark:text-white
+                        "
+                      >
+                        Mes documents
+                      </span>
+
+                      <span
+                        className="
+                          mt-0.5
+                          block
+                          text-xs
+                          text-slate-500
+                          dark:text-slate-400
+                        "
+                      >
+                        Accéder à mes documents sécurisés
+                      </span>
+                    </span>
+
+                    <ChevronRight
+                      size={19}
+                      className="
+                        shrink-0
+                        text-slate-400
+                      "
+                    />
+                  </button>
+
+                </div>
+              </div>
+
+              {/* =================================================
+                  SECTION : LANGUE
+                  ================================================= */}
+
+              <div className="mb-6">
+                <p
+                  className="
+                    mb-3
+                    px-2
+                    text-xs
+                    font-bold
+                    uppercase
+                    tracking-wider
+                    text-slate-400
+                    dark:text-slate-500
+                  "
+                >
+                  Langue
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (
+                      traductionActive
+                    ) {
+                      restaurerFrancais();
+                    } else {
+                      void traduirePage();
+                    }
+                  }}
+                  disabled={
+                    traductionEnCours
+                  }
+                  className="
+                    flex
+                    w-full
+                    items-center
+                    gap-3
+                    rounded-xl
+                    border
+                    border-slate-200
+                    bg-slate-50
+                    px-4
+                    py-3.5
+                    text-left
+                    transition
+                    hover:bg-slate-100
+                    disabled:cursor-not-allowed
+                    disabled:opacity-60
+                    focus:outline-none
+                    focus:ring-2
+                    focus:ring-emerald-500
+                    dark:border-slate-700
+                    dark:bg-slate-900
+                    dark:hover:bg-slate-800
+                  "
+                  aria-label={
+                    traductionActive
+                      ? "Revenir au français"
+                      : "Traduire la page en anglais"
+                  }
+                >
+                  <span
+                    className={`
+                      flex
+                      h-10
+                      w-10
+                      shrink-0
+                      items-center
+                      justify-center
+                      rounded-xl
+                      text-white
+                      ${
+                        traductionActive
+                          ? "bg-slate-700"
+                          : "bg-emerald-600"
+                      }
+                    `}
+                  >
+                    {traductionEnCours ? (
+                      <Loader2
+                        size={21}
+                        className="animate-spin"
+                      />
+                    ) : traductionActive ? (
+                      <RotateCcw
+                        size={21}
+                      />
+                    ) : (
+                      <Languages
+                        size={21}
+                      />
+                    )}
+                  </span>
+
+                  <span className="min-w-0 flex-1">
+                    <span
+                      className="
+                        block
+                        font-semibold
+                        text-slate-900
+                        dark:text-white
+                      "
+                    >
+                      {traductionEnCours
+                        ? "Traduction en cours..."
+                        : traductionActive
+                          ? "Revenir au français"
+                          : "English"}
+                    </span>
+
+                    <span
+                      className="
+                        mt-0.5
+                        block
+                        text-xs
+                        text-slate-500
+                        dark:text-slate-400
+                      "
+                    >
+                      {traductionActive
+                        ? "Repasser l'interface en français"
+                        : "Traduire la page actuelle en anglais"}
+                    </span>
+                  </span>
+
+                  {!traductionEnCours && (
+                    <ChevronRight
+                      size={19}
+                      className="
+                        shrink-0
+                        text-slate-400
+                      "
+                    />
+                  )}
+                </button>
+              </div>
+
+              {/* =================================================
+                  SECTION UTILISATEUR
+                  ================================================= */}
+
+              {user && (
+                <div className="mb-6">
+                  <p
+                    className="
+                      mb-3
+                      px-2
+                      text-xs
+                      font-bold
+                      uppercase
+                      tracking-wider
+                      text-slate-400
+                      dark:text-slate-500
+                    "
+                  >
+                    Mon espace
+                  </p>
+
+                  <div className="space-y-2">
+
+                    {/* ===========================================
+                        CHOISIR MON ÉCOLE
+                        =========================================== */}
+
+                    {showSchoolChoiceButton && (
+                      <button
+                        type="button"
+                        onClick={
+                          handleOpenSchoolModal
+                        }
+                        className="
+                          flex
+                          w-full
+                          items-center
+                          gap-3
+                          rounded-xl
+                          border
+                          border-slate-200
+                          bg-slate-50
+                          px-4
+                          py-3.5
+                          text-left
+                          transition
+                          hover:border-blue-200
+                          hover:bg-blue-50
+                          focus:outline-none
+                          focus:ring-2
+                          focus:ring-blue-500
+                          dark:border-slate-700
+                          dark:bg-slate-900
+                          dark:hover:bg-blue-950/40
+                        "
+                      >
+                        <span
+                          className="
+                            flex
+                            h-10
+                            w-10
+                            shrink-0
+                            items-center
+                            justify-center
+                            rounded-xl
+                            bg-blue-600
+                            text-white
+                          "
+                        >
+                          <School
+                            size={21}
+                          />
+                        </span>
+
+                        <span className="min-w-0 flex-1">
+                          <span
+                            className="
+                              block
+                              font-semibold
+                              text-slate-900
+                              dark:text-white
+                            "
+                          >
+                            Choisir mon école
+                          </span>
+
+                          <span
+                            className="
+                              mt-0.5
+                              block
+                              text-xs
+                              text-slate-500
+                              dark:text-slate-400
+                            "
+                          >
+                            Sélectionner mon établissement
+                          </span>
+                        </span>
+
+                        <ChevronRight
+                          size={19}
+                          className="
+                            shrink-0
+                            text-slate-400
+                          "
+                        />
+                      </button>
+                    )}
+
+                    {/* ===========================================
+                        QUESTIONS
+                        =========================================== */}
+
+                    {canAccessQuestions && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          navigate(
+                            "/questions"
+                          );
+                        }}
+                        className="
+                          flex
+                          w-full
+                          items-center
+                          gap-3
+                          rounded-xl
+                          border
+                          border-slate-200
+                          bg-slate-50
+                          px-4
+                          py-3.5
+                          text-left
+                          transition
+                          hover:border-indigo-200
+                          hover:bg-indigo-50
+                          focus:outline-none
+                          focus:ring-2
+                          focus:ring-indigo-500
+                          dark:border-slate-700
+                          dark:bg-slate-900
+                          dark:hover:bg-indigo-950/40
+                        "
+                      >
+                        <span
+                          className="
+                            flex
+                            h-10
+                            w-10
+                            shrink-0
+                            items-center
+                            justify-center
+                            rounded-xl
+                            bg-indigo-600
+                            text-white
+                          "
+                        >
+                          <MessageCircle
+                            size={21}
+                          />
+                        </span>
+
+                        <span className="min-w-0 flex-1">
+                          <span
+                            className="
+                              block
+                              font-semibold
+                              text-slate-900
+                              dark:text-white
+                            "
+                          >
+                            Mes questions
+                          </span>
+
+                          <span
+                            className="
+                              mt-0.5
+                              block
+                              text-xs
+                              text-slate-500
+                              dark:text-slate-400
+                            "
+                          >
+                            Questions et conversations
+                          </span>
+                        </span>
+
+                        <ChevronRight
+                          size={19}
+                          className="
+                            shrink-0
+                            text-slate-400
+                          "
+                        />
+                      </button>
+                    )}
+
+                    {/* ===========================================
+                        ENSEIGNANT
+                        =========================================== */}
+
+                    {canAccessTeacherQuestions && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          navigate(
+                            "/enseignant/questions"
+                          );
+                        }}
+                        className="
+                          flex
+                          w-full
+                          items-center
+                          gap-3
+                          rounded-xl
+                          border
+                          border-slate-200
+                          bg-slate-50
+                          px-4
+                          py-3.5
+                          text-left
+                          transition
+                          hover:border-purple-200
+                          hover:bg-purple-50
+                          focus:outline-none
+                          focus:ring-2
+                          focus:ring-purple-500
+                          dark:border-slate-700
+                          dark:bg-slate-900
+                          dark:hover:bg-purple-950/40
+                        "
+                      >
+                        <span
+                          className="
+                            flex
+                            h-10
+                            w-10
+                            shrink-0
+                            items-center
+                            justify-center
+                            rounded-xl
+                            bg-purple-600
+                            text-white
+                          "
+                        >
+                          <GraduationCap
+                            size={21}
+                          />
+                        </span>
+
+                        <span className="min-w-0 flex-1">
+                          <span
+                            className="
+                              block
+                              font-semibold
+                              text-slate-900
+                              dark:text-white
+                            "
+                          >
+                            Espace enseignant
+                          </span>
+
+                          <span
+                            className="
+                              mt-0.5
+                              block
+                              text-xs
+                              text-slate-500
+                              dark:text-slate-400
+                            "
+                          >
+                            Questions destinées aux enseignants
+                          </span>
+                        </span>
+
+                        <ChevronRight
+                          size={19}
+                          className="
+                            shrink-0
+                            text-slate-400
+                          "
+                        />
+                      </button>
+                    )}
+
+                    {/* ===========================================
+                        FILLEULS
+                        =========================================== */}
+
+                    {!hideFilleulsButton && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          navigate(
+                            `/admin/parrain/${encodeURIComponent(
+                              user.email
+                            )}`
+                          );
+                        }}
+                        className="
+                          flex
+                          w-full
+                          items-center
+                          gap-3
+                          rounded-xl
+                          border
+                          border-slate-200
+                          bg-slate-50
+                          px-4
+                          py-3.5
+                          text-left
+                          transition
+                          hover:border-blue-200
+                          hover:bg-blue-50
+                          focus:outline-none
+                          focus:ring-2
+                          focus:ring-blue-500
+                          dark:border-slate-700
+                          dark:bg-slate-900
+                          dark:hover:bg-blue-950/40
+                        "
+                      >
+                        <span
+                          className="
+                            flex
+                            h-10
+                            w-10
+                            shrink-0
+                            items-center
+                            justify-center
+                            rounded-xl
+                            bg-blue-600
+                            text-white
+                          "
+                        >
+                          <Users
+                            size={21}
+                          />
+                        </span>
+
+                        <span className="min-w-0 flex-1">
+                          <span
+                            className="
+                              block
+                              font-semibold
+                              text-slate-900
+                              dark:text-white
+                            "
+                          >
+                            Mes filleuls
+                          </span>
+
+                          <span
+                            className="
+                              mt-0.5
+                              block
+                              text-xs
+                              text-slate-500
+                              dark:text-slate-400
+                            "
+                          >
+                            Accéder aux filleuls
+                          </span>
+                        </span>
+
+                        <ChevronRight
+                          size={19}
+                          className="
+                            shrink-0
+                            text-slate-400
+                          "
+                        />
+                      </button>
+                    )}
+
+                  </div>
+                </div>
+              )}
+
+              {/* =================================================
+                  SECTION COMPTE
+                  ================================================= */}
+
+              {user && (
+                <div className="mb-2">
+                  <p
+                    className="
+                      mb-3
+                      px-2
+                      text-xs
+                      font-bold
+                      uppercase
+                      tracking-wider
+                      text-slate-400
+                      dark:text-slate-500
+                    "
+                  >
+                    Compte
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={
+                      handleLogout
+                    }
+                    className="
+                      flex
+                      w-full
+                      items-center
+                      gap-3
+                      rounded-xl
+                      border
+                      border-red-200
+                      bg-red-50
+                      px-4
+                      py-3.5
+                      text-left
+                      transition
+                      hover:bg-red-100
+                      focus:outline-none
+                      focus:ring-2
+                      focus:ring-red-500
+                      dark:border-red-900/60
+                      dark:bg-red-950/30
+                      dark:hover:bg-red-950/60
+                    "
+                  >
+                    <span
+                      className="
+                        flex
+                        h-10
+                        w-10
+                        shrink-0
+                        items-center
+                        justify-center
+                        rounded-xl
+                        bg-red-600
+                        text-white
+                      "
+                    >
+                      <LogOut
+                        size={21}
+                      />
+                    </span>
+
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className="
+                          block
+                          font-semibold
+                          text-red-700
+                          dark:text-red-400
+                        "
+                      >
+                        Déconnexion
+                      </span>
+
+                      <span
+                        className="
+                          mt-0.5
+                          block
+                          text-xs
+                          text-red-600/70
+                          dark:text-red-400/70
+                        "
+                      >
+                        Se déconnecter de CODE
+                      </span>
+                    </span>
+
+                    <ChevronRight
+                      size={19}
+                      className="
+                        shrink-0
+                        text-red-400
+                      "
+                    />
+                  </button>
+                </div>
+              )}
+
+            </div>
+
+            {/* ==================================================
+                PIED DE MENU
+                ================================================== */}
+
+            <div
+              className="
+                shrink-0
+                border-t
+                border-slate-200
+                px-5
+                py-3
+                dark:border-slate-800
+              "
+            >
+              <p
+                className="
+                  text-center
+                  text-xs
+                  text-slate-400
+                  dark:text-slate-500
+                "
+              >
+                CODE — L’écosystème éducatif mondial
+              </p>
+            </div>
+
+          </aside>
         </div>
-      </div>
+      )}
 
       {/* ======================================================
           ⚠️ ERREUR TRADUCTION
@@ -2162,9 +3033,9 @@ const Layout: React.FC<LayoutProps> = ({
           data-no-translate
           className="
             fixed
-            top-32
-            right-4
-            z-50
+            top-20
+            right-20
+            z-[80]
             max-w-xs
             rounded-xl
             border
@@ -2182,557 +3053,6 @@ const Layout: React.FC<LayoutProps> = ({
         >
           {erreurTraduction}
         </div>
-      )}
-
-      {/* ======================================================
-          👤 BOUTONS UTILISATEUR
-          ====================================================== */}
-
-      {user && (
-        <>
-
-          {/* ==================================================
-              🖥️ DESKTOP — DÉCONNEXION
-              ================================================== */}
-
-          <div
-            data-no-translate
-            className="
-              hidden
-              sm:flex
-              fixed
-              top-4
-              left-4
-              z-40
-              flex-col
-              items-start
-              gap-3
-            "
-          >
-            <div
-              className="
-                group
-                relative
-              "
-            >
-              <button
-                onClick={
-                  handleLogout
-                }
-                className="
-                  bg-red-600
-                  hover:bg-red-700
-                  text-white
-                  p-3
-                  rounded-full
-                  shadow-lg
-                  transition-all
-                  duration-300
-                  transform
-                  hover:scale-110
-                  focus:outline-none
-                  focus:ring-2
-                  focus:ring-red-500
-                "
-                aria-label="Déconnexion"
-              >
-                <LogOut
-                  size={22}
-                />
-              </button>
-
-              <span
-                className="
-                  absolute
-                  left-14
-                  top-1/2
-                  -translate-y-1/2
-                  opacity-0
-                  group-hover:opacity-100
-                  bg-black/80
-                  text-white
-                  text-xs
-                  rounded-md
-                  px-2
-                  py-1
-                  whitespace-nowrap
-                  transition-opacity
-                  duration-300
-                  pointer-events-none
-                "
-              >
-                Déconnexion
-              </span>
-            </div>
-          </div>
-
-          {/* ==================================================
-              🖥️ DESKTOP
-              BOUTONS ECOLE / QUESTIONS / ENSEIGNANT / FILLEULS
-              ================================================== */}
-
-          <div
-            data-no-translate
-            className="
-              hidden
-              sm:flex
-              fixed
-              bottom-4
-              right-4
-              z-40
-              flex-col
-              items-end
-              gap-3
-            "
-          >
-
-            {/* =================================================
-                🏫 CHOISIR MON ÉCOLE
-                ================================================= */}
-
-            {showSchoolChoiceButton && (
-              <div
-                className="
-                  group
-                  relative
-                "
-              >
-                <button
-                  onClick={
-                    handleOpenSchoolModal
-                  }
-                  className="
-                    bg-blue-600
-                    hover:bg-blue-700
-                    text-white
-                    p-3
-                    rounded-full
-                    shadow-lg
-                    transition-all
-                    duration-300
-                    transform
-                    hover:scale-110
-                    focus:outline-none
-                    focus:ring-2
-                    focus:ring-blue-500
-                  "
-                  aria-label="Choisir mon école"
-                >
-                  <School
-                    size={22}
-                  />
-                </button>
-
-                <span
-                  className="
-                    absolute
-                    right-14
-                    top-1/2
-                    -translate-y-1/2
-                    opacity-0
-                    group-hover:opacity-100
-                    bg-black/80
-                    text-white
-                    text-xs
-                    rounded-md
-                    px-2
-                    py-1
-                    whitespace-nowrap
-                    transition-opacity
-                    duration-300
-                    pointer-events-none
-                  "
-                >
-                  Choisir mon école
-                </span>
-              </div>
-            )}
-
-            {/* =================================================
-                💬 QUESTIONS
-                ================================================= */}
-
-            {canAccessQuestions && (
-              <div
-                className="
-                  group
-                  relative
-                "
-              >
-                <button
-                  onClick={() =>
-                    navigate(
-                      "/questions"
-                    )
-                  }
-                  className="
-                    bg-indigo-600
-                    hover:bg-indigo-700
-                    text-white
-                    p-3
-                    rounded-full
-                    shadow-lg
-                    transition-all
-                    duration-300
-                    transform
-                    hover:scale-110
-                    focus:outline-none
-                    focus:ring-2
-                    focus:ring-indigo-500
-                  "
-                  aria-label="Mes questions"
-                >
-                  <MessageCircle
-                    size={22}
-                  />
-                </button>
-
-                <span
-                  className="
-                    absolute
-                    right-14
-                    top-1/2
-                    -translate-y-1/2
-                    opacity-0
-                    group-hover:opacity-100
-                    bg-black/80
-                    text-white
-                    text-xs
-                    rounded-md
-                    px-2
-                    py-1
-                    whitespace-nowrap
-                    transition-opacity
-                    duration-300
-                    pointer-events-none
-                  "
-                >
-                  Mes questions et conversations
-                </span>
-              </div>
-            )}
-
-            {/* =================================================
-                👨‍🏫 ENSEIGNANT
-                ================================================= */}
-
-            {canAccessTeacherQuestions && (
-              <div
-                className="
-                  group
-                  relative
-                "
-              >
-                <button
-                  onClick={() =>
-                    navigate(
-                      "/enseignant/questions"
-                    )
-                  }
-                  className="
-                    bg-purple-600
-                    hover:bg-purple-700
-                    text-white
-                    p-3
-                    rounded-full
-                    shadow-lg
-                    transition-all
-                    duration-300
-                    transform
-                    hover:scale-110
-                    focus:outline-none
-                    focus:ring-2
-                    focus:ring-purple-500
-                  "
-                  aria-label="Questions enseignant"
-                >
-                  <GraduationCap
-                    size={22}
-                  />
-                </button>
-
-                <span
-                  className="
-                    absolute
-                    right-14
-                    top-1/2
-                    -translate-y-1/2
-                    opacity-0
-                    group-hover:opacity-100
-                    bg-black/80
-                    text-white
-                    text-xs
-                    rounded-md
-                    px-2
-                    py-1
-                    whitespace-nowrap
-                    transition-opacity
-                    duration-300
-                    pointer-events-none
-                  "
-                >
-                  Questions destinées aux enseignants
-                </span>
-              </div>
-            )}
-
-            {/* =================================================
-                👥 FILLEULS
-                ================================================= */}
-
-            {!hideFilleulsButton && (
-              <div
-                className="
-                  group
-                  relative
-                "
-              >
-                <button
-                  onClick={() =>
-                    navigate(
-                      `/admin/parrain/${encodeURIComponent(
-                        user.email
-                      )}`
-                    )
-                  }
-                  className="
-                    bg-blue-600
-                    hover:bg-blue-700
-                    text-white
-                    p-3
-                    rounded-full
-                    shadow-lg
-                    transition-all
-                    duration-300
-                    transform
-                    hover:scale-110
-                    focus:outline-none
-                    focus:ring-2
-                    focus:ring-blue-500
-                  "
-                  aria-label="Filleuls"
-                >
-                  <Users
-                    size={22}
-                  />
-                </button>
-
-                <span
-                  className="
-                    absolute
-                    right-14
-                    top-1/2
-                    -translate-y-1/2
-                    opacity-0
-                    group-hover:opacity-100
-                    bg-black/80
-                    text-white
-                    text-xs
-                    rounded-md
-                    px-2
-                    py-1
-                    whitespace-nowrap
-                    transition-opacity
-                    duration-300
-                    pointer-events-none
-                  "
-                >
-                  Accéder aux filleuls
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* ==================================================
-              📱 MOBILE
-              ================================================== */}
-
-          <div
-            data-no-translate
-            className="
-              sm:hidden
-              fixed
-              bottom-6
-              left-6
-              z-40
-              flex
-              flex-col
-              gap-3
-            "
-          >
-
-            {/* =================================================
-                🏫 ECOLE
-                ================================================= */}
-
-            {showSchoolChoiceButton && (
-              <button
-                onClick={
-                  handleOpenSchoolModal
-                }
-                className="
-                  bg-blue-600
-                  hover:bg-blue-700
-                  text-white
-                  p-4
-                  rounded-full
-                  shadow-xl
-                  transition-all
-                  duration-300
-                  transform
-                  hover:scale-110
-                  focus:outline-none
-                  focus:ring-2
-                  focus:ring-blue-500
-                "
-                aria-label="Choisir mon école"
-                title="Choisir mon école"
-              >
-                <School
-                  size={24}
-                />
-              </button>
-            )}
-
-            {/* =================================================
-                🔴 DÉCONNEXION
-                ================================================= */}
-
-            <button
-              onClick={
-                handleLogout
-              }
-              className="
-                bg-red-600
-                hover:bg-red-700
-                text-white
-                p-4
-                rounded-full
-                shadow-xl
-                transition-all
-                duration-300
-                transform
-                hover:scale-110
-                focus:outline-none
-                focus:ring-2
-                focus:ring-red-500
-              "
-              aria-label="Déconnexion"
-              title="Déconnexion"
-            >
-              <LogOut
-                size={24}
-              />
-            </button>
-
-            {/* =================================================
-                💬 QUESTIONS
-                ================================================= */}
-
-            {canAccessQuestions && (
-              <button
-                onClick={() =>
-                  navigate(
-                    "/questions"
-                  )
-                }
-                className="
-                  bg-indigo-600
-                  hover:bg-indigo-700
-                  text-white
-                  p-4
-                  rounded-full
-                  shadow-xl
-                  transition-all
-                  duration-300
-                  transform
-                  hover:scale-110
-                  focus:outline-none
-                  focus:ring-2
-                  focus:ring-indigo-500
-                "
-                aria-label="Mes questions"
-                title="Mes questions"
-              >
-                <MessageCircle
-                  size={24}
-                />
-              </button>
-            )}
-
-            {/* =================================================
-                👨‍🏫 ENSEIGNANT
-                ================================================= */}
-
-            {canAccessTeacherQuestions && (
-              <button
-                onClick={() =>
-                  navigate(
-                    "/enseignant/questions"
-                  )
-                }
-                className="
-                  bg-purple-600
-                  hover:bg-purple-700
-                  text-white
-                  p-4
-                  rounded-full
-                  shadow-xl
-                  transition-all
-                  duration-300
-                  transform
-                  hover:scale-110
-                  focus:outline-none
-                  focus:ring-2
-                  focus:ring-purple-500
-                "
-                aria-label="Questions enseignant"
-                title="Questions enseignant"
-              >
-                <GraduationCap
-                  size={24}
-                />
-              </button>
-            )}
-
-            {/* =================================================
-                👥 FILLEULS
-                ================================================= */}
-
-            {!hideFilleulsButton && (
-              <button
-                onClick={() =>
-                  navigate(
-                    `/admin/parrain/${encodeURIComponent(
-                      user.email
-                    )}`
-                  )
-                }
-                className="
-                  bg-blue-600
-                  hover:bg-blue-700
-                  text-white
-                  p-4
-                  rounded-full
-                  shadow-xl
-                  transition-all
-                  duration-300
-                  transform
-                  hover:scale-110
-                  focus:outline-none
-                  focus:ring-2
-                  focus:ring-blue-500
-                "
-                aria-label="Filleuls"
-                title="Filleuls"
-              >
-                <Users
-                  size={24}
-                />
-              </button>
-            )}
-          </div>
-        </>
       )}
 
       {/* ======================================================
@@ -2907,7 +3227,7 @@ const Layout: React.FC<LayoutProps> = ({
           className="
             fixed
             inset-0
-            z-[100]
+            z-[300]
             flex
             items-center
             justify-center
@@ -2928,6 +3248,7 @@ const Layout: React.FC<LayoutProps> = ({
               rounded-2xl
               bg-white
               shadow-2xl
+              dark:bg-slate-950
             "
             onClick={(event) =>
               event.stopPropagation()
@@ -2947,6 +3268,7 @@ const Layout: React.FC<LayoutProps> = ({
                 border-gray-200
                 px-5
                 py-4
+                dark:border-slate-800
               "
             >
               <div>
@@ -2955,6 +3277,7 @@ const Layout: React.FC<LayoutProps> = ({
                     text-xl
                     font-bold
                     text-gray-900
+                    dark:text-white
                   "
                 >
                   Choisir mon école
@@ -2966,6 +3289,7 @@ const Layout: React.FC<LayoutProps> = ({
                       mt-1
                       text-sm
                       text-gray-500
+                      dark:text-slate-400
                     "
                   >
                     Année scolaire{" "}
@@ -2990,6 +3314,11 @@ const Layout: React.FC<LayoutProps> = ({
                   hover:bg-gray-100
                   hover:text-gray-800
                   transition
+                  disabled:cursor-not-allowed
+                  disabled:opacity-50
+                  dark:text-slate-400
+                  dark:hover:bg-slate-800
+                  dark:hover:text-white
                 "
                 aria-label="Fermer"
               >
@@ -3026,6 +3355,9 @@ const Layout: React.FC<LayoutProps> = ({
                     bg-green-50
                     p-4
                     text-green-800
+                    dark:border-green-900
+                    dark:bg-green-950/40
+                    dark:text-green-300
                   "
                 >
                   <CheckCircle2
@@ -3057,6 +3389,9 @@ const Layout: React.FC<LayoutProps> = ({
                     p-4
                     text-sm
                     text-red-700
+                    dark:border-red-900
+                    dark:bg-red-950/40
+                    dark:text-red-300
                   "
                 >
                   {schoolError}
@@ -3079,6 +3414,8 @@ const Layout: React.FC<LayoutProps> = ({
                     border-yellow-200
                     bg-yellow-50
                     p-4
+                    dark:border-yellow-900
+                    dark:bg-yellow-950/40
                   "
                 >
                   <Clock3
@@ -3095,6 +3432,7 @@ const Layout: React.FC<LayoutProps> = ({
                       className="
                         font-semibold
                         text-yellow-900
+                        dark:text-yellow-300
                       "
                     >
                       Demande en attente
@@ -3105,6 +3443,7 @@ const Layout: React.FC<LayoutProps> = ({
                         mt-1
                         text-sm
                         text-yellow-800
+                        dark:text-yellow-200
                       "
                     >
                       Votre demande pour{" "}
@@ -3136,6 +3475,8 @@ const Layout: React.FC<LayoutProps> = ({
                     border-green-200
                     bg-green-50
                     p-4
+                    dark:border-green-900
+                    dark:bg-green-950/40
                   "
                 >
                   <CheckCircle2
@@ -3152,6 +3493,7 @@ const Layout: React.FC<LayoutProps> = ({
                       className="
                         font-semibold
                         text-green-900
+                        dark:text-green-300
                       "
                     >
                       École actuelle
@@ -3162,6 +3504,7 @@ const Layout: React.FC<LayoutProps> = ({
                         mt-1
                         text-sm
                         text-green-800
+                        dark:text-green-200
                       "
                     >
                       Vous êtes inscrit à{" "}
@@ -3195,6 +3538,7 @@ const Layout: React.FC<LayoutProps> = ({
                       items-center
                       gap-3
                       text-gray-600
+                      dark:text-slate-400
                     "
                   >
                     <Loader2
@@ -3222,6 +3566,8 @@ const Layout: React.FC<LayoutProps> = ({
                     p-6
                     text-center
                     text-gray-600
+                    dark:bg-slate-900
+                    dark:text-slate-400
                   "
                 >
                   Aucune école disponible
@@ -3275,6 +3621,8 @@ const Layout: React.FC<LayoutProps> = ({
                             transition
                             hover:border-blue-300
                             hover:shadow-sm
+                            dark:border-slate-700
+                            dark:hover:border-blue-700
                           "
                         >
                           <div
@@ -3316,6 +3664,7 @@ const Layout: React.FC<LayoutProps> = ({
                                   className="
                                     font-semibold
                                     text-gray-900
+                                    dark:text-white
                                   "
                                 >
                                   {school.nom}
@@ -3329,6 +3678,7 @@ const Layout: React.FC<LayoutProps> = ({
                                     mt-1
                                     text-sm
                                     text-gray-500
+                                    dark:text-slate-400
                                   "
                                 >
                                   {school.ville &&
@@ -3349,6 +3699,7 @@ const Layout: React.FC<LayoutProps> = ({
                                     mt-1
                                     text-xs
                                     text-gray-400
+                                    dark:text-slate-500
                                   "
                                 >
                                   {school.pays}
@@ -3378,6 +3729,8 @@ const Layout: React.FC<LayoutProps> = ({
                                         text-xs
                                         font-medium
                                         text-yellow-800
+                                        dark:bg-yellow-950
+                                        dark:text-yellow-300
                                       "
                                     >
                                       <Clock3
@@ -3401,6 +3754,8 @@ const Layout: React.FC<LayoutProps> = ({
                                         text-xs
                                         font-medium
                                         text-green-800
+                                        dark:bg-green-950
+                                        dark:text-green-300
                                       "
                                     >
                                       <CheckCircle2
@@ -3424,6 +3779,8 @@ const Layout: React.FC<LayoutProps> = ({
                                         text-xs
                                         font-medium
                                         text-red-800
+                                        dark:bg-red-950
+                                        dark:text-red-300
                                       "
                                     >
                                       Demande rejetée
@@ -3462,6 +3819,8 @@ const Layout: React.FC<LayoutProps> = ({
                                     font-semibold
                                     text-green-700
                                     sm:w-auto
+                                    dark:bg-green-950
+                                    dark:text-green-300
                                   "
                                 >
                                   <CheckCircle2
@@ -3490,6 +3849,8 @@ const Layout: React.FC<LayoutProps> = ({
                                     font-semibold
                                     text-yellow-700
                                     sm:w-auto
+                                    dark:bg-yellow-950
+                                    dark:text-yellow-300
                                   "
                                 >
                                   <Clock3
@@ -3573,6 +3934,9 @@ const Layout: React.FC<LayoutProps> = ({
                   p-4
                   text-sm
                   text-blue-800
+                  dark:border-blue-900
+                  dark:bg-blue-950/40
+                  dark:text-blue-300
                 "
               >
                 <p
@@ -3628,3 +3992,4 @@ const Layout: React.FC<LayoutProps> = ({
 };
 
 export default Layout;
+

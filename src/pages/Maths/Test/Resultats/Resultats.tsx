@@ -1,3 +1,5 @@
+// 📁 Resultats.tsx
+
 import React, {
   useEffect,
   useRef,
@@ -16,6 +18,12 @@ import {
 } from "framer-motion";
 
 import api from "@/utils/axios";
+
+import {
+  getOfflineData,
+  saveOfflineData,
+  STORES,
+} from "@/offline/offlineDB";
 
 import {
   trierNotionsNonAcquises,
@@ -45,6 +53,7 @@ import {
   FileText,
   Send,
   ShieldCheck,
+  WifiOff,
 } from "lucide-react";
 
 import { jsPDF } from "jspdf";
@@ -130,7 +139,42 @@ type ResultatsLocationState = {
 
   testId?: string;
 
+  offline?: boolean;
+  pendingSync?: boolean;
+
   [key: string]: any;
+};
+
+// ============================================================
+// RÉSULTAT MIS EN CACHE HORS LIGNE
+// ============================================================
+
+type CachedResult = {
+  id: string;
+
+  resultats: ResultatType;
+
+  questionsRemediation: any[];
+
+  questionsDuTest: any[];
+
+  reponsesDuTest: any[];
+
+  notionsNonAcquises: string[];
+
+  matiereActuelle: string;
+
+  niveauActuel: string;
+
+  serieActuelle: string;
+
+  testId?: string;
+
+  offline?: boolean;
+
+  pendingSync?: boolean;
+
+  cachedAt: number;
 };
 
 // ============================================================
@@ -185,7 +229,7 @@ const Resultats: React.FC = () => {
     );
 
   const [loadingResult, setLoadingResult] =
-    useState(!resultats);
+    useState(!state.resultats);
 
   const [error, setError] =
     useState<string | null>(null);
@@ -201,6 +245,18 @@ const Resultats: React.FC = () => {
 
   const [orActif, setOrActif] =
     useState(false);
+
+  const [isOffline, setIsOffline] =
+    useState(
+      typeof navigator !== "undefined"
+        ? !navigator.onLine
+        : false
+    );
+
+  const [pendingSync, setPendingSync] =
+    useState(
+      Boolean(state.pendingSync)
+    );
 
   // ==========================================================
   // DONNÉES TRANSMISES PAR QUESTIONS
@@ -256,6 +312,64 @@ const Resultats: React.FC = () => {
     serieActuelle.toLowerCase() !== "none"
       ? serieActuelle.toLowerCase()
       : "none";
+
+  // ==========================================================
+  // CLÉ DU CACHE DU RÉSULTAT
+  // ==========================================================
+
+  const resultCacheId = [
+    "latest_result",
+    matiereActuelle
+      .normalize("NFD")
+      .replace(
+        /[\u0300-\u036f]/g,
+        ""
+      )
+      .toLowerCase()
+      .trim()
+      .replace(
+        /[^a-z0-9]+/g,
+        "_"
+      )
+      .replace(
+        /^_+|_+$/g,
+        "" 
+      ) || "none",
+
+    niveauActuel
+      .normalize("NFD")
+      .replace(
+        /[\u0300-\u036f]/g,
+        ""
+      )
+      .toLowerCase()
+      .trim()
+      .replace(
+        /[^a-z0-9]+/g,
+        "_"
+      )
+      .replace(
+        /^_+|_+$/g,
+        ""
+      ) || "none",
+
+    serieNormalisee
+      .normalize("NFD")
+      .replace(
+        /[\u0300-\u036f]/g,
+        ""
+      )
+      .toLowerCase()
+      .trim()
+      .replace(
+        /[^a-z0-9]+/g,
+        "_"
+      )
+      .replace(
+        /^_+|_+$/g,
+        ""
+      ) || "none",
+  ].join("_");
 
   // ==========================================================
   // MATIÈRE
@@ -401,212 +515,260 @@ const Resultats: React.FC = () => {
         }`;
 
   // ==========================================================
-  // RÉSULTATS
+  // CHARGEMENT DU RÉSULTAT
+  // PRIORITÉ :
+  // 1. location.state
+  // 2. IndexedDB
+  // 3. API si Internet disponible
   // ==========================================================
 
-  // ==========================================================
-// RÉSULTATS
-// ==========================================================
-
-/**
- * Récupération robuste de la vraie note.
- *
- * IMPORTANT :
- * On privilégie toujours la note réellement calculée
- * et enregistrée par le backend/test.
- *
- * On ne recalcule à partir de nbBonnesReponses
- * que si aucune note n'est disponible.
- */
-const recupererNoteReelle = (
-  resultat: ResultatType | null
-): number | null => {
-  if (!resultat) {
-    return null;
-  }
-
-  // --------------------------------------------------------
-  // 1. NOTE DIRECTE
-  // --------------------------------------------------------
-
-  const valeursPossibles = [
-    resultat.note,
-    resultat.note_sur_20,
-    resultat.noteSur20,
-    resultat.score_sur_20,
-    resultat.scoreSur20,
-    resultat.resultat?.note,
-    resultat.resultat?.note_sur_20,
-    resultat.resultat?.noteSur20,
-    resultat.data?.note,
-    resultat.data?.note_sur_20,
-  ];
-
-  for (const valeur of valeursPossibles) {
-    if (
-      valeur !== null &&
-      valeur !== undefined &&
-      valeur !== "" &&
-      Number.isFinite(Number(valeur))
-    ) {
-      const nombre =
-        Number(valeur);
-
-      if (
-        nombre >= 0 &&
-        nombre <= 20
-      ) {
-        return nombre;
-      }
+  useEffect(() => {
+    if (resultats) {
+      setLoadingResult(false);
+      return;
     }
-  }
 
-  // --------------------------------------------------------
-  // 2. SI LE BACKEND FOURNIT LE NOMBRE DE BONNES RÉPONSES
-  // --------------------------------------------------------
+    if (
+      !matiereActuelle ||
+      !niveauActuel
+    ) {
+      setLoadingResult(false);
 
-  const bonnesReponses =
-    Number(
-      resultat.nbBonnesReponses ??
-      resultat.nb_bonnes_reponses ??
-      resultat.nombreBonnesReponses ??
-      resultat.nombre_bonnes_reponses ??
-      resultat.score
-    );
+      if (isOffline) {
+        setError(
+          "Impossible de récupérer ce résultat hors ligne : les informations nécessaires ne sont pas disponibles localement."
+        );
+      }
 
-  const nombreQuestions =
-    Number(
-      resultat.nbQuestions ??
-      resultat.nb_questions ??
-      resultat.nombreQuestions ??
-      resultat.nombre_questions
-    );
+      return;
+    }
 
-  /*
-   * On ne fait ce calcul que si le backend
-   * n'a fourni aucune note sur 20.
-   */
-  if (
-    Number.isFinite(
-      bonnesReponses
-    ) &&
-    Number.isFinite(
-      nombreQuestions
-    ) &&
-    nombreQuestions > 0 &&
-    bonnesReponses >= 0
-  ) {
-    return Number(
-      (
-        (bonnesReponses /
-          nombreQuestions) *
-        20
-      ).toFixed(2)
-    );
-  }
+    let cancelled = false;
 
-  return null;
-};
+    const loadResult =
+      async () => {
+        setLoadingResult(true);
 
-const noteReelle =
-  recupererNoteReelle(
-    resultats
-  );
+        // ------------------------------------------------------
+        // 1. TENTATIVE INDEXEDDB
+        // ------------------------------------------------------
 
-// ----------------------------------------------------------
-// NOTE AFFICHÉE
-// ----------------------------------------------------------
+        try {
+          const cached =
+            await getOfflineData<CachedResult>(
+              STORES.results,
+              resultCacheId
+            );
 
-const note =
-  noteReelle ?? 0;
+          if (
+            cancelled
+          ) {
+            return;
+          }
 
-// ----------------------------------------------------------
-// MENTION
-// ----------------------------------------------------------
+          if (cached?.resultats) {
+            console.log(
+              "📦 Résultat récupéré depuis IndexedDB :",
+              cached
+            );
 
-const mention =
-  resultats?.mention ??
-  resultats?.mention_finale ??
-  resultats?.mentionFinale ??
-  resultats?.resultat?.mention ??
-  "";
+            setResultats(
+              cached.resultats
+            );
 
-// ----------------------------------------------------------
-// DEBUG NOTE
-// ----------------------------------------------------------
+            setPendingSync(
+              Boolean(
+                cached.pendingSync
+              )
+            );
 
-useEffect(() => {
-  console.log(
-    "========================================"
-  );
+            setError(null);
 
-  console.log(
-    "VÉRIFICATION DE LA NOTE AFFICHÉE"
-  );
+            setSuccess(
+              "Résultat récupéré depuis cet appareil."
+            );
 
-  console.log(
-    "========================================"
-  );
+            setLoadingResult(
+              false
+            );
 
-  console.log(
-    "Objet resultats complet :",
-    resultats
-  );
+            return;
+          }
+        } catch (offlineError) {
+          console.warn(
+            "⚠️ Impossible de lire le résultat depuis IndexedDB :",
+            offlineError
+          );
+        }
 
-  console.log(
-    "resultats.note :",
-    resultats?.note
-  );
+        // ------------------------------------------------------
+        // 2. SI HORS LIGNE ET ABSENT DU CACHE
+        // ------------------------------------------------------
 
-  console.log(
-    "resultats.note_sur_20 :",
-    resultats?.note_sur_20
-  );
+        if (
+          isOffline ||
+          !navigator.onLine
+        ) {
+          if (!cancelled) {
+            setError(
+              "Ce résultat n'est pas disponible hors ligne sur cet appareil."
+            );
 
-  console.log(
-    "resultats.noteSur20 :",
-    resultats?.noteSur20
-  );
+            setLoadingResult(
+              false
+            );
+          }
 
-  console.log(
-    "resultats.score :",
-    resultats?.score
-  );
+          return;
+        }
 
-  console.log(
-    "resultats.nbBonnesReponses :",
-    resultats?.nbBonnesReponses
-  );
+        // ------------------------------------------------------
+        // 3. RÉCUPÉRATION SERVEUR
+        // ------------------------------------------------------
 
-  console.log(
-    "resultats.nbQuestions :",
-    resultats?.nbQuestions
-  );
+        if (!token) {
+          if (!cancelled) {
+            setError(
+              "Connectez-vous à Internet pour récupérer ce résultat."
+            );
 
-  console.log(
-    "NOTE RETENUE :",
-    noteReelle
-  );
+            setLoadingResult(
+              false
+            );
+          }
 
-  console.log(
-    "NOTE AFFICHÉE :",
-    note
-  );
+          return;
+        }
 
-  console.log(
-    "MENTION :",
-    mention
-  );
+        try {
+          const response =
+            await api.get(
+              "/api/resultats/dernier",
+              {
+                params: {
+                  matiere:
+                    matiereActuelle,
 
-  console.log(
-    "========================================"
-  );
-}, [
-  resultats,
-  noteReelle,
-  note,
-  mention,
-]);
+                  niveau:
+                    niveauActuel,
+
+                  serie:
+                    serieNormalisee !==
+                    "none"
+                      ? serieNormalisee
+                      : undefined,
+                },
+
+                headers: {
+                  Authorization:
+                    `Bearer ${token}`,
+                },
+              }
+            );
+
+          if (
+            cancelled
+          ) {
+            return;
+          }
+
+          console.log(
+            "🌐 Dernier résultat reçu depuis le serveur :",
+            response.data
+          );
+
+          setResultats(
+            response.data
+          );
+
+          setError(null);
+        } catch (requestError) {
+          if (
+            cancelled
+          ) {
+            return;
+          }
+
+          console.error(
+            "Erreur récupération résultat :",
+            requestError
+          );
+
+          /*
+           * Une dernière vérification du cache est effectuée
+           * au cas où la connexion aurait disparu pendant
+           * la requête.
+           */
+          try {
+            const cachedAfterError =
+              await getOfflineData<CachedResult>(
+                STORES.results,
+                resultCacheId
+              );
+
+            if (
+              !cancelled &&
+              cachedAfterError?.resultats
+            ) {
+              setResultats(
+                cachedAfterError.resultats
+              );
+
+              setPendingSync(
+                Boolean(
+                  cachedAfterError.pendingSync
+                )
+              );
+
+              setError(null);
+
+              setSuccess(
+                "Connexion indisponible. Résultat restauré depuis cet appareil."
+              );
+
+              return;
+            }
+          } catch (cacheError) {
+            console.warn(
+              "Erreur lors de la seconde lecture IndexedDB :",
+              cacheError
+            );
+          }
+
+          if (!cancelled) {
+            setError(
+              "Erreur lors du chargement des résultats."
+            );
+          }
+        } finally {
+          if (
+            !cancelled
+          ) {
+            setLoadingResult(
+              false
+            );
+          }
+        }
+      };
+
+    void loadResult();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    resultats,
+    token,
+    matiereActuelle,
+    niveauActuel,
+    serieNormalisee,
+    resultCacheId,
+    isOffline,
+  ]);
+
+  // ==========================================================
+  // SAUVEGARDE DU RÉSULTAT DANS INDEXEDDB
+  // ==========================================================
 
   const notionsNonAcquises =
     Array.isArray(
@@ -619,6 +781,354 @@ useEffect(() => {
       ? resultats.notions_non_acquises
       : state.notionsNonAcquises ??
         [];
+
+  useEffect(() => {
+    if (
+      !resultats ||
+      !matiereActuelle ||
+      !niveauActuel
+    ) {
+      return;
+    }
+
+    const saveResult =
+      async () => {
+        try {
+          const cacheData: CachedResult = {
+            id: resultCacheId,
+
+            resultats,
+
+            questionsRemediation,
+
+            questionsDuTest,
+
+            reponsesDuTest,
+
+            notionsNonAcquises,
+
+            matiereActuelle,
+
+            niveauActuel,
+
+            serieActuelle:
+              serieNormalisee,
+
+            testId:
+              state.testId,
+
+            offline:
+              Boolean(
+                state.offline ||
+                isOffline
+              ),
+
+            pendingSync,
+
+            cachedAt:
+              Date.now(),
+          };
+
+          await saveOfflineData(
+            STORES.results,
+            cacheData
+          );
+
+          console.log(
+            "💾 Résultat sauvegardé dans IndexedDB :",
+            resultCacheId
+          );
+        } catch (saveError) {
+          console.error(
+            "Impossible de sauvegarder le résultat localement :",
+            saveError
+          );
+        }
+      };
+
+    void saveResult();
+  }, [
+    resultats,
+    resultCacheId,
+    questionsRemediation,
+    questionsDuTest,
+    reponsesDuTest,
+    notionsNonAcquises,
+    matiereActuelle,
+    niveauActuel,
+    serieNormalisee,
+    pendingSync,
+    isOffline,
+    state.testId,
+    state.offline,
+  ]);
+
+  // ==========================================================
+  // DÉTECTION HORS LIGNE / EN LIGNE
+  // ==========================================================
+
+  useEffect(() => {
+    const handleOffline =
+      () => {
+        console.log(
+          "📴 CODE est maintenant hors ligne."
+        );
+
+        setIsOffline(true);
+
+        setSuccess(
+          "Vous êtes hors ligne. Votre résultat reste disponible sur cet appareil."
+        );
+      };
+
+    const handleOnline =
+      () => {
+        console.log(
+          "🌐 CODE est de nouveau en ligne."
+        );
+
+        setIsOffline(false);
+
+        if (pendingSync) {
+          setSuccess(
+            "Connexion rétablie. Synchronisation de votre résultat..."
+          );
+        } else {
+          setSuccess(
+            "Connexion rétablie."
+          );
+        }
+      };
+
+    window.addEventListener(
+      "offline",
+      handleOffline
+    );
+
+    window.addEventListener(
+      "online",
+      handleOnline
+    );
+
+    return () => {
+      window.removeEventListener(
+        "offline",
+        handleOffline
+      );
+
+      window.removeEventListener(
+        "online",
+        handleOnline
+      );
+    };
+  }, [
+    pendingSync,
+  ]);
+
+  // ==========================================================
+  // RÉSULTAT
+  // ==========================================================
+
+  /**
+   * Récupération robuste de la vraie note.
+   *
+   * IMPORTANT :
+   * On privilégie toujours la note réellement calculée
+   * et enregistrée par le backend/test.
+   *
+   * On ne recalcule à partir de nbBonnesReponses
+   * que si aucune note n'est disponible.
+   */
+
+  const recupererNoteReelle = (
+    resultat: ResultatType | null
+  ): number | null => {
+    if (!resultat) {
+      return null;
+    }
+
+    // --------------------------------------------------------
+    // 1. NOTE DIRECTE
+    // --------------------------------------------------------
+
+    const valeursPossibles = [
+      resultat.note,
+      resultat.note_sur_20,
+      resultat.noteSur20,
+      resultat.score_sur_20,
+      resultat.scoreSur20,
+      resultat.resultat?.note,
+      resultat.resultat?.note_sur_20,
+      resultat.resultat?.noteSur20,
+      resultat.data?.note,
+      resultat.data?.note_sur_20,
+    ];
+
+    for (
+      const valeur of valeursPossibles
+    ) {
+      if (
+        valeur !== null &&
+        valeur !== undefined &&
+        valeur !== "" &&
+        Number.isFinite(
+          Number(valeur)
+        )
+      ) {
+        const nombre =
+          Number(valeur);
+
+        if (
+          nombre >= 0 &&
+          nombre <= 20
+        ) {
+          return nombre;
+        }
+      }
+    }
+
+    // --------------------------------------------------------
+    // 2. NOMBRE DE BONNES RÉPONSES
+    // --------------------------------------------------------
+
+    const bonnesReponses =
+      Number(
+        resultat.nbBonnesReponses ??
+        resultat.nb_bonnes_reponses ??
+        resultat.nombreBonnesReponses ??
+        resultat.nombre_bonnes_reponses ??
+        resultat.score
+      );
+
+    const nombreQuestions =
+      Number(
+        resultat.nbQuestions ??
+        resultat.nb_questions ??
+        resultat.nombreQuestions ??
+        resultat.nombre_questions
+      );
+
+    if (
+      Number.isFinite(
+        bonnesReponses
+      ) &&
+      Number.isFinite(
+        nombreQuestions
+      ) &&
+      nombreQuestions > 0 &&
+      bonnesReponses >= 0
+    ) {
+      return Number(
+        (
+          (bonnesReponses /
+            nombreQuestions) *
+          20
+        ).toFixed(2)
+      );
+    }
+
+    return null;
+  };
+
+  const noteReelle =
+    recupererNoteReelle(
+      resultats
+    );
+
+  // ----------------------------------------------------------
+  // NOTE AFFICHÉE
+  // ----------------------------------------------------------
+
+  const note =
+    noteReelle ?? 0;
+
+  // ----------------------------------------------------------
+  // MENTION
+  // ----------------------------------------------------------
+
+  const mention =
+    resultats?.mention ??
+    resultats?.mention_finale ??
+    resultats?.mentionFinale ??
+    resultats?.resultat?.mention ??
+    "";
+
+  // ----------------------------------------------------------
+  // DEBUG NOTE
+  // ----------------------------------------------------------
+
+  useEffect(() => {
+    console.log(
+      "========================================"
+    );
+
+    console.log(
+      "VÉRIFICATION DE LA NOTE AFFICHÉE"
+    );
+
+    console.log(
+      "========================================"
+    );
+
+    console.log(
+      "Objet resultats complet :",
+      resultats
+    );
+
+    console.log(
+      "resultats.note :",
+      resultats?.note
+    );
+
+    console.log(
+      "resultats.note_sur_20 :",
+      resultats?.note_sur_20
+    );
+
+    console.log(
+      "resultats.noteSur20 :",
+      resultats?.noteSur20
+    );
+
+    console.log(
+      "resultats.score :",
+      resultats?.score
+    );
+
+    console.log(
+      "resultats.nbBonnesReponses :",
+      resultats?.nbBonnesReponses
+    );
+
+    console.log(
+      "resultats.nbQuestions :",
+      resultats?.nbQuestions
+    );
+
+    console.log(
+      "NOTE RETENUE :",
+      noteReelle
+    );
+
+    console.log(
+      "NOTE AFFICHÉE :",
+      note
+    );
+
+    console.log(
+      "MENTION :",
+      mention
+    );
+
+    console.log(
+      "========================================"
+    );
+  }, [
+    resultats,
+    noteReelle,
+    note,
+    mention,
+  ]);
 
   const notionsTriees =
     trierNotionsNonAcquises(
@@ -690,81 +1200,6 @@ useEffect(() => {
   ]);
 
   // ==========================================================
-  // CHARGEMENT DU DERNIER RÉSULTAT
-  // ==========================================================
-
-  useEffect(() => {
-    if (
-      resultats ||
-      !token ||
-      !matiereActuelle ||
-      !niveauActuel
-    ) {
-      return;
-    }
-
-    setLoadingResult(true);
-
-    api
-      .get(
-        "/api/resultats/dernier",
-        {
-          params: {
-            matiere:
-              matiereActuelle,
-
-            niveau:
-              niveauActuel,
-
-            serie:
-              serieNormalisee !==
-              "none"
-                ? serieNormalisee
-                : undefined,
-          },
-
-          headers: {
-            Authorization:
-              `Bearer ${token}`,
-          },
-        }
-      )
-      .then((res) => {
-        console.log(
-          "Dernier résultat reçu :",
-          res.data
-        );
-
-        setResultats(
-          res.data
-        );
-
-        setError(null);
-      })
-      .catch((err) => {
-        console.error(
-          "Erreur récupération résultat :",
-          err
-        );
-
-        setError(
-          "Erreur lors du chargement des résultats."
-        );
-      })
-      .finally(() => {
-        setLoadingResult(
-          false
-        );
-      });
-  }, [
-    resultats,
-    token,
-    matiereActuelle,
-    niveauActuel,
-    serieNormalisee,
-  ]);
-
-  // ==========================================================
   // ANIMATION CODE
   // ==========================================================
 
@@ -797,23 +1232,6 @@ useEffect(() => {
   // ==========================================================
   // GÉNÉRATION DU PDF
   // ==========================================================
-  //
-  // CORRECTION IMPORTANTE :
-  //
-  // Nous ne capturons plus directement le composant affiché.
-  //
-  // Nous créons une COPIE spéciale destinée au PDF.
-  //
-  // Cette copie :
-  // - possède une largeur fixe adaptée au PDF ;
-  // - force les cartes à avoir une hauteur suffisante ;
-  // - empêche les textes d'être coupés ;
-  // - masque les actions ;
-  // - désactive les animations ;
-  // - utilise un fond blanc ;
-  // - reste sur UNE SEULE page A4.
-  //
-  // ==========================================================
 
   const generatePDF =
     async () => {
@@ -838,24 +1256,8 @@ useEffect(() => {
       const original =
         resultRef.current;
 
-      // --------------------------------------------------------
-      // LARGEUR DE LA COPIE PDF
-      // --------------------------------------------------------
-
-      /*
-       * 794 px correspond approximativement
-       * à la largeur d'une page A4 à 96 DPI.
-       *
-       * Cela permet au navigateur de recalculer
-       * proprement les colonnes et les textes
-       * avant la capture.
-       */
       const pdfWidth =
         794;
-
-      // --------------------------------------------------------
-      // CLONAGE DU RAPPORT
-      // --------------------------------------------------------
 
       const clone =
         original.cloneNode(
@@ -866,10 +1268,6 @@ useEffect(() => {
         "data-pdf-report",
         "true"
       );
-
-      // --------------------------------------------------------
-      // POSITIONNEMENT HORS ÉCRAN
-      // --------------------------------------------------------
 
       clone.style.position =
         "fixed";
@@ -925,10 +1323,6 @@ useEffect(() => {
       clone.style.borderRadius =
         "0";
 
-      // --------------------------------------------------------
-      // SUPPRESSION DES ÉLÉMENTS INUTILES
-      // --------------------------------------------------------
-
       clone
         .querySelectorAll(
           "[data-pdf-hide='true']"
@@ -938,10 +1332,6 @@ useEffect(() => {
             element.remove();
           }
         );
-
-      // --------------------------------------------------------
-      // STYLE SPÉCIAL PDF
-      // --------------------------------------------------------
 
       const pdfStyle =
         document.createElement(
@@ -954,10 +1344,6 @@ useEffect(() => {
       );
 
       pdfStyle.textContent = `
-        /* =====================================================
-           RAPPORT GLOBAL
-        ====================================================== */
-
         [data-pdf-report] {
           width: ${pdfWidth}px !important;
           max-width: ${pdfWidth}px !important;
@@ -974,10 +1360,6 @@ useEffect(() => {
           transition: none !important;
         }
 
-        /* =====================================================
-           TOUS LES ÉLÉMENTS
-        ====================================================== */
-
         [data-pdf-report] *,
         [data-pdf-report] *::before,
         [data-pdf-report] *::after {
@@ -989,21 +1371,12 @@ useEffect(() => {
           transition: none !important;
         }
 
-        /* =====================================================
-           IMPORTANT :
-           EMPÊCHER LES CONTENUS D'ÊTRE COUPÉS
-        ====================================================== */
-
         [data-pdf-report] section,
         [data-pdf-report] footer,
         [data-pdf-report] div {
           overflow: visible !important;
           max-height: none !important;
         }
-
-        /* =====================================================
-           CARTES APPRENANT / FORMATION / MATIÈRE
-        ====================================================== */
 
         [data-pdf-card="student"],
         [data-pdf-card="formation"],
@@ -1035,10 +1408,6 @@ useEffect(() => {
           white-space: normal !important;
         }
 
-        /* =====================================================
-           ICÔNES DES CARTES
-        ====================================================== */
-
         [data-pdf-card="student"] > div:first-child,
         [data-pdf-card="formation"] > div:first-child,
         [data-pdf-card="subject"] > div:first-child {
@@ -1049,10 +1418,6 @@ useEffect(() => {
           flex-shrink: 0 !important;
         }
 
-        /* =====================================================
-           EMAIL
-        ====================================================== */
-
         [data-pdf-email="true"] {
           height: auto !important;
           min-height: 24px !important;
@@ -1060,27 +1425,15 @@ useEffect(() => {
           line-height: 1.4 !important;
         }
 
-        /* =====================================================
-           SECTIONS
-        ====================================================== */
-
         [data-pdf-report] section {
           padding-top: 16px !important;
           padding-bottom: 16px !important;
         }
 
-        /* =====================================================
-           BANDEAU
-        ====================================================== */
-
         [data-pdf-report] > div:first-child {
           padding-top: 20px !important;
           padding-bottom: 20px !important;
         }
-
-        /* =====================================================
-           TITRES
-        ====================================================== */
 
         [data-pdf-report] h2 {
           line-height: 1.15 !important;
@@ -1093,10 +1446,6 @@ useEffect(() => {
         [data-pdf-report] p {
           line-height: 1.35 !important;
         }
-
-        /* =====================================================
-           CARTES DE NOTIONS
-        ====================================================== */
 
         [data-pdf-notion="true"] {
           padding: 9px !important;
@@ -1113,10 +1462,6 @@ useEffect(() => {
           overflow: visible !important;
         }
 
-        /* =====================================================
-           QR CODE
-        ====================================================== */
-
         [data-pdf-qr="true"] {
           padding: 10px !important;
           overflow: visible !important;
@@ -1127,10 +1472,6 @@ useEffect(() => {
           height: 100px !important;
         }
 
-        /* =====================================================
-           PIED DE PAGE
-        ====================================================== */
-
         [data-pdf-footer="true"] {
           padding-top: 10px !important;
           padding-bottom: 10px !important;
@@ -1138,10 +1479,6 @@ useEffect(() => {
           height: auto !important;
           overflow: visible !important;
         }
-
-        /* =====================================================
-           TEXTE
-        ====================================================== */
 
         [data-pdf-report] .truncate {
           overflow: visible !important;
@@ -1154,19 +1491,11 @@ useEffect(() => {
         pdfStyle
       );
 
-      // --------------------------------------------------------
-      // AJOUT TEMPORAIRE AU DOM
-      // --------------------------------------------------------
-
       document.body.appendChild(
         clone
       );
 
       try {
-        // ------------------------------------------------------
-        // ATTENDRE LE RECALCUL DU DOM
-        // ------------------------------------------------------
-
         await new Promise(
           (resolve) =>
             requestAnimationFrame(
@@ -1176,10 +1505,6 @@ useEffect(() => {
                 )
             )
         );
-
-        // ------------------------------------------------------
-        // CAPTURE
-        // ------------------------------------------------------
 
         const canvas =
           await html2canvas(
@@ -1206,10 +1531,6 @@ useEffect(() => {
               onclone: (
                 clonedDocument
               ) => {
-                /*
-                 * Suppression du mode sombre
-                 * dans la copie de html2canvas.
-                 */
                 clonedDocument.documentElement.classList.remove(
                   "dark"
                 );
@@ -1218,11 +1539,6 @@ useEffect(() => {
                   "dark"
                 );
 
-                /*
-                 * Sécurité supplémentaire :
-                 * aucun élément PDF ne doit
-                 * couper son contenu.
-                 */
                 clonedDocument
                   .querySelectorAll(
                     "[data-pdf-report] *"
@@ -1265,10 +1581,6 @@ useEffect(() => {
           );
         }
 
-        // ------------------------------------------------------
-        // DOCUMENT PDF A4
-        // ------------------------------------------------------
-
         const pdf =
           new jsPDF({
             orientation:
@@ -1290,10 +1602,6 @@ useEffect(() => {
         const pageHeight =
           pdf.internal.pageSize.getHeight();
 
-        // ------------------------------------------------------
-        // MARGES
-        // ------------------------------------------------------
-
         const margin =
           4;
 
@@ -1304,10 +1612,6 @@ useEffect(() => {
         const availableHeight =
           pageHeight -
           margin * 2;
-
-        // ------------------------------------------------------
-        // CALCUL DU FACTEUR DE RÉDUCTION
-        // ------------------------------------------------------
 
         const scaleX =
           availableWidth /
@@ -1362,23 +1666,11 @@ useEffect(() => {
           finalScale.toFixed(4)
         );
 
-        // ------------------------------------------------------
-        // JPEG COMPRESSÉ
-        // ------------------------------------------------------
-
         const imageData =
           canvas.toDataURL(
             "image/jpeg",
             0.72
           );
-
-        console.log(
-          "Image JPEG créée."
-        );
-
-        // ------------------------------------------------------
-        // UNE SEULE PAGE
-        // ------------------------------------------------------
 
         pdf.addImage(
           imageData,
@@ -1396,12 +1688,7 @@ useEffect(() => {
         );
 
         return pdf;
-
       } finally {
-        // ------------------------------------------------------
-        // SUPPRESSION DE LA COPIE
-        // ------------------------------------------------------
-
         if (
           clone.parentNode
         ) {
@@ -1419,6 +1706,38 @@ useEffect(() => {
   useEffect(() => {
     const sendPDF =
       async () => {
+        /*
+         * Aucun résultat : il faut attendre
+         * qu'il soit chargé.
+         */
+        if (!resultats) {
+          return;
+        }
+
+        /*
+         * Hors ligne :
+         * on ne tente surtout pas l'envoi.
+         *
+         * Le résultat est déjà conservé
+         * localement dans IndexedDB.
+         */
+        if (
+          isOffline ||
+          !navigator.onLine
+        ) {
+          console.log(
+            "📴 Envoi PDF reporté : appareil hors ligne."
+          );
+
+          setSending(false);
+
+          setSuccess(
+            "Vous êtes hors ligne. Votre résultat est conservé sur cet appareil."
+          );
+
+          return;
+        }
+
         if (
           sentPDF.current ||
           !token ||
@@ -1435,6 +1754,22 @@ useEffect(() => {
               1200
             )
         );
+
+        /*
+         * La connexion peut avoir changé
+         * pendant l'attente.
+         */
+        if (
+          !navigator.onLine
+        ) {
+          setIsOffline(true);
+
+          setSuccess(
+            "Connexion interrompue. L'envoi du rapport sera repris lorsque Internet reviendra."
+          );
+
+          return;
+        }
 
         setSending(true);
 
@@ -1501,9 +1836,6 @@ useEffect(() => {
             );
           }
 
-          /*
-           * Sécurité Brevo.
-           */
           if (
             pdfBlob.size >
             12 * 1024 * 1024
@@ -1596,10 +1928,6 @@ useEffect(() => {
             }
           );
 
-          // ----------------------------------------------------
-          // ENVOI BACKEND
-          // ----------------------------------------------------
-
           const response =
             await api.post(
               "/api/send-result-pdf",
@@ -1638,7 +1966,6 @@ useEffect(() => {
           setSuccess(
             "Votre rapport a été envoyé avec succès."
           );
-
         } catch (error: any) {
           console.error(
             "========================================"
@@ -1672,28 +1999,81 @@ useEffect(() => {
             error?.message
           );
 
+          /*
+           * Si l'échec correspond à une perte
+           * de connexion, on bascule simplement
+           * en mode hors ligne.
+           */
+          if (
+            !navigator.onLine
+          ) {
+            setIsOffline(true);
+
+            setSuccess(
+              "Connexion interrompue. L'envoi du rapport sera repris lorsque Internet reviendra."
+            );
+          } else {
+            setSuccess(
+              "L'envoi automatique du rapport a échoué."
+            );
+          }
+
           sentPDF.current =
             false;
-
-          setSuccess(
-            "L'envoi automatique du rapport a échoué."
-          );
-
         } finally {
           setSending(false);
         }
       };
 
-    sendPDF();
-
+    void sendPDF();
   }, [
+    resultats,
     token,
     apprenant,
     matiereActuelle,
     niveauComplet,
     serieNormalisee,
     matiereLabel,
+    isOffline,
   ]);
+
+  // ==========================================================
+  // REPRISE AUTOMATIQUE DE L'ENVOI PDF
+  // LORSQUE INTERNET REVIENT
+  // ==========================================================
+
+  useEffect(() => {
+    const handleOnline =
+      () => {
+        if (
+          sentPDF.current
+        ) {
+          return;
+        }
+
+        console.log(
+          "🌐 Connexion revenue : tentative d'envoi du rapport PDF."
+        );
+
+        setIsOffline(false);
+
+        setSuccess(
+          "Connexion rétablie. Préparation de l'envoi du rapport..."
+        );
+      };
+
+    window.addEventListener(
+      "online",
+      handleOnline
+    );
+
+    return () => {
+      window.removeEventListener(
+        "online",
+        handleOnline
+      );
+    };
+  }, []);
 
   // ==========================================================
   // DÉMARRER LA REMÉDIATION
@@ -1735,6 +2115,11 @@ useEffect(() => {
 
             serieActuelle:
               serieNormalisee,
+
+            offline:
+              isOffline,
+
+            pendingSync,
           },
         }
       );
@@ -1776,7 +2161,6 @@ useEffect(() => {
         pdf.save(
           nomFichier
         );
-
       } catch (error) {
         console.error(
           "Erreur téléchargement PDF :",
@@ -1901,6 +2285,25 @@ useEffect(() => {
         <AudioManager />
 
       </div>
+
+      {/* ======================================================
+          INDICATEUR HORS LIGNE
+      ======================================================= */}
+
+      {isOffline && (
+
+        <div
+          data-pdf-hide="true"
+          className="fixed left-4 top-4 z-50 flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-xs font-bold text-orange-700 shadow-lg dark:border-orange-900/50 dark:bg-orange-950/60 dark:text-orange-300"
+        >
+
+          <WifiOff className="h-3.5 w-3.5" />
+
+          Mode hors ligne
+
+        </div>
+
+      )}
 
       {/* ======================================================
           ANIMATION CODE
@@ -2129,8 +2532,6 @@ useEffect(() => {
 
             <div className="grid gap-4 sm:grid-cols-3">
 
-              {/* APPRENANT */}
-
               <div
                 data-pdf-card="student"
                 className="flex min-h-[82px] items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 transition-colors dark:border-slate-700 dark:bg-slate-800/70"
@@ -2159,8 +2560,6 @@ useEffect(() => {
 
               </div>
 
-              {/* FORMATION */}
-
               <div
                 data-pdf-card="formation"
                 className="flex min-h-[82px] items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 transition-colors dark:border-slate-700 dark:bg-slate-800/70"
@@ -2185,8 +2584,6 @@ useEffect(() => {
                 </div>
 
               </div>
-
-              {/* MATIÈRE */}
 
               <div
                 data-pdf-card="subject"
@@ -2215,8 +2612,6 @@ useEffect(() => {
 
             </div>
 
-            {/* EMAIL */}
-
             {apprenant?.email && (
               <div
                 data-pdf-email="true"
@@ -2241,8 +2636,6 @@ useEffect(() => {
           <section className="px-6 py-8 dark:bg-slate-900 sm:px-10">
 
             <div className="grid gap-6 md:grid-cols-[1fr_260px]">
-
-              {/* MESSAGE */}
 
               <div className="flex flex-col justify-center">
 
@@ -2287,8 +2680,6 @@ useEffect(() => {
                 </div>
 
               </div>
-
-              {/* NOTE */}
 
               <div className="flex flex-col items-center justify-center rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 text-center dark:border-blue-900/50 dark:from-blue-950/50 dark:to-indigo-950/50">
 
@@ -2516,6 +2907,30 @@ useEffect(() => {
 
             <div className="mt-5 text-center">
 
+              {isOffline && (
+
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-orange-50 px-4 py-2 text-xs font-semibold text-orange-700 dark:bg-orange-950/40 dark:text-orange-300">
+
+                  <WifiOff className="h-3.5 w-3.5" />
+
+                  Résultat sauvegardé sur cet appareil
+
+                </div>
+
+              )}
+
+              {pendingSync && (
+
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+
+                  Synchronisation du résultat en attente
+
+                </div>
+
+              )}
+
               {sending && (
 
                 <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
@@ -2537,6 +2952,13 @@ useEffect(() => {
                         "échoué"
                       )
                         ? "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300"
+                        : success.includes(
+                            "hors ligne"
+                          ) ||
+                          success.includes(
+                            "interrompue"
+                          )
+                        ? "bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300"
                         : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
                     }`}
                   >
@@ -2545,6 +2967,13 @@ useEffect(() => {
                       "échoué"
                     ) ? (
                       <AlertCircle className="h-3.5 w-3.5" />
+                    ) : success.includes(
+                        "hors ligne"
+                      ) ||
+                      success.includes(
+                        "interrompue"
+                      ) ? (
+                      <WifiOff className="h-3.5 w-3.5" />
                     ) : (
                       <CheckCircle2 className="h-3.5 w-3.5" />
                     )}

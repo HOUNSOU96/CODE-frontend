@@ -1,4 +1,3 @@
-
 // 📁 src/pages/Evaluation.tsx
 //
 // CODE — UNIVERS DU SAVOIR ET DES COMPÉTENCES
@@ -45,6 +44,7 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
+  WifiOff,
 } from "lucide-react";
 
 import DarkModeToggle from "@/components/DarkModeToggle";
@@ -52,6 +52,12 @@ import AudioManager from "@/components/AudioManager";
 import CountdownCircle from "@/components/CountdownCircle";
 
 import { useAuth } from "@/hooks/useAuth";
+
+import {
+  getOfflineData,
+  saveOfflineData,
+  STORES,
+} from "@/offline/offlineDB";
 
 
 // ============================================================
@@ -96,6 +102,49 @@ type TimerStatus = {
 
 type RemainingTime = {
   [key: string]: number;
+};
+
+
+type CachedEvaluation = {
+  id: string;
+
+  test_id: string | null;
+
+  domaine: string;
+
+  sousDomaine: string;
+
+  questions: Question[];
+
+  cachedAt: number;
+};
+
+
+type OfflineEvaluationSubmission = {
+  id: string;
+
+  type: "evaluation_result";
+
+  createdAt: number;
+
+  status: "pending";
+
+  endpoint: string;
+
+  method: "POST";
+
+  payload: {
+    resultats: {
+      id: string;
+      reponse: string | null;
+    }[];
+  };
+
+  domaine: string;
+
+  sousDomaine: string;
+
+  testId: string;
 };
 
 
@@ -170,8 +219,46 @@ const Evaluation: React.FC = () => {
   ] = useState<string | null>(null);
 
 
+  const [
+    isOffline,
+    setIsOffline,
+  ] = useState<boolean>(() => {
+    if (typeof navigator === "undefined") {
+      return false;
+    }
+
+    return !navigator.onLine;
+  });
+
+
+  const [
+    isSubmitting,
+    setIsSubmitting,
+  ] = useState<boolean>(false);
+
+
+  const [
+    pendingSync,
+    setPendingSync,
+  ] = useState<boolean>(false);
+
+
   const questionSoundRef =
     useRef<HTMLAudioElement | null>(null);
+
+
+  // ==========================================================
+  // IDENTIFIANT UNIQUE DU CACHE
+  // ==========================================================
+
+  const evaluationCacheId =
+    domaine && sousDomaine
+      ? `evaluation_${encodeURIComponent(
+          domaine
+        )}_${encodeURIComponent(
+          sousDomaine
+        )}`
+      : "";
 
 
   // ==========================================================
@@ -194,6 +281,50 @@ const Evaluation: React.FC = () => {
 
 
   // ==========================================================
+  // DÉTECTION DU RÉSEAU
+  // ==========================================================
+
+  useEffect(() => {
+
+    const handleOnline = () => {
+      setIsOffline(false);
+    };
+
+
+    const handleOffline = () => {
+      setIsOffline(true);
+    };
+
+
+    window.addEventListener(
+      "online",
+      handleOnline
+    );
+
+    window.addEventListener(
+      "offline",
+      handleOffline
+    );
+
+
+    return () => {
+
+      window.removeEventListener(
+        "online",
+        handleOnline
+      );
+
+      window.removeEventListener(
+        "offline",
+        handleOffline
+      );
+
+    };
+
+  }, []);
+
+
+  // ==========================================================
   // REMONTER EN HAUT À CHAQUE QUESTION
   // ==========================================================
 
@@ -202,7 +333,7 @@ const Evaluation: React.FC = () => {
     window.scrollTo({
       top: 0,
       left: 0,
-      behavior: "instant",
+      behavior: "auto",
     });
 
   }, [currentIndex]);
@@ -236,10 +367,40 @@ const Evaluation: React.FC = () => {
 
 
   // ==========================================================
+  // CONSTRUCTION DES RÉPONSES INITIALES
+  // ==========================================================
+
+  const initializeResponses = (
+    questionsRecues: Question[]
+  ) => {
+
+    return questionsRecues.map(
+      (q: Question) => ({
+
+        questionId:
+          String(q.id),
+
+        reponse:
+          null,
+
+        notion:
+          q.notion ??
+          null,
+
+      })
+    );
+
+  };
+
+
+  // ==========================================================
   // CHARGEMENT DE L'ÉVALUATION
   // ==========================================================
 
   useEffect(() => {
+
+    let cancelled = false;
+
 
     const fetchEvaluation = async () => {
 
@@ -247,20 +408,12 @@ const Evaluation: React.FC = () => {
 
       setError(null);
 
+
       try {
 
         /*
          * =====================================================
-         * URL UNIVERSELLE
-         *
-         * Exemple :
-         *
-         * /api/evaluation/academique/mathematiques
-         *
-         * ou :
-         *
-         * /api/evaluation/metiers/mecanique
-         *
+         * VÉRIFICATION DES PARAMÈTRES
          * =====================================================
          */
 
@@ -273,6 +426,20 @@ const Evaluation: React.FC = () => {
         }
 
 
+        /*
+         * =====================================================
+         * URL UNIVERSELLE
+         *
+         * Exemple :
+         *
+         * /api/evaluation/academique/mathematiques
+         *
+         * ou :
+         *
+         * /api/evaluation/metiers/mecanique
+         * =====================================================
+         */
+
         const url =
           `/api/evaluation/${encodeURIComponent(
             domaine
@@ -280,6 +447,84 @@ const Evaluation: React.FC = () => {
             sousDomaine
           )}`;
 
+
+        /*
+         * =====================================================
+         * SI HORS LIGNE :
+         * essayer d'abord le cache local.
+         * =====================================================
+         */
+
+        if (!navigator.onLine) {
+
+          setIsOffline(true);
+
+
+          if (!evaluationCacheId) {
+
+            throw new Error(
+              "Cette évaluation n'est pas disponible hors ligne."
+            );
+
+          }
+
+
+          const cached =
+            await getOfflineData<CachedEvaluation>(
+              STORES.questions,
+              evaluationCacheId
+            );
+
+
+          if (
+            !cached ||
+            !Array.isArray(
+              cached.questions
+            ) ||
+            cached.questions.length === 0
+          ) {
+
+            throw new Error(
+              "Cette évaluation n'a pas encore été enregistrée sur cet appareil."
+            );
+
+          }
+
+
+          if (cancelled) {
+            return;
+          }
+
+
+          setTestId(
+            cached.test_id
+          );
+
+
+          setQuestions(
+            cached.questions
+          );
+
+
+          setReponses(
+            initializeResponses(
+              cached.questions
+            )
+          );
+
+
+          setLoading(false);
+
+          return;
+
+        }
+
+
+        /*
+         * =====================================================
+         * MODE EN LIGNE
+         * =====================================================
+         */
 
         console.log(
           "📥 Chargement de l'évaluation :",
@@ -312,6 +557,11 @@ const Evaluation: React.FC = () => {
         }
 
 
+        if (cancelled) {
+          return;
+        }
+
+
         setTestId(
           test_id ?? null
         );
@@ -323,24 +573,58 @@ const Evaluation: React.FC = () => {
 
 
         setReponses(
-
-          questionsRecues.map(
-            (q: Question) => ({
-
-              questionId:
-                String(q.id),
-
-              reponse:
-                null,
-
-              notion:
-                q.notion ??
-                null,
-
-            })
+          initializeResponses(
+            questionsRecues
           )
-
         );
+
+
+        /*
+         * =====================================================
+         * CACHE LOCAL
+         *
+         * L'évaluation pourra être utilisée plus tard
+         * même sans connexion.
+         * =====================================================
+         */
+
+        if (evaluationCacheId) {
+
+          try {
+
+            await saveOfflineData(
+              STORES.questions,
+              {
+                id:
+                  evaluationCacheId,
+
+                test_id:
+                  test_id ??
+                  null,
+
+                domaine,
+
+                sousDomaine,
+
+                questions:
+                  questionsRecues,
+
+                cachedAt:
+                  Date.now(),
+
+              }
+            );
+
+          } catch (cacheError) {
+
+            console.warn(
+              "⚠️ Impossible de mettre l'évaluation en cache :",
+              cacheError
+            );
+
+          }
+
+        }
 
 
         setLoading(false);
@@ -355,9 +639,98 @@ const Evaluation: React.FC = () => {
         );
 
 
-        setError(
-          "Impossible de charger cette évaluation."
-        );
+        /*
+         * =====================================================
+         * FALLBACK CACHE
+         *
+         * Si la connexion existe mais que le serveur
+         * est momentanément indisponible, on essaie
+         * quand même le cache local.
+         * =====================================================
+         */
+
+        try {
+
+          if (
+            domaine &&
+            sousDomaine &&
+            evaluationCacheId
+          ) {
+
+            const cached =
+              await getOfflineData<CachedEvaluation>(
+                STORES.questions,
+                evaluationCacheId
+              );
+
+
+            if (
+              cached &&
+              Array.isArray(
+                cached.questions
+              ) &&
+              cached.questions.length > 0
+            ) {
+
+              if (cancelled) {
+                return;
+              }
+
+
+              setIsOffline(true);
+
+              setTestId(
+                cached.test_id
+              );
+
+              setQuestions(
+                cached.questions
+              );
+
+              setReponses(
+                initializeResponses(
+                  cached.questions
+                )
+              );
+
+              setLoading(false);
+
+              return;
+
+            }
+
+          }
+
+        } catch (cacheError) {
+
+          console.warn(
+            "⚠️ Erreur lecture cache évaluation :",
+            cacheError
+          );
+
+        }
+
+
+        if (cancelled) {
+          return;
+        }
+
+
+        if (!navigator.onLine) {
+
+          setIsOffline(true);
+
+          setError(
+            "Cette évaluation n'est pas disponible hors ligne. Ouvrez-la au moins une fois avec une connexion Internet pour pouvoir l'utiliser hors connexion."
+          );
+
+        } else {
+
+          setError(
+            "Impossible de charger cette évaluation."
+          );
+
+        }
 
 
         setLoading(false);
@@ -369,9 +742,17 @@ const Evaluation: React.FC = () => {
 
     fetchEvaluation();
 
+
+    return () => {
+
+      cancelled = true;
+
+    };
+
   }, [
     domaine,
     sousDomaine,
+    evaluationCacheId,
   ]);
 
 
@@ -529,6 +910,11 @@ const Evaluation: React.FC = () => {
 
   const handleSubmit = async () => {
 
+    if (isSubmitting) {
+      return;
+    }
+
+
     if (!testId) {
 
       alert(
@@ -558,7 +944,7 @@ const Evaluation: React.FC = () => {
                   "c",
                   "d",
                   "e",
-                ][r.reponse]
+                ][r.reponse] ?? null
               : null;
 
 
@@ -616,7 +1002,7 @@ const Evaluation: React.FC = () => {
                   "e",
                 ][
                   indexReponse
-                ]
+                ] ?? null
 
               : null;
 
@@ -765,21 +1151,192 @@ const Evaluation: React.FC = () => {
 
     /*
      * ========================================================
-     * 5. ENVOI AU BACKEND
+     * 5. PRÉPARATION DE L'URL
      * ========================================================
      */
 
+    const url =
+      `/api/evaluation/${encodeURIComponent(
+        domaine ?? ""
+      )}/${encodeURIComponent(
+        sousDomaine ?? ""
+      )}/resultats?test_id=${encodeURIComponent(
+        testId
+      )}`;
+
+
+    /*
+     * ========================================================
+     * 6. SI HORS LIGNE
+     *
+     * La réponse n'est pas perdue.
+     * Elle est placée dans syncQueue.
+     * ========================================================
+     */
+
+    if (!navigator.onLine) {
+
+      setIsOffline(true);
+
+
+      const offlineId =
+        `evaluation_result_${testId}_${Date.now()}`;
+
+
+      const offlineSubmission:
+        OfflineEvaluationSubmission = {
+
+          id:
+            offlineId,
+
+          type:
+            "evaluation_result",
+
+          createdAt:
+            Date.now(),
+
+          status:
+            "pending",
+
+          endpoint:
+            url,
+
+          method:
+            "POST",
+
+          payload: {
+
+            resultats:
+              toutesLesReponses,
+
+          },
+
+          domaine:
+            domaine ?? "",
+
+          sousDomaine:
+            sousDomaine ?? "",
+
+          testId,
+
+        };
+
+
+      try {
+
+        await saveOfflineData(
+          STORES.syncQueue,
+          offlineSubmission
+        );
+
+
+        setPendingSync(true);
+
+
+        /*
+         * ======================================================
+         * PAGE RÉSULTATS
+         *
+         * On conserve exactement la même structure de
+         * navigation que la version en ligne, mais on indique
+         * que le résultat attend encore sa synchronisation.
+         * ======================================================
+         */
+
+        navigate(
+          `/evaluation/${encodeURIComponent(
+            domaine ?? ""
+          )}/${encodeURIComponent(
+            sousDomaine ?? ""
+          )}/resultats`,
+          {
+
+            replace: true,
+
+            state: {
+
+              resultats: {
+
+                offline:
+                  true,
+
+                pendingSync:
+                  true,
+
+                test_id:
+                  testId,
+
+              },
+
+              questionsDuTest:
+                questions,
+
+              reponsesDuTest:
+                reponses,
+
+              questionsAvecReponses:
+                questionsAvecReponses,
+
+              questionsRemediation:
+                questionsRemediation,
+
+              notionsNonAcquises:
+                notionsNonAcquises,
+
+              toutesLesReponses:
+                toutesLesReponses,
+
+              testId:
+                testId,
+
+              domaineActuel:
+                domaine,
+
+              sousDomaineActuel:
+                sousDomaine,
+
+              offline:
+                true,
+
+              pendingSync:
+                true,
+
+            },
+
+          }
+        );
+
+
+      } catch (queueError) {
+
+        console.error(
+          "❌ Impossible d'enregistrer la soumission hors ligne :",
+          queueError
+        );
+
+
+        alert(
+          "Impossible d'enregistrer votre évaluation hors ligne. Veuillez réessayer."
+        );
+
+      }
+
+
+      return;
+
+    }
+
+
+    /*
+     * ========================================================
+     * 7. ENVOI AU BACKEND
+     * ========================================================
+     */
+
+    setIsSubmitting(true);
+
+
     try {
-
-      const url =
-        `/api/evaluation/${encodeURIComponent(
-          domaine ?? ""
-        )}/${encodeURIComponent(
-          sousDomaine ?? ""
-        )}/resultats?test_id=${encodeURIComponent(
-          testId
-        )}`;
-
 
       const res =
         await api.post(
@@ -799,12 +1356,7 @@ const Evaluation: React.FC = () => {
 
       /*
        * ======================================================
-       * 6. PAGE RÉSULTATS
-       *
-       * Pour le moment nous conservons la page Resultats
-       * existante afin de ne pas casser l'ancien système.
-       *
-       * Elle sera ensuite transformée en Resultats universel.
+       * PAGE RÉSULTATS
        * ======================================================
        */
 
@@ -850,6 +1402,12 @@ const Evaluation: React.FC = () => {
             sousDomaineActuel:
               sousDomaine,
 
+            offline:
+              false,
+
+            pendingSync:
+              false,
+
           },
 
         }
@@ -865,9 +1423,162 @@ const Evaluation: React.FC = () => {
       );
 
 
-      alert(
-        "Une erreur s'est produite lors de la soumission de l'évaluation."
-      );
+      /*
+       * ======================================================
+       * SI LA CONNEXION A ÉTÉ PERDUE PENDANT L'ENVOI
+       * ======================================================
+       */
+
+      if (!navigator.onLine) {
+
+        setIsOffline(true);
+
+
+        const offlineId =
+          `evaluation_result_${testId}_${Date.now()}`;
+
+
+        const offlineSubmission:
+          OfflineEvaluationSubmission = {
+
+            id:
+              offlineId,
+
+            type:
+              "evaluation_result",
+
+            createdAt:
+              Date.now(),
+
+            status:
+              "pending",
+
+            endpoint:
+              url,
+
+            method:
+              "POST",
+
+            payload: {
+
+              resultats:
+                toutesLesReponses,
+
+            },
+
+            domaine:
+              domaine ?? "",
+
+            sousDomaine:
+              sousDomaine ?? "",
+
+            testId,
+
+          };
+
+
+        try {
+
+          await saveOfflineData(
+            STORES.syncQueue,
+            offlineSubmission
+          );
+
+
+          setPendingSync(true);
+
+
+          navigate(
+            `/evaluation/${encodeURIComponent(
+              domaine ?? ""
+            )}/${encodeURIComponent(
+              sousDomaine ?? ""
+            )}/resultats`,
+            {
+
+              replace: true,
+
+              state: {
+
+                resultats: {
+
+                  offline:
+                    true,
+
+                  pendingSync:
+                    true,
+
+                  test_id:
+                    testId,
+
+                },
+
+                questionsDuTest:
+                  questions,
+
+                reponsesDuTest:
+                  reponses,
+
+                questionsAvecReponses:
+                  questionsAvecReponses,
+
+                questionsRemediation:
+                  questionsRemediation,
+
+                notionsNonAcquises:
+                  notionsNonAcquises,
+
+                toutesLesReponses:
+                  toutesLesReponses,
+
+                testId:
+                  testId,
+
+                domaineActuel:
+                  domaine,
+
+                sousDomaineActuel:
+                  sousDomaine,
+
+                offline:
+                  true,
+
+                pendingSync:
+                  true,
+
+              },
+
+            }
+          );
+
+
+        } catch (queueError) {
+
+          console.error(
+            "❌ Erreur d'enregistrement dans la file hors ligne :",
+            queueError
+          );
+
+
+          alert(
+            "La connexion a été perdue et l'évaluation n'a pas pu être enregistrée localement."
+          );
+
+        }
+
+      } else {
+
+        alert(
+          "Une erreur s'est produite lors de la soumission de l'évaluation."
+        );
+
+      }
+
+    }
+
+    finally {
+
+      setIsSubmitting(false);
 
     }
 
@@ -1178,6 +1889,46 @@ const Evaluation: React.FC = () => {
       p-4
       relative
     ">
+
+
+      {/* ======================================================
+          INDICATEUR HORS LIGNE
+      ====================================================== */}
+
+      {isOffline && (
+        <motion.div
+          initial={{
+            opacity: 0,
+            y: -10,
+          }}
+          animate={{
+            opacity: 1,
+            y: 0,
+          }}
+          className="
+            mb-4
+            flex
+            items-center
+            justify-center
+            gap-2
+            text-xs
+            sm:text-sm
+            text-gray-600
+            dark:text-gray-300
+          "
+        >
+
+          <WifiOff className="w-4 h-4" />
+
+          <span>
+            Mode hors ligne
+            {pendingSync
+              ? " — résultat en attente de synchronisation"
+              : ""}
+          </span>
+
+        </motion.div>
+      )}
 
 
       {/* ======================================================
@@ -1707,7 +2458,8 @@ const Evaluation: React.FC = () => {
               }
 
               disabled={
-                !allAnswered
+                !allAnswered ||
+                isSubmitting
               }
 
               className={`
@@ -1722,7 +2474,8 @@ const Evaluation: React.FC = () => {
                 transition
 
                 ${
-                  allAnswered
+                  allAnswered &&
+                  !isSubmitting
 
                     ? "bg-green-600 text-white hover:bg-green-700 cursor-pointer"
 
@@ -1732,14 +2485,40 @@ const Evaluation: React.FC = () => {
               `}
             >
 
-              <CheckCircle
-                className="
-                  w-5
-                  h-5
-                "
-              />
+              {isSubmitting ? (
 
-              Terminer l'évaluation
+                <>
+
+                  <Loader2
+                    className="
+                      w-5
+                      h-5
+                      animate-spin
+                    "
+                  />
+
+                  Envoi...
+
+                </>
+
+              ) : (
+
+                <>
+
+                  <CheckCircle
+                    className="
+                      w-5
+                      h-5
+                    "
+                  />
+
+                  {isOffline
+                    ? "Terminer hors ligne"
+                    : "Terminer l'évaluation"}
+
+                </>
+
+              )}
 
             </button>
 
@@ -1758,4 +2537,3 @@ const Evaluation: React.FC = () => {
 
 
 export default Evaluation;
-
