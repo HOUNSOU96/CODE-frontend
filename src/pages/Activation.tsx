@@ -12,7 +12,6 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock3,
-  Download,
   FileText,
   GraduationCap,
   Info,
@@ -28,6 +27,69 @@ import {
   VolumeX,
   XCircle,
 } from "lucide-react";
+
+
+
+const CODE_DEVICE_ID_KEY = "CODE_DEVICE_ID";
+
+const getOrCreateDeviceId = (): string => {
+  try {
+    const existingDeviceId = localStorage.getItem(
+      CODE_DEVICE_ID_KEY
+    );
+
+    if (existingDeviceId) {
+      return existingDeviceId;
+    }
+
+    const newDeviceId =
+      typeof crypto !== "undefined" &&
+      typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random()
+            .toString(36)
+            .substring(2, 15)}`;
+
+    localStorage.setItem(
+      CODE_DEVICE_ID_KEY,
+      newDeviceId
+    );
+
+    return newDeviceId;
+  } catch {
+    return `${Date.now()}-${Math.random()
+      .toString(36)
+      .substring(2, 15)}`;
+  }
+};
+
+const getDeviceType = (): string => {
+  if (typeof navigator === "undefined") {
+    return "unknown";
+  }
+
+  const userAgent = navigator.userAgent.toLowerCase();
+
+  if (
+    /tablet|ipad|playbook|silk/.test(
+      userAgent
+    )
+  ) {
+    return "tablet";
+  }
+
+  if (
+    /mobile|iphone|ipod|android|blackberry|opera mini|iemobile/.test(
+      userAgent
+    )
+  ) {
+    return "mobile";
+  }
+
+  return "desktop";
+};
+
+
 
 const API_URL =
   import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -53,6 +115,7 @@ interface UserInfo {
   nationalite?: string | null;
   pays_residence?: string | null;
 }
+
 
 // ============================================================
 // COMPOSANT
@@ -150,8 +213,6 @@ const Activation: React.FC = () => {
   const [downloaded, setDownloaded] =
     useState(false);
 
-  const [emailSent, setEmailSent] =
-    useState<boolean | null>(null);
 
   // ==========================================================
   // CHARGEMENT / ERREUR
@@ -745,327 +806,265 @@ const Activation: React.FC = () => {
   };
 
   // ==========================================================
-  // ACTIVATION + GÉNÉRATION PDF
-  // ==========================================================
+// ACTIVATION + GÉNÉRATION PDF
+// ==========================================================
 
-  const handleActivation =
-    async () => {
-      setError("");
-      setDownloaded(false);
-      setEmailSent(null);
+const handleActivation =
+  async () => {
+    setError("");
+    setDownloaded(false);
 
-      // ------------------------------------------------------
-      // Validation identité nouveau compte
-      // ------------------------------------------------------
+    // ------------------------------------------------------
+    // Validation identité nouveau compte
+    // ------------------------------------------------------
 
-      if (!userExists) {
-        if (!nom.trim()) {
-          setError(
-            "Le nom est obligatoire."
-          );
-          return;
-        }
-
-        if (!prenom.trim()) {
-          setError(
-            "Le prénom est obligatoire."
-          );
-          return;
-        }
-
-        if (!pays.trim()) {
-          setError(
-            "Le pays de résidence est obligatoire."
-          );
-          return;
-        }
-
-        if (!password.trim()) {
-          setError(
-            "Veuillez définir un mot de passe."
-          );
-          return;
-        }
-
-        if (
-          password.length < 6
-        ) {
-          setError(
-            "Le mot de passe doit contenir au moins 6 caractères."
-          );
-          return;
-        }
-      }
-
-      // ------------------------------------------------------
-      // Détermination e-mail bénéficiaire
-      // ------------------------------------------------------
-
-      const finalBeneficiaryEmail =
-        target === "self"
-          ? email.trim()
-          : beneficiaryEmail.trim();
-
-      if (
-        !finalBeneficiaryEmail
-      ) {
+    if (!userExists) {
+      if (!nom.trim()) {
         setError(
-          "L'adresse e-mail du bénéficiaire est obligatoire."
+          "Le nom est obligatoire."
         );
         return;
       }
 
-      // ------------------------------------------------------
-      // FormData
-      // ------------------------------------------------------
-
-      const formData =
-        new FormData();
-
-      formData.append(
-        "activation_code",
-        code.trim()
-      );
-
-      formData.append(
-        "buyer_email",
-        email.trim()
-      );
-
-      formData.append(
-        "activation_type",
-        target || "self"
-      );
-
-      formData.append(
-        "beneficiary_email",
-        finalBeneficiaryEmail
-      );
-
-      // ------------------------------------------------------
-      // Identité
-      // ------------------------------------------------------
-
-      if (!userExists) {
-        formData.append(
-          "nom",
-          nom.trim()
-        );
-
-        formData.append(
-          "prenom",
-          prenom.trim()
-        );
-
-        if (
-          telephone.trim()
-        ) {
-          formData.append(
-            "telephone",
-            telephone.trim()
-          );
-        }
-
-        formData.append(
-          "pays_residence",
-          pays.trim()
-        );
-
-        if (
-          password.trim()
-        ) {
-          formData.append(
-            "password",
-            password
-          );
-        }
-      }
-
-      // ------------------------------------------------------
-      // Personnalisation
-      // ------------------------------------------------------
-
-      if (
-        etablissement.trim()
-      ) {
-        formData.append(
-          "etablissement",
-          etablissement.trim()
-        );
-      }
-
-      if (
-        ville.trim()
-      ) {
-        formData.append(
-          "ville",
-          ville.trim()
-        );
-      }
-
-      if (
-        anneeScolaire.trim()
-      ) {
-        formData.append(
-          "annee_scolaire",
-          anneeScolaire.trim()
-        );
-      }
-
-      if (photo) {
-        formData.append(
-          "photo",
-          photo
-        );
-      }
-
-      // ------------------------------------------------------
-      // Activation
-      // ------------------------------------------------------
-
-      try {
-        setLoading(true);
-
-        const response =
-          await fetch(
-            `${API_URL}/api/activation/activate`,
-            {
-              method: "POST",
-              body: formData,
-            }
-          );
-
-        if (!response.ok) {
-          const message =
-            await getApiError(
-              response
-            );
-
-          throw new Error(
-            message
-          );
-        }
-
-        // ----------------------------------------------------
-        // Vérification PDF
-        // ----------------------------------------------------
-
-        const contentType =
-          response.headers.get(
-            "content-type"
-          ) || "";
-
-        if (
-          !contentType.includes(
-            "application/pdf"
-          )
-        ) {
-          throw new Error(
-            "Le serveur n'a pas retourné le PDF attendu."
-          );
-        }
-
-        const pdfBlob =
-          await response.blob();
-
-        if (
-          pdfBlob.size === 0
-        ) {
-          throw new Error(
-            "Le PDF généré est vide."
-          );
-        }
-
-        // ----------------------------------------------------
-        // Téléchargement
-        // ----------------------------------------------------
-
-        const blobUrl =
-          window.URL.createObjectURL(
-            pdfBlob
-          );
-
-        const downloadLink =
-          window.document.createElement(
-            "a"
-          );
-
-        downloadLink.href =
-          blobUrl;
-
-        const contentDisposition =
-          response.headers.get(
-            "Content-Disposition"
-          );
-
-        let filename =
-          getFallbackFilename();
-
-        if (
-          contentDisposition
-        ) {
-          const filenameMatch =
-            contentDisposition.match(
-              /filename="?([^"]+)"?/i
-            );
-
-          if (
-            filenameMatch?.[1]
-          ) {
-            filename =
-              filenameMatch[1];
-          }
-        }
-
-        downloadLink.download =
-          filename;
-
-        window.document.body.appendChild(
-          downloadLink
-        );
-
-        downloadLink.click();
-
-        window.document.body.removeChild(
-          downloadLink
-        );
-
-        window.URL.revokeObjectURL(
-          blobUrl
-        );
-
-        setDownloaded(true);
-
-        // ----------------------------------------------------
-        // Statut e-mail
-        // ----------------------------------------------------
-
-        const emailStatus =
-          response.headers.get(
-            "X-Email-Sent"
-          );
-
-        setEmailSent(
-          emailStatus ===
-            "true"
-        );
-
-        // ----------------------------------------------------
-        // Nettoyage local de la photo
-        // ----------------------------------------------------
-
-        setPhoto(null);
-      } catch (err) {
+      if (!prenom.trim()) {
         setError(
-          err instanceof Error
-            ? err.message
-            : "Impossible d'activer le document."
+          "Le prénom est obligatoire."
         );
-      } finally {
-        setLoading(false);
+        return;
       }
-    };
 
+      if (!pays.trim()) {
+        setError(
+          "Le pays de résidence est obligatoire."
+        );
+        return;
+      }
+
+      if (!password.trim()) {
+        setError(
+          "Veuillez définir un mot de passe."
+        );
+        return;
+      }
+
+      if (
+        password.length < 6
+      ) {
+        setError(
+          "Le mot de passe doit contenir au moins 6 caractères."
+        );
+        return;
+      }
+    }
+
+    // ------------------------------------------------------
+    // Détermination e-mail bénéficiaire
+    // ------------------------------------------------------
+
+    const finalBeneficiaryEmail =
+      target === "self"
+        ? email.trim()
+        : beneficiaryEmail.trim();
+
+    if (
+      !finalBeneficiaryEmail
+    ) {
+      setError(
+        "L'adresse e-mail du bénéficiaire est obligatoire."
+      );
+      return;
+    }
+
+    // ------------------------------------------------------
+    // FormData
+    // ------------------------------------------------------
+
+    const formData =
+      new FormData();
+
+    const deviceId =
+      getOrCreateDeviceId();
+
+    const deviceType =
+      getDeviceType();
+
+    formData.append(
+      "activation_code",
+      code.trim()
+    );
+
+    formData.append(
+      "buyer_email",
+      email.trim()
+    );
+
+    formData.append(
+      "activation_type",
+      target || "self"
+    );
+
+    formData.append(
+      "beneficiary_email",
+      finalBeneficiaryEmail
+    );
+
+    // ------------------------------------------------------
+    // Identité
+    // ------------------------------------------------------
+
+    if (!userExists) {
+      formData.append(
+        "nom",
+        nom.trim()
+      );
+
+      formData.append(
+        "prenom",
+        prenom.trim()
+      );
+
+      if (
+        telephone.trim()
+      ) {
+        formData.append(
+          "telephone",
+          telephone.trim()
+        );
+      }
+
+      formData.append(
+        "pays_residence",
+        pays.trim()
+      );
+
+      if (
+        password.trim()
+      ) {
+        formData.append(
+          "password",
+          password
+        );
+      }
+    }
+
+    // ------------------------------------------------------
+    // Personnalisation
+    // ------------------------------------------------------
+
+    if (
+      etablissement.trim()
+    ) {
+      formData.append(
+        "etablissement",
+        etablissement.trim()
+      );
+    }
+
+    if (
+      ville.trim()
+    ) {
+      formData.append(
+        "ville",
+        ville.trim()
+      );
+    }
+
+    if (
+      anneeScolaire.trim()
+    ) {
+      formData.append(
+        "annee_scolaire",
+        anneeScolaire.trim()
+      );
+    }
+
+    if (photo) {
+      formData.append(
+        "photo",
+        photo
+      );
+    }
+
+    // ------------------------------------------------------
+    // IDENTIFICATION DU TERMINAL
+    // ------------------------------------------------------
+
+    formData.append(
+      "device_id",
+      deviceId
+    );
+
+    formData.append(
+      "device_type",
+      deviceType
+    );
+
+    // ------------------------------------------------------
+    // ACTIVATION
+    // ------------------------------------------------------
+
+    try {
+      setLoading(true);
+
+      const response =
+        await fetch(
+          `${API_URL}/api/activation/activate`,
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+
+      if (!response.ok) {
+        const message =
+          await getApiError(
+            response
+          );
+
+        throw new Error(
+          message
+        );
+      }
+
+      // ----------------------------------------------------
+      // Le backend ne renvoie désormais PLUS le PDF.
+      // Il renvoie uniquement une confirmation JSON.
+      // ----------------------------------------------------
+
+      const data =
+        await response.json();
+
+      if (
+        data?.success !== true
+      ) {
+        throw new Error(
+          data?.message ||
+            "L'activation du document n'a pas pu être confirmée."
+        );
+      }
+
+      // ----------------------------------------------------
+      // Activation réussie
+      // ----------------------------------------------------
+
+      setDownloaded(true);
+
+      // ----------------------------------------------------
+      // Nettoyage local de la photo
+      // ----------------------------------------------------
+
+      setPhoto(null);
+
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Impossible d'activer le document."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
   // ==========================================================
   // RETOUR
   // ==========================================================
@@ -3924,29 +3923,29 @@ const Activation: React.FC = () => {
                   "
                 >
                   {loading ? (
-                    <>
-                      <Loader2
-                        className="
-                          w-5
-                          h-5
-                          animate-spin
-                        "
-                      />
+  <>
+    <Loader2
+      className="
+        w-5
+        h-5
+        animate-spin
+      "
+    />
 
-                      Génération du PDF...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles
-                        className="
-                          w-5
-                          h-5
-                        "
-                      />
+    Génération et sécurisation...
+  </>
+) : (
+  <>
+    <Sparkles
+      className="
+        w-5
+        h-5
+      "
+    />
 
-                      Activer et générer {documentName}
-                    </>
-                  )}
+    Activer {documentName}
+  </>
+)}
                 </button>
               </div>
             )}
@@ -3955,278 +3954,224 @@ const Activation: React.FC = () => {
                 SUCCÈS
             ================================================== */}
 
-            {downloaded && (
-              <div
-                className={`
-                  ${cardClass}
-                  p-6
-                  sm:p-8
-                  border-green-300
-                  dark:border-green-900
-                `}
-              >
-                <div
-                  className="
-                    text-center
-                  "
-                >
-                  <div
-                    className="
-                      mx-auto
-                      w-20
-                      h-20
-                      bg-green-100
-                      text-green-600
-                      rounded-full
-                      flex
-                      items-center
-                      justify-center
-                      mb-5
-                      shadow-xl
-                      dark:bg-green-950
-                      dark:text-green-400
-                    "
-                  >
-                    <CheckCircle2
-                      className="
-                        w-12
-                        h-12
-                      "
-                    />
-                  </div>
+          {downloaded && (
+  <div
+    className={`
+      ${cardClass}
+      p-6
+      sm:p-8
+      border-green-300
+      dark:border-green-900
+    `}
+  >
+    <div
+      className="
+        text-center
+      "
+    >
+      <div
+        className="
+          mx-auto
+          w-20
+          h-20
+          bg-green-100
+          text-green-600
+          rounded-full
+          flex
+          items-center
+          justify-center
+          mb-5
+          shadow-xl
+          dark:bg-green-950
+          dark:text-green-400
+        "
+      >
+        <CheckCircle2
+          className="
+            w-12
+            h-12
+          "
+        />
+      </div>
 
-                  <h2
-                    className="
-                      text-2xl
-                      sm:text-3xl
-                      font-extrabold
-                      text-gray-900
-                      dark:text-white
-                    "
-                  >
-                    {documentName} activé !
-                  </h2>
+      <h2
+        className="
+          text-2xl
+          sm:text-3xl
+          font-extrabold
+          text-gray-900
+          dark:text-white
+        "
+      >
+        {documentName} activé !
+      </h2>
 
-                  <p
-                    className="
-                      text-gray-700
-                      dark:text-gray-400
-                      mt-2
-                    "
-                  >
-                    Votre document personnalisé a été généré
-                    avec succès.
-                  </p>
-                </div>
+      <p
+        className="
+          text-gray-700
+          dark:text-gray-400
+          mt-2
+        "
+      >
+        Votre document personnalisé a été généré
+        et sécurisé avec succès.
+      </p>
+    </div>
 
-                {/* =================================================
-                    TÉLÉCHARGEMENT
-                ================================================= */}
+    {/* =================================================
+        DOCUMENT SÉCURISÉ
+    ================================================= */}
 
-                <div
-                  className="
-                    mt-7
-                    p-5
-                    bg-green-50/90
-                    border
-                    border-green-200
-                    rounded-2xl
-                    dark:bg-green-950/30
-                    dark:border-green-900
-                  "
-                >
-                  <p
-                    className="
-                      flex
-                      items-center
-                      gap-2
-                      font-bold
-                      text-green-800
-                      dark:text-green-300
-                    "
-                  >
-                    <Download
-                      className="
-                        w-5
-                        h-5
-                      "
-                    />
+    <div
+      className="
+        mt-7
+        p-5
+        bg-green-50/90
+        border
+        border-green-200
+        rounded-2xl
+        dark:bg-green-950/30
+        dark:border-green-900
+      "
+    >
+      <p
+        className="
+          flex
+          items-center
+          gap-2
+          font-bold
+          text-green-800
+          dark:text-green-300
+        "
+      >
+        <ShieldCheck
+          className="
+            w-5
+            h-5
+          "
+        />
 
-                    PDF téléchargé
-                  </p>
+        Document sécurisé
+      </p>
 
-                  <p
-                    className="
-                      text-sm
-                      text-green-700
-                      dark:text-green-400
-                      mt-1
-                    "
-                  >
-                    Votre fichier{" "}
-                    <span
-                      className="font-bold"
-                    >
-                      {documentName}
-                    </span>{" "}
-                    personnalisé a été téléchargé sur votre appareil.
-                  </p>
-                </div>
+      <p
+        className="
+          text-sm
+          text-green-700
+          dark:text-green-400
+          mt-2
+        "
+      >
+        Votre document n'est pas téléchargé sur cet appareil
+        et n'est pas envoyé par e-mail.
+      </p>
 
-                {/* =================================================
-                    E-MAIL
-                ================================================= */}
+      <p
+        className="
+          text-sm
+          text-green-700
+          dark:text-green-400
+          mt-2
+        "
+      >
+        Il est conservé de manière sécurisée par CODE et
+        associé à ce terminal pour vous permettre d'y accéder
+        ultérieurement depuis « Mes documents ».
+      </p>
+    </div>
 
-                {emailSent ===
-                  true && (
-                  <div
-                    className="
-                      mt-4
-                      p-5
-                      bg-blue-50/90
-                      border
-                      border-blue-200
-                      rounded-2xl
-                      dark:bg-blue-950/30
-                      dark:border-blue-900
-                    "
-                  >
-                    <p
-                      className="
-                        flex
-                        items-center
-                        gap-2
-                        font-bold
-                        text-blue-800
-                        dark:text-blue-300
-                      "
-                    >
-                      <Mail
-                        className="
-                          w-5
-                          h-5
-                        "
-                      />
+    {/* =================================================
+        ACCÈS AUX DOCUMENTS
+    ================================================= */}
 
-                      PDF envoyé par e-mail
-                    </p>
+    <div
+      className="
+        mt-5
+        p-5
+        bg-blue-50/90
+        border
+        border-blue-200
+        rounded-2xl
+        dark:bg-blue-950/30
+        dark:border-blue-900
+      "
+    >
+      <p
+        className="
+          flex
+          items-center
+          gap-2
+          font-bold
+          text-blue-800
+          dark:text-blue-300
+        "
+      >
+        <FileText
+          className="
+            w-5
+            h-5
+          "
+        />
 
-                    <p
-                      className="
-                        text-sm
-                        text-blue-700
-                        dark:text-blue-400
-                        mt-1
-                      "
-                    >
-                      Le même document PDF a été envoyé à :
-                      {" "}
-                      <span
-                        className="
-                          font-bold
-                        "
-                      >
-                        {target ===
-                        "self"
-                          ? email
-                          : beneficiaryEmail}
-                      </span>
-                    </p>
-                  </div>
-                )}
+        Votre document est disponible dans « Mes documents »
+      </p>
 
-                {emailSent ===
-                  false && (
-                  <div
-                    className="
-                      mt-4
-                      p-5
-                      bg-yellow-50/90
-                      border
-                      border-yellow-200
-                      rounded-2xl
-                      dark:bg-yellow-950/30
-                      dark:border-yellow-900
-                    "
-                  >
-                    <p
-                      className="
-                        flex
-                        items-center
-                        gap-2
-                        font-bold
-                        text-yellow-800
-                        dark:text-yellow-300
-                      "
-                    >
-                      <Info
-                        className="
-                          w-5
-                          h-5
-                        "
-                      />
+      <p
+        className="
+          text-sm
+          text-blue-700
+          dark:text-blue-400
+          mt-2
+        "
+      >
+        Vous pourrez retrouver votre document depuis
+        l'espace sécurisé de CODE.
+      </p>
+    </div>
 
-                      PDF téléchargé, mais e-mail non envoyé
-                    </p>
+    {/* =================================================
+        COMPTE
+    ================================================= */}
 
-                    <p
-                      className="
-                        text-sm
-                        text-yellow-700
-                        dark:text-yellow-400
-                        mt-1
-                      "
-                    >
-                      Le document a bien été généré et téléchargé.
-                      Un problème est survenu lors de son envoi
-                      par e-mail.
-                    </p>
-                  </div>
-                )}
+    <div
+      className="
+        mt-7
+        text-center
+      "
+    >
+      <Link
+        to="/login"
+        className="
+          inline-flex
+          items-center
+          justify-center
+          gap-2
+          bg-gray-900
+          hover:bg-black
+          text-white
+          font-bold
+          py-3.5
+          px-7
+          rounded-xl
+          transition
+          shadow-xl
+          dark:bg-white
+          dark:text-gray-900
+          dark:hover:bg-gray-200
+        "
+      >
+        Se connecter à CODE
 
-                {/* =================================================
-                    COMPTE
-                ================================================= */}
-
-                <div
-                  className="
-                    mt-7
-                    text-center
-                  "
-                >
-                  <Link
-                    to="/login"
-                    className="
-                      inline-flex
-                      items-center
-                      justify-center
-                      gap-2
-                      bg-gray-900
-                      hover:bg-black
-                      text-white
-                      font-bold
-                      py-3.5
-                      px-7
-                      rounded-xl
-                      transition
-                      shadow-xl
-                      dark:bg-white
-                      dark:text-gray-900
-                      dark:hover:bg-gray-200
-                    "
-                  >
-                    Se connecter à CODE
-
-                    <ArrowRight
-                      className="
-                        w-4
-                        h-4
-                      "
-                    />
-                  </Link>
-                </div>
-              </div>
-            )}
+        <ArrowRight
+          className="
+            w-4
+            h-4
+          "
+        />
+      </Link>
+    </div>
+  </div>
+)}
           </div>
         )}
 

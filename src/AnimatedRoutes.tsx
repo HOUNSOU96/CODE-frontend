@@ -840,11 +840,9 @@ const AnimatedRoutes: React.FC = () => {
 
 
 <Route
-  path="/secure-document"
+  path="/secure-document/:documentId"
   element={
-    
-        <SecureDocument />
-      
+    <SecureDocument />
   }
 />
 
