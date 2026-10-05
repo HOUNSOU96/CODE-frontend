@@ -1,4 +1,3 @@
-
 import React, {
   useEffect,
   useMemo,
@@ -17,6 +16,23 @@ import {
   CheckCircle2,
   Loader2,
   UserMinus,
+  Users,
+  GraduationCap,
+  ShieldCheck,
+  ShieldAlert,
+  BookOpen,
+  Building2,
+  Clock3,
+  UserPlus,
+  Ban,
+  RefreshCcw,
+  FileText,
+  KeyRound,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  Settings,
+  Eye,
 } from "lucide-react";
 
 
@@ -148,25 +164,13 @@ interface UserInscrit {
 
   is_active?: boolean;
 
-  // ========================================================
-  // 👨‍🏫 STATUT ENSEIGNANT
-  // ========================================================
-
   enseignant?: boolean;
 
   enseignant_actif?: boolean;
 
   subjects?: string[];
 
-  // ========================================================
-  // 🏫 DIRECTION D'ÉCOLE
-  // ========================================================
-
   directorships?: Directorship[];
-
-  // ========================================================
-  // 🏫 ÉCOLES DE L'UTILISATEUR
-  // ========================================================
 
   school_memberships?: UserSchoolMembership[];
 
@@ -174,19 +178,11 @@ interface UserInscrit {
 
   ecoles?: UserSchoolMembership[];
 
-  // ========================================================
-  // PARRAINAGE
-  // ========================================================
-
   parrain_email: string;
 
   lieu_naissance?: string;
 
   filleuls_emails?: string[];
-
-  // ========================================================
-  // DOCUMENTS OBTENUS
-  // ========================================================
 
   documents?: DocumentAttribue[];
 }
@@ -239,7 +235,17 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 🔐 ACCÈS DIRECTEUR
+  // RECHERCHE / FILTRE VISUEL
+  // ========================================================
+
+  const [
+    searchTerm,
+    setSearchTerm,
+  ] = useState("");
+
+
+  // ========================================================
+  // ACCÈS DIRECTEUR
   // ========================================================
 
   const [
@@ -254,7 +260,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 🏫 ÉCOLES DU DIRECTEUR
+  // ÉCOLES DU DIRECTEUR
   // ========================================================
 
   const [
@@ -264,7 +270,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 👨‍🏫 ENSEIGNANTS DES ÉCOLES DU DIRECTEUR
+  // ENSEIGNANTS DES ÉCOLES DU DIRECTEUR
   // ========================================================
 
   const [
@@ -287,7 +293,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 🏫 ÉTATS GESTION DIRECTEURS
+  // GESTION DIRECTEURS
   // ========================================================
 
   const [
@@ -327,7 +333,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 🔐 VÉRIFICATION ADMIN / DIRECTEUR
+  // VÉRIFICATION ADMIN / DIRECTEUR
   // ========================================================
 
   useEffect(() => {
@@ -346,11 +352,6 @@ const ListeInscrits: React.FC = () => {
     }
 
 
-    /*
-     * L'administrateur CODE possède directement
-     * l'autorisation globale.
-     */
-
     if (user.is_admin) {
 
       setIsDirector(false);
@@ -361,11 +362,6 @@ const ListeInscrits: React.FC = () => {
 
     }
 
-
-    /*
-     * Un directeur est également autorisé
-     * à accéder à cette page.
-     */
 
     const checkDirectorAccess =
       async () => {
@@ -475,7 +471,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 👨‍🏫 RÉCUPÉRATION DES ENSEIGNANTS
+  // RÉCUPÉRATION DES ENSEIGNANTS
   // ========================================================
 
   const fetchDirectorTeachers =
@@ -609,13 +605,6 @@ const ListeInscrits: React.FC = () => {
           responses.flat();
 
 
-        /*
-         * Suppression des doublons :
-         * un même enseignant peut être présent
-         * dans plusieurs écoles, mais pas deux fois
-         * dans la même école.
-         */
-
         const unique =
           merged.filter(
             (
@@ -662,7 +651,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 👨‍🏫 RECHERCHE DES ÉCOLES D'UN ENSEIGNANT
+  // RECHERCHE DES ÉCOLES D'UN ENSEIGNANT
   // ========================================================
 
   const getTeacherSchools =
@@ -685,7 +674,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 🏫 RÉCUPÉRATION DES ÉCOLES
+  // RÉCUPÉRATION DES ÉCOLES
   // ========================================================
 
   const fetchSchools =
@@ -740,7 +729,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 🏫 OUVRIR LA FENÊTRE DIRECTEUR
+  // OUVRIR LA FENÊTRE DIRECTEUR
   // ========================================================
 
   const handleOpenDirectorModal =
@@ -763,7 +752,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 🏫 FERMER LA FENÊTRE DIRECTEUR
+  // FERMER LA FENÊTRE DIRECTEUR
   // ========================================================
 
   const handleCloseDirectorModal =
@@ -788,7 +777,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 🏫 DÉSIGNER UN DIRECTEUR
+  // DÉSIGNER UN DIRECTEUR
   // ========================================================
 
   const handleDesignateDirector =
@@ -874,18 +863,12 @@ const ListeInscrits: React.FC = () => {
         );
 
 
-      if (
-        !confirmation
-      ) {
-
+      if (!confirmation) {
         return;
-
       }
 
 
-      setDirectorSaving(
-        true
-      );
+      setDirectorSaving(true);
 
 
       try {
@@ -988,12 +971,6 @@ const ListeInscrits: React.FC = () => {
 
                 }
 
-
-                /*
-                 * Le backend transforme également
-                 * le directeur en enseignant rattaché
-                 * à cette école.
-                 */
 
                 const anciennesEcoles =
                   Array.isArray(
@@ -1176,9 +1153,7 @@ const ListeInscrits: React.FC = () => {
 
       } finally {
 
-        setDirectorSaving(
-          false
-        );
+        setDirectorSaving(false);
 
       }
 
@@ -1186,7 +1161,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 🏫 RETIRER UN DIRECTEUR
+  // RETIRER UN DIRECTEUR
   // ========================================================
 
   const handleRemoveDirector =
@@ -1211,12 +1186,8 @@ const ListeInscrits: React.FC = () => {
         );
 
 
-      if (
-        !direction
-      ) {
-
+      if (!direction) {
         return;
-
       }
 
 
@@ -1226,12 +1197,8 @@ const ListeInscrits: React.FC = () => {
         );
 
 
-      if (
-        !confirmation
-      ) {
-
+      if (!confirmation) {
         return;
-
       }
 
 
@@ -1241,15 +1208,6 @@ const ListeInscrits: React.FC = () => {
 
 
       try {
-
-        /*
-         * NOUVEL ENDPOINT BACKEND :
-         *
-         * DELETE
-         * /api/schools/admin/{school_id}/director
-         *
-         * Le user_id n'est plus envoyé dans l'URL.
-         */
 
         await api.delete(
           `/api/schools/admin/${schoolId}/director`
@@ -1357,7 +1315,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 👨‍🏫 RETIRER UN ENSEIGNANT DE L'ÉCOLE
+  // RETIRER UN ENSEIGNANT DE L'ÉCOLE
   // ========================================================
 
   const handleRemoveTeacherFromSchool =
@@ -1386,12 +1344,8 @@ const ListeInscrits: React.FC = () => {
         );
 
 
-      if (
-        !confirmation
-      ) {
-
+      if (!confirmation) {
         return;
-
       }
 
 
@@ -1405,23 +1359,11 @@ const ListeInscrits: React.FC = () => {
 
       try {
 
-        /*
-         * NOUVEL ENDPOINT DIRECTEUR :
-         *
-         * DELETE
-         * /api/schools/director/{school_id}/teachers/{user_id}
-         */
-
         const response =
           await api.delete(
             `/api/schools/director/${schoolId}/teachers/${utilisateur.id}`
           );
 
-
-        /*
-         * Suppression locale uniquement
-         * de l'association enseignant ↔ école.
-         */
 
         setDirectorTeachers(
           (
@@ -1440,18 +1382,6 @@ const ListeInscrits: React.FC = () => {
             )
         );
 
-
-        /*
-         * IMPORTANT :
-         *
-         * On ne modifie PAS :
-         *
-         * enseignant
-         * enseignant_actif
-         *
-         * car l'utilisateur peut être enseignant
-         * dans une autre école.
-         */
 
         const removeSchoolMembership =
           (
@@ -1593,7 +1523,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 🔧 UTILITAIRE NORMALISATION UTILISATEUR
+  // UTILITAIRE NORMALISATION UTILISATEUR
   // ========================================================
 
   const normalizeUser =
@@ -1746,7 +1676,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 🏫 AJOUT D'UNE ASSOCIATION ÉCOLE À UN UTILISATEUR
+  // AJOUT ASSOCIATION ÉCOLE
   // ========================================================
 
   const addSchoolMembershipToUser =
@@ -1777,12 +1707,8 @@ const ListeInscrits: React.FC = () => {
         );
 
 
-      if (
-        exists
-      ) {
-
+      if (exists) {
         return userItem;
-
       }
 
 
@@ -1801,7 +1727,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 🏫 RÉCUPÉRATION DES UTILISATEURS D'UNE ÉCOLE
+  // RÉCUPÉRATION DES UTILISATEURS D'UNE ÉCOLE
   // ========================================================
 
   const fetchDirectorSchoolUsers =
@@ -1831,11 +1757,9 @@ const ListeInscrits: React.FC = () => {
                 UserInscrit[] = [];
 
 
-              /*
-               * --------------------------------------------------
-               * ENSEIGNANTS
-               * --------------------------------------------------
-               */
+              // ------------------------------------------------
+              // ENSEIGNANTS
+              // ------------------------------------------------
 
               try {
 
@@ -1940,11 +1864,9 @@ const ListeInscrits: React.FC = () => {
               }
 
 
-              /*
-               * --------------------------------------------------
-               * APPRENANTS
-               * --------------------------------------------------
-               */
+              // ------------------------------------------------
+              // APPRENANTS
+              // ------------------------------------------------
 
               try {
 
@@ -2049,21 +1971,9 @@ const ListeInscrits: React.FC = () => {
         );
 
 
-      /*
-       * Toutes les écoles sont maintenant regroupées.
-       */
-
       const merged =
         schoolResponses.flat();
 
-
-      /*
-       * Un enseignant peut appartenir à plusieurs écoles.
-       * Un apprenant peut également être présent dans une
-       * réponse provenant de plusieurs sources.
-       *
-       * On fusionne donc par user_id.
-       */
 
       const usersMap =
         new Map<
@@ -2092,9 +2002,7 @@ const ListeInscrits: React.FC = () => {
             );
 
 
-          if (
-            !existing
-          ) {
+          if (!existing) {
 
             usersMap.set(
               current.id,
@@ -2105,10 +2013,6 @@ const ListeInscrits: React.FC = () => {
 
           }
 
-
-          /*
-           * Fusion des appartenances scolaires.
-           */
 
           const existingMemberships =
             Array.isArray(
@@ -2149,9 +2053,7 @@ const ListeInscrits: React.FC = () => {
                 );
 
 
-              if (
-                !exists
-              ) {
+              if (!exists) {
 
                 mergedMemberships.push(
                   membership
@@ -2167,12 +2069,6 @@ const ListeInscrits: React.FC = () => {
             current.id,
             {
               ...existing,
-
-              /*
-               * Si l'un des résultats indique
-               * qu'il est enseignant, on conserve
-               * ce statut.
-               */
 
               enseignant:
                 existing.enseignant ===
@@ -2215,7 +2111,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 📥 RÉCUPÉRATION DES INSCRITS
+  // RÉCUPÉRATION DES INSCRITS
   // ========================================================
 
   useEffect(() => {
@@ -2250,14 +2146,9 @@ const ListeInscrits: React.FC = () => {
 
         try {
 
-          /*
-           * ==================================================
-           * ADMIN CODE
-           * ==================================================
-           *
-           * L'administrateur continue d'utiliser
-           * l'endpoint global historique.
-           */
+          // ==================================================
+          // ADMIN CODE
+          // ==================================================
 
           if (
             user?.is_admin
@@ -2282,11 +2173,6 @@ const ListeInscrits: React.FC = () => {
                 response.data.inscrits ||
                 []
               )
-
-                /*
-                 * Ne pas afficher l'administrateur
-                 * principal de CODE.
-                 */
                 .filter(
                   (
                     i: any
@@ -2294,7 +2180,6 @@ const ListeInscrits: React.FC = () => {
                     i.email !==
                     "deogratiashounsou@gmail.com"
                 )
-
                 .map(
                   (
                     i: any
@@ -2304,10 +2189,6 @@ const ListeInscrits: React.FC = () => {
                     )
                 );
 
-
-            /*
-             * TRI ADMIN
-             */
 
             const listeTriee =
               [
@@ -2402,19 +2283,9 @@ const ListeInscrits: React.FC = () => {
           }
 
 
-          /*
-           * ==================================================
-           * DIRECTEUR
-           * ==================================================
-           *
-           * IMPORTANT :
-           *
-           * Un directeur ne doit pas utiliser
-           * /api/admin/liste-inscrits.
-           *
-           * Il récupère uniquement les utilisateurs
-           * appartenant à ses écoles.
-           */
+          // ==================================================
+          // DIRECTEUR
+          // ==================================================
 
           if (
             isDirector &&
@@ -2428,11 +2299,6 @@ const ListeInscrits: React.FC = () => {
               );
 
 
-            /*
-             * Ne pas afficher un éventuel compte
-             * administrateur global.
-             */
-
             const filteredUsers =
               allUsers.filter(
                 (
@@ -2441,12 +2307,6 @@ const ListeInscrits: React.FC = () => {
                   !item.is_admin
               );
 
-
-            /*
-             * TRI :
-             * enseignants puis apprenants,
-             * puis nom/prénom.
-             */
 
             const listeTriee =
               [
@@ -2518,13 +2378,6 @@ const ListeInscrits: React.FC = () => {
               );
 
 
-            /*
-             * Pagination locale pour le directeur.
-             *
-             * Le backend nous donne ici les utilisateurs
-             * de toutes les écoles dont il a la direction.
-             */
-
             const total =
               listeTriee.length;
 
@@ -2554,12 +2407,6 @@ const ListeInscrits: React.FC = () => {
               )
             );
 
-
-            /*
-             * Si une suppression ou un changement
-             * rend la page courante vide, on revient
-             * à la dernière page disponible.
-             */
 
             const calculatedPages =
               Math.max(
@@ -2641,7 +2488,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 👨‍🏫 RÉCUPÉRATION DES ENSEIGNANTS DU DIRECTEUR
+  // RÉCUPÉRATION ENSEIGNANTS DIRECTEUR
   // ========================================================
 
   useEffect(() => {
@@ -2726,9 +2573,7 @@ const ListeInscrits: React.FC = () => {
           [];
 
 
-        pages.push(
-          1
-        );
+        pages.push(1);
 
 
         for (
@@ -2739,17 +2584,15 @@ const ListeInscrits: React.FC = () => {
             );
 
           p <=
-            Math.min(
-              totalPages - 1,
-              page + 2
-            );
+          Math.min(
+            totalPages - 1,
+            page + 2
+          );
 
           p++
         ) {
 
-          pages.push(
-            p
-          );
+          pages.push(p);
 
         }
 
@@ -2774,7 +2617,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // NUMÉRO PREMIER ÉLÉMENT
+  // INDEX PAGINATION
   // ========================================================
 
   const startIndex =
@@ -2789,10 +2632,6 @@ const ListeInscrits: React.FC = () => {
         1;
 
 
-  // ========================================================
-  // NUMÉRO DERNIER ÉLÉMENT
-  // ========================================================
-
   const endIndex =
     Math.min(
       page *
@@ -2802,7 +2641,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 🏫 ÉCOLES D'UN UTILISATEUR
+  // ÉCOLES D'UN UTILISATEUR
   // ========================================================
 
   const getUserSchools =
@@ -2883,12 +2722,6 @@ const ListeInscrits: React.FC = () => {
       );
 
 
-      /*
-       * Pour les administrateurs CODE,
-       * on complète également les informations
-       * à partir des directions connues.
-       */
-
       (
         utilisateur.directorships ||
         []
@@ -2943,7 +2776,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 🏫 FORMAT ÉCOLES
+  // AFFICHAGE DES ÉCOLES
   // ========================================================
 
   const renderUserSchools =
@@ -2967,7 +2800,9 @@ const ListeInscrits: React.FC = () => {
           <span
             className="
               text-gray-400
+              dark:text-gray-500
               italic
+              text-sm
             "
           >
             Aucune école
@@ -2984,7 +2819,7 @@ const ListeInscrits: React.FC = () => {
             flex
             flex-col
             gap-2
-            min-w-[220px]
+            min-w-[230px]
           "
         >
 
@@ -3013,28 +2848,37 @@ const ListeInscrits: React.FC = () => {
                     `${school.school_id}-${school.role}-${index}`
                   }
                   className="
-                    rounded-lg
+                    rounded-xl
                     bg-blue-50
                     dark:bg-blue-900/20
                     border
-                    border-blue-200
+                    border-blue-100
                     dark:border-blue-800
-                    p-2
+                    p-3
                   "
                 >
 
                   <div
                     className="
+                      flex
+                      items-center
+                      gap-2
                       font-semibold
                       text-blue-700
                       dark:text-blue-300
+                      text-sm
                     "
                   >
 
-                    🏫{" "}
-                    {
-                      school.school_name
-                    }
+                    <Building2
+                      size={15}
+                    />
+
+                    <span>
+                      {
+                        school.school_name
+                      }
+                    </span>
 
                   </div>
 
@@ -3075,7 +2919,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 👨‍🏫 PROF POUR UN DIRECTEUR
+  // PROF POUR UN DIRECTEUR
   // ========================================================
 
   const getTeacherSchoolsForDirector =
@@ -3092,7 +2936,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // NOMBRE D'INSCRIPTIONS EN ATTENTE
+  // NOMBRE INSCRIPTIONS EN ATTENTE
   // ========================================================
 
   const pendingCount =
@@ -3106,7 +2950,112 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 👨‍🏫 DÉCLARER UN UTILISATEUR ENSEIGNANT
+  // STATISTIQUES VISUELLES
+  // ========================================================
+
+  const onlineCount =
+    inscrits.filter(
+      (
+        i
+      ) =>
+        i.is_online
+    ).length;
+
+
+  const teacherCount =
+    inscrits.filter(
+      (
+        i
+      ) =>
+        i.enseignant
+    ).length;
+
+
+  const blockedCount =
+    inscrits.filter(
+      (
+        i
+      ) =>
+        i.is_blocked
+    ).length;
+
+
+  const documentsCount =
+    inscrits.reduce(
+      (
+        total,
+        item
+      ) =>
+        total +
+        (
+          Array.isArray(
+            item.documents
+          )
+            ? item.documents.length
+            : 0
+        ),
+      0
+    );
+
+
+  // ========================================================
+  // FILTRE VISUEL
+  // ========================================================
+
+  const displayedInscrits =
+    useMemo(
+      () => {
+
+        const term =
+          searchTerm
+            .trim()
+            .toLowerCase();
+
+
+        if (!term) {
+          return inscrits;
+        }
+
+
+        return inscrits.filter(
+          (
+            item
+          ) =>
+            `${item.prenom} ${item.nom}`
+              .toLowerCase()
+              .includes(term) ||
+            item.email
+              .toLowerCase()
+              .includes(term) ||
+            item.telephone
+              .toLowerCase()
+              .includes(term) ||
+            (
+              item.documents ||
+              []
+            ).some(
+              (
+                document
+              ) =>
+                document.document_name
+                  .toLowerCase()
+                  .includes(term) ||
+                document.activation_code
+                  .toLowerCase()
+                  .includes(term)
+            )
+        );
+
+      },
+      [
+        inscrits,
+        searchTerm,
+      ]
+    );
+
+
+  // ========================================================
+  // DÉCLARER ENSEIGNANT
   // ========================================================
 
   const handleDeclarerEnseignant =
@@ -3125,12 +3074,8 @@ const ListeInscrits: React.FC = () => {
         );
 
 
-      if (
-        !utilisateur
-      ) {
-
+      if (!utilisateur) {
         return;
-
       }
 
 
@@ -3140,12 +3085,8 @@ const ListeInscrits: React.FC = () => {
         );
 
 
-      if (
-        !confirmation
-      ) {
-
+      if (!confirmation) {
         return;
-
       }
 
 
@@ -3252,7 +3193,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // VALIDATION D'UN INSCRIT
+  // VALIDATION
   // ========================================================
 
   const handleValider =
@@ -3318,7 +3259,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // REFUSER UN INSCRIT
+  // REFUS
   // ========================================================
 
   const handleRefuser =
@@ -3456,7 +3397,7 @@ const ListeInscrits: React.FC = () => {
 
 
   // ========================================================
-  // 🔄 CHARGEMENT
+  // CHARGEMENT INITIAL
   // ========================================================
 
   if (
@@ -3468,23 +3409,82 @@ const ListeInscrits: React.FC = () => {
 
       <div
         className="
+          min-h-screen
           flex
-          flex-col
           items-center
           justify-center
-          min-h-screen
-          gap-3
-          text-gray-600
-          dark:text-gray-300
+          bg-slate-50
+          dark:bg-gray-950
+          px-6
         "
       >
 
-        <Loader2
-          size={30}
-          className="animate-spin"
-        />
+        <div
+          className="
+            w-full
+            max-w-md
+            rounded-3xl
+            bg-white
+            dark:bg-gray-900
+            border
+            border-gray-200
+            dark:border-gray-800
+            shadow-xl
+            p-8
+            text-center
+          "
+        >
 
-        Vérification des autorisations...
+          <div
+            className="
+              mx-auto
+              mb-5
+              w-14
+              h-14
+              rounded-2xl
+              bg-blue-50
+              dark:bg-blue-900/20
+              flex
+              items-center
+              justify-center
+            "
+          >
+
+            <Loader2
+              size={30}
+              className="
+                animate-spin
+                text-blue-600
+              "
+            />
+
+          </div>
+
+
+          <h2
+            className="
+              text-lg
+              font-bold
+              text-gray-900
+              dark:text-white
+            "
+          >
+            Vérification des autorisations
+          </h2>
+
+
+          <p
+            className="
+              mt-2
+              text-sm
+              text-gray-500
+              dark:text-gray-400
+            "
+          >
+            Préparation de votre espace de gestion...
+          </p>
+
+        </div>
 
       </div>
 
@@ -3503,7 +3503,7 @@ const ListeInscrits: React.FC = () => {
 
       initial={{
         opacity: 0,
-        y: 30,
+        y: 20,
       }}
 
       animate={{
@@ -3513,65 +3513,854 @@ const ListeInscrits: React.FC = () => {
 
       exit={{
         opacity: 0,
-        y: -30,
+        y: -20,
       }}
 
       transition={{
-        duration: 0.5,
+        duration: 0.45,
       }}
 
       className="
         min-h-screen
-        p-6
-        bg-gray-100
-        dark:bg-gray-900
+        bg-slate-50
+        dark:bg-gray-950
+        px-4
+        py-6
+        sm:px-6
+        lg:px-8
       "
     >
 
-      {/* ====================================================
-          TITRE
-      ==================================================== */}
-
-      <h1
+      <div
         className="
-          text-3xl
-          font-bold
-          text-center
-          text-blue-700
-          dark:text-white
-          mb-4
+          max-w-[1800px]
+          mx-auto
         "
       >
-        {user?.is_admin
-          ? "Liste des Apprenants Inscrits"
-          : "Utilisateurs de mon école"}
-      </h1>
 
-
-      {/* ====================================================
-          INFORMATION DIRECTEUR
-      ==================================================== */}
-
-      {isDirector &&
-      !user?.is_admin && (
+        {/* ==================================================
+            EN-TÊTE
+        ================================================== */}
 
         <div
           className="
-            max-w-5xl
-            mx-auto
+            relative
+            overflow-hidden
+            rounded-3xl
+            bg-gradient-to-br
+            from-blue-700
+            via-blue-600
+            to-indigo-700
+            shadow-xl
             mb-6
-            p-4
-            rounded-2xl
-            bg-amber-50
-            dark:bg-amber-950/30
-            border
-            border-amber-200
-            dark:border-amber-700
           "
         >
 
           <div
             className="
+              absolute
+              -right-16
+              -top-20
+              w-64
+              h-64
+              rounded-full
+              bg-white/10
+            "
+          />
+
+          <div
+            className="
+              absolute
+              -left-20
+              -bottom-24
+              w-72
+              h-72
+              rounded-full
+              bg-white/5
+            "
+          />
+
+
+          <div
+            className="
+              relative
+              z-10
+              p-6
+              sm:p-8
+              flex
+              flex-col
+              lg:flex-row
+              lg:items-center
+              lg:justify-between
+              gap-6
+            "
+          >
+
+            <div>
+
+              <div
+                className="
+                  inline-flex
+                  items-center
+                  gap-2
+                  px-3
+                  py-1.5
+                  rounded-full
+                  bg-white/15
+                  border
+                  border-white/20
+                  text-white
+                  text-xs
+                  font-semibold
+                  mb-4
+                "
+              >
+
+                {user?.is_admin ? (
+                  <>
+                    <ShieldCheck size={15} />
+                    Administration CODE
+                  </>
+                ) : (
+                  <>
+                    <Building2 size={15} />
+                    Espace direction
+                  </>
+                )}
+
+              </div>
+
+
+              <h1
+                className="
+                  text-2xl
+                  sm:text-3xl
+                  lg:text-4xl
+                  font-black
+                  tracking-tight
+                  text-white
+                "
+              >
+                {user?.is_admin
+                  ? "Gestion des utilisateurs"
+                  : "Utilisateurs de mes écoles"}
+              </h1>
+
+
+              <p
+                className="
+                  mt-2
+                  max-w-2xl
+                  text-sm
+                  sm:text-base
+                  text-blue-100
+                "
+              >
+                {user?.is_admin
+                  ? "Gérez les inscriptions, les enseignants, les directions, les écoles et les accès aux documents."
+                  : "Consultez les membres de vos écoles et gérez les associations avec les enseignants."}
+              </p>
+
+            </div>
+
+
+            <div
+              className="
+                shrink-0
+                flex
+                items-center
+                justify-center
+                w-16
+                h-16
+                rounded-2xl
+                bg-white/15
+                border
+                border-white/20
+                backdrop-blur-sm
+              "
+            >
+
+              {user?.is_admin ? (
+                <Users
+                  size={32}
+                  className="text-white"
+                />
+              ) : (
+                <School
+                  size={32}
+                  className="text-white"
+                />
+              )}
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        {/* ==================================================
+            STATISTIQUES
+        ================================================== */}
+
+        <div
+          className="
+            grid
+            grid-cols-2
+            lg:grid-cols-5
+            gap-3
+            sm:gap-4
+            mb-6
+          "
+        >
+
+          <div
+            className="
+              rounded-2xl
+              bg-white
+              dark:bg-gray-900
+              border
+              border-gray-200
+              dark:border-gray-800
+              shadow-sm
+              p-4
+            "
+          >
+
+            <div
+              className="
+                flex
+                items-center
+                justify-between
+                gap-3
+              "
+            >
+
+              <div>
+
+                <p
+                  className="
+                    text-xs
+                    font-semibold
+                    uppercase
+                    tracking-wide
+                    text-gray-500
+                    dark:text-gray-400
+                  "
+                >
+                  Utilisateurs
+                </p>
+
+                <p
+                  className="
+                    mt-1
+                    text-2xl
+                    font-black
+                    text-gray-900
+                    dark:text-white
+                  "
+                >
+                  {totalInscrits}
+                </p>
+
+              </div>
+
+
+              <div
+                className="
+                  w-10
+                  h-10
+                  rounded-xl
+                  bg-blue-50
+                  dark:bg-blue-900/20
+                  flex
+                  items-center
+                  justify-center
+                "
+              >
+
+                <Users
+                  size={20}
+                  className="text-blue-600"
+                />
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <div
+            className="
+              rounded-2xl
+              bg-white
+              dark:bg-gray-900
+              border
+              border-gray-200
+              dark:border-gray-800
+              shadow-sm
+              p-4
+            "
+          >
+
+            <div
+              className="
+                flex
+                items-center
+                justify-between
+                gap-3
+              "
+            >
+
+              <div>
+
+                <p
+                  className="
+                    text-xs
+                    font-semibold
+                    uppercase
+                    tracking-wide
+                    text-gray-500
+                    dark:text-gray-400
+                  "
+                >
+                  En attente
+                </p>
+
+                <p
+                  className="
+                    mt-1
+                    text-2xl
+                    font-black
+                    text-amber-600
+                  "
+                >
+                  {pendingCount}
+                </p>
+
+              </div>
+
+
+              <div
+                className="
+                  w-10
+                  h-10
+                  rounded-xl
+                  bg-amber-50
+                  dark:bg-amber-900/20
+                  flex
+                  items-center
+                  justify-center
+                "
+              >
+
+                <Clock3
+                  size={20}
+                  className="text-amber-600"
+                />
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <div
+            className="
+              rounded-2xl
+              bg-white
+              dark:bg-gray-900
+              border
+              border-gray-200
+              dark:border-gray-800
+              shadow-sm
+              p-4
+            "
+          >
+
+            <div
+              className="
+                flex
+                items-center
+                justify-between
+                gap-3
+              "
+            >
+
+              <div>
+
+                <p
+                  className="
+                    text-xs
+                    font-semibold
+                    uppercase
+                    tracking-wide
+                    text-gray-500
+                    dark:text-gray-400
+                  "
+                >
+                  Enseignants
+                </p>
+
+                <p
+                  className="
+                    mt-1
+                    text-2xl
+                    font-black
+                    text-indigo-600
+                  "
+                >
+                  {teacherCount}
+                </p>
+
+              </div>
+
+
+              <div
+                className="
+                  w-10
+                  h-10
+                  rounded-xl
+                  bg-indigo-50
+                  dark:bg-indigo-900/20
+                  flex
+                  items-center
+                  justify-center
+                "
+              >
+
+                <GraduationCap
+                  size={20}
+                  className="text-indigo-600"
+                />
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <div
+            className="
+              rounded-2xl
+              bg-white
+              dark:bg-gray-900
+              border
+              border-gray-200
+              dark:border-gray-800
+              shadow-sm
+              p-4
+            "
+          >
+
+            <div
+              className="
+                flex
+                items-center
+                justify-between
+                gap-3
+              "
+            >
+
+              <div>
+
+                <p
+                  className="
+                    text-xs
+                    font-semibold
+                    uppercase
+                    tracking-wide
+                    text-gray-500
+                    dark:text-gray-400
+                  "
+                >
+                  En ligne
+                </p>
+
+                <p
+                  className="
+                    mt-1
+                    text-2xl
+                    font-black
+                    text-emerald-600
+                  "
+                >
+                  {onlineCount}
+                </p>
+
+              </div>
+
+
+              <div
+                className="
+                  w-10
+                  h-10
+                  rounded-xl
+                  bg-emerald-50
+                  dark:bg-emerald-900/20
+                  flex
+                  items-center
+                  justify-center
+                "
+              >
+
+                <CheckCircle2
+                  size={20}
+                  className="text-emerald-600"
+                />
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <div
+            className="
+              rounded-2xl
+              bg-white
+              dark:bg-gray-900
+              border
+              border-gray-200
+              dark:border-gray-800
+              shadow-sm
+              p-4
+            "
+          >
+
+            <div
+              className="
+                flex
+                items-center
+                justify-between
+                gap-3
+              "
+            >
+
+              <div>
+
+                <p
+                  className="
+                    text-xs
+                    font-semibold
+                    uppercase
+                    tracking-wide
+                    text-gray-500
+                    dark:text-gray-400
+                  "
+                >
+                  Documents
+                </p>
+
+                <p
+                  className="
+                    mt-1
+                    text-2xl
+                    font-black
+                    text-purple-600
+                  "
+                >
+                  {documentsCount}
+                </p>
+
+              </div>
+
+
+              <div
+                className="
+                  w-10
+                  h-10
+                  rounded-xl
+                  bg-purple-50
+                  dark:bg-purple-900/20
+                  flex
+                  items-center
+                  justify-center
+                "
+              >
+
+                <FileText
+                  size={20}
+                  className="text-purple-600"
+                />
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        {/* ==================================================
+            INFORMATION DIRECTEUR
+        ================================================== */}
+
+        {isDirector &&
+        !user?.is_admin && (
+
+          <div
+            className="
+              mb-6
+              rounded-2xl
+              bg-amber-50
+              dark:bg-amber-950/20
+              border
+              border-amber-200
+              dark:border-amber-800
+              p-5
+            "
+          >
+
+            <div
+              className="
+                flex
+                flex-col
+                sm:flex-row
+                sm:items-center
+                gap-4
+              "
+            >
+
+              <div
+                className="
+                  shrink-0
+                  w-11
+                  h-11
+                  rounded-xl
+                  bg-amber-100
+                  dark:bg-amber-900/30
+                  flex
+                  items-center
+                  justify-center
+                "
+              >
+
+                <School
+                  size={22}
+                  className="
+                    text-amber-600
+                    dark:text-amber-400
+                  "
+                />
+
+              </div>
+
+
+              <div className="flex-1">
+
+                <p
+                  className="
+                    font-bold
+                    text-amber-900
+                    dark:text-amber-300
+                  "
+                >
+                  Vous êtes directeur de
+                </p>
+
+
+                <div
+                  className="
+                    mt-2
+                    flex
+                    flex-wrap
+                    gap-2
+                  "
+                >
+
+                  {directorSchools.map(
+                    (
+                      school
+                    ) => (
+
+                      <span
+                        key={
+                          school.school_id
+                        }
+                        className="
+                          inline-flex
+                          items-center
+                          gap-2
+                          px-3
+                          py-1.5
+                          rounded-full
+                          bg-white
+                          dark:bg-gray-900
+                          border
+                          border-amber-200
+                          dark:border-amber-700
+                          text-sm
+                          font-semibold
+                          text-gray-700
+                          dark:text-gray-200
+                        "
+                      >
+
+                        <Building2
+                          size={14}
+                          className="text-amber-600"
+                        />
+
+                        {
+                          school.school_name
+                        }
+
+                      </span>
+
+                    )
+                  )}
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        )}
+
+
+        {/* ==================================================
+            BARRE OUTILS
+        ================================================== */}
+
+        <div
+          className="
+            rounded-2xl
+            bg-white
+            dark:bg-gray-900
+            border
+            border-gray-200
+            dark:border-gray-800
+            shadow-sm
+            p-4
+            mb-4
+          "
+        >
+
+          <div
+            className="
+              flex
+              flex-col
+              md:flex-row
+              md:items-center
+              md:justify-between
+              gap-4
+            "
+          >
+
+            <div>
+
+              <div
+                className="
+                  flex
+                  items-center
+                  gap-2
+                "
+              >
+
+                <Users
+                  size={19}
+                  className="text-blue-600"
+                />
+
+                <h2
+                  className="
+                    font-bold
+                    text-gray-900
+                    dark:text-white
+                  "
+                >
+                  {user?.is_admin
+                    ? "Liste des inscrits"
+                    : "Membres des écoles"}
+                </h2>
+
+              </div>
+
+
+              <p
+                className="
+                  mt-1
+                  text-sm
+                  text-gray-500
+                  dark:text-gray-400
+                "
+              >
+                {loadingListe
+                  ? "Actualisation des données..."
+                  : `${startIndex || 0}–${endIndex || 0} sur ${totalInscrits} utilisateur(s)`}
+              </p>
+
+            </div>
+
+
+            <div
+              className="
+                relative
+                w-full
+                md:w-80
+              "
+            >
+
+              <Search
+                size={18}
+                className="
+                  absolute
+                  left-3
+                  top-1/2
+                  -translate-y-1/2
+                  text-gray-400
+                "
+              />
+
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(
+                  e
+                ) =>
+                  setSearchTerm(
+                    e.target.value
+                  )
+                }
+                placeholder="Rechercher un utilisateur..."
+                className="
+                  w-full
+                  pl-10
+                  pr-4
+                  py-2.5
+                  rounded-xl
+                  border
+                  border-gray-200
+                  dark:border-gray-700
+                  bg-gray-50
+                  dark:bg-gray-800
+                  text-gray-900
+                  dark:text-white
+                  text-sm
+                  outline-none
+                  focus:ring-2
+                  focus:ring-blue-500
+                  focus:border-blue-500
+                "
+              />
+
+            </div>
+
+          </div>
+
+
+          <div
+            className="
+              mt-4
               flex
               flex-wrap
               items-center
@@ -3579,535 +4368,935 @@ const ListeInscrits: React.FC = () => {
             "
           >
 
-            <School
-              size={20}
-              className="
-                text-amber-600
-                dark:text-amber-400
-              "
-            />
-
             <span
               className="
-                font-bold
-                text-amber-800
-                dark:text-amber-300
+                inline-flex
+                items-center
+                gap-2
+                px-3
+                py-1.5
+                rounded-full
+                bg-gray-100
+                dark:bg-gray-800
+                text-xs
+                font-semibold
+                text-gray-600
+                dark:text-gray-300
               "
             >
-              Direction
+
+              <Eye size={14} />
+
+              {displayedInscrits.length}
+              {" "}
+              résultat(s) affiché(s)
+
             </span>
 
-          </div>
+
+            {pendingCount > 0 && (
+
+              <span
+                className="
+                  inline-flex
+                  items-center
+                  gap-2
+                  px-3
+                  py-1.5
+                  rounded-full
+                  bg-amber-50
+                  dark:bg-amber-900/20
+                  text-xs
+                  font-semibold
+                  text-amber-700
+                  dark:text-amber-300
+                "
+              >
+
+                <Clock3 size={14} />
+
+                {pendingCount}
+                {" "}
+                en attente
+
+              </span>
+
+            )}
 
 
-          <div
-            className="
-              mt-2
-              flex
-              flex-wrap
-              gap-2
-            "
-          >
+            {blockedCount > 0 && (
 
-            {directorSchools.map(
-              (
-                school
-              ) => (
+              <span
+                className="
+                  inline-flex
+                  items-center
+                  gap-2
+                  px-3
+                  py-1.5
+                  rounded-full
+                  bg-red-50
+                  dark:bg-red-900/20
+                  text-xs
+                  font-semibold
+                  text-red-700
+                  dark:text-red-300
+                "
+              >
 
-                <span
-                  key={
-                    school.school_id
-                  }
-                  className="
-                    px-3
-                    py-1
-                    rounded-full
-                    bg-white
-                    dark:bg-gray-800
-                    border
-                    border-amber-300
-                    dark:border-amber-700
-                    text-sm
-                    font-semibold
-                    text-gray-700
-                    dark:text-gray-200
-                  "
-                >
+                <Ban size={14} />
 
-                  🏫{" "}
-                  {
-                    school.school_name
-                  }
+                {blockedCount}
+                {" "}
+                bloqué(s)
 
-                </span>
+              </span>
 
-              )
             )}
 
           </div>
 
         </div>
 
-      )}
 
+        {/* ==================================================
+            CHARGEMENT / VIDE
+        ================================================== */}
 
-      {/* ====================================================
-          COMPTE DES INSCRIPTIONS EN ATTENTE
-      ==================================================== */}
-
-      <p
-        className="
-          text-center
-          text-gray-600
-          dark:text-gray-300
-          mb-4
-        "
-      >
-
-        Inscriptions en attente :{" "}
-
-        <span
-          className="font-semibold"
-        >
-          {pendingCount}
-        </span>
-
-      </p>
-
-
-      {/* ====================================================
-          CHARGEMENT
-      ==================================================== */}
-
-      {loadingListe &&
-      inscrits.length ===
-        0 ? (
-
-        <p
-          className="
-            text-center
-            mt-8
-            text-gray-600
-            dark:text-gray-300
-          "
-        >
-          Chargement...
-
-        </p>
-
-      ) : inscrits.length ===
-        0 ? (
-
-        <p
-          className="
-            text-center
-            text-gray-600
-            dark:text-gray-300
-          "
-        >
-          Aucun inscrit pour le moment.
-        </p>
-
-      ) : (
-
-        <>
-
-          {/* ==================================================
-              TABLEAU
-          ================================================== */}
+        {loadingListe &&
+        inscrits.length ===
+          0 ? (
 
           <div
             className="
-              overflow-x-auto
-              mb-6
+              rounded-2xl
+              bg-white
+              dark:bg-gray-900
+              border
+              border-gray-200
+              dark:border-gray-800
+              shadow-sm
+              p-12
+              text-center
             "
           >
 
-            <table
+            <Loader2
+              size={34}
               className="
-                min-w-full
-                bg-white
+                animate-spin
+                mx-auto
+                text-blue-600
+              "
+            />
+
+            <p
+              className="
+                mt-4
+                font-semibold
+                text-gray-700
+                dark:text-gray-200
+              "
+            >
+              Chargement des utilisateurs...
+            </p>
+
+            <p
+              className="
+                mt-1
+                text-sm
+                text-gray-500
+                dark:text-gray-400
+              "
+            >
+              Veuillez patienter quelques instants.
+            </p>
+
+          </div>
+
+        ) : inscrits.length ===
+          0 ? (
+
+          <div
+            className="
+              rounded-2xl
+              bg-white
+              dark:bg-gray-900
+              border
+              border-gray-200
+              dark:border-gray-800
+              shadow-sm
+              p-12
+              text-center
+            "
+          >
+
+            <div
+              className="
+                mx-auto
+                w-14
+                h-14
+                rounded-2xl
+                bg-gray-100
                 dark:bg-gray-800
-                rounded-xl
-                shadow-md
+                flex
+                items-center
+                justify-center
               "
             >
 
-              {/* =================================================
-                  EN-TÊTE ADMIN
-              ================================================= */}
+              <Users
+                size={27}
+                className="text-gray-400"
+              />
 
-              {user?.is_admin ? (
-
-                <thead>
-
-                  <tr
-                    className="
-                      bg-blue-600
-                      text-white
-                    "
-                  >
-
-                    <th className="px-4 py-2">
-                      Nom
-                    </th>
-
-                    <th className="px-4 py-2">
-                      Prénom
-                    </th>
-
-                    <th className="px-4 py-2">
-                      Email
-                    </th>
-
-                    <th className="px-4 py-2">
-                      Parrain
-                    </th>
-
-                    <th className="px-4 py-2">
-                      Filleuls
-                    </th>
-
-                    <th className="px-4 py-2">
-                      Téléphone
-                    </th>
-
-                    <th className="px-4 py-2">
-                      Date inscription
-                    </th>
-
-                    <th className="px-4 py-2">
-                      Statut
-                    </th>
-
-                    <th className="px-4 py-2">
-                      Blocage
-                    </th>
-
-                    <th className="px-4 py-2">
-                      Enseignant
-                    </th>
-
-                    <th
-                      className="
-                        px-4
-                        py-2
-                        min-w-[240px]
-                      "
-                    >
-                      Directeur
-                    </th>
-
-                    <th
-                      className="
-                        px-4
-                        py-2
-                        min-w-[260px]
-                      "
-                    >
-                      École
-                    </th>
-
-                    <th className="px-4 py-2">
-                      Actions
-                    </th>
-
-                    <th
-                      className="
-                        px-4
-                        py-2
-                        min-w-[280px]
-                      "
-                    >
-                      Documents
-                    </th>
-
-                  </tr>
-
-                </thead>
-
-              ) : (
-
-                <thead>
-
-                  <tr
-                    className="
-                      bg-amber-600
-                      text-white
-                    "
-                  >
-
-                    <th className="px-4 py-2">
-                      Nom
-                    </th>
-
-                    <th className="px-4 py-2">
-                      Prénom
-                    </th>
-
-                    <th className="px-4 py-2">
-                      Email
-                    </th>
-
-                    <th className="px-4 py-2">
-                      Téléphone
-                    </th>
-
-                    <th className="px-4 py-2">
-                      Date inscription
-                    </th>
-
-                    <th className="px-4 py-2">
-                      Statut
-                    </th>
-
-                    <th className="px-4 py-2">
-                      Blocage
-                    </th>
-
-                    <th
-                      className="
-                        px-4
-                        py-2
-                        min-w-[220px]
-                      "
-                    >
-                      Prof
-                    </th>
-
-                    <th className="px-4 py-2">
-                      Act
-                    </th>
-
-                    <th
-                      className="
-                        px-4
-                        py-2
-                        min-w-[280px]
-                      "
-                    >
-                      Documents
-                    </th>
-
-                  </tr>
-
-                </thead>
-
-              )}
+            </div>
 
 
-              {/* =================================================
-                  CORPS DU TABLEAU
-              ================================================= */}
-
-              <tbody>
-
-                {inscrits.map(
-                  (
-                    i
-                  ) => {
-
-                    const nombreDocuments =
-                      Array.isArray(
-                        i.documents
-                      )
-                        ? i.documents.length
-                        : 0;
+            <p
+              className="
+                mt-4
+                font-bold
+                text-gray-800
+                dark:text-gray-200
+              "
+            >
+              Aucun inscrit pour le moment
+            </p>
 
 
-                    const activeDirectorships =
-                      (
-                        i.directorships ||
-                        []
-                      ).filter(
-                        (
-                          direction
-                        ) =>
-                          direction.is_active
-                      );
+            <p
+              className="
+                mt-1
+                text-sm
+                text-gray-500
+                dark:text-gray-400
+              "
+            >
+              Aucun utilisateur ne correspond aux données disponibles.
+            </p>
 
+          </div>
 
-                    const teacherSchools =
-                      isDirector &&
-                      !user?.is_admin
-                        ? getTeacherSchoolsForDirector(
-                            i.id
-                          )
-                        : [];
+        ) : (
 
+          <>
 
-                    return (
+            {/* ==================================================
+                TABLEAU
+            ================================================== */}
+
+            <div
+              className="
+                overflow-hidden
+                rounded-2xl
+                bg-white
+                dark:bg-gray-900
+                border
+                border-gray-200
+                dark:border-gray-800
+                shadow-sm
+              "
+            >
+
+              <div
+                className="
+                  overflow-x-auto
+                "
+              >
+
+                <table
+                  className="
+                    min-w-full
+                    text-sm
+                  "
+                >
+
+                  {/* =================================================
+                      EN-TÊTE ADMIN
+                  ================================================= */}
+
+                  {user?.is_admin ? (
+
+                    <thead>
 
                       <tr
-                        key={
-                          i.id
-                        }
                         className="
-                          border-b
-                          dark:border-gray-700
-                          hover:bg-gray-100
-                          dark:hover:bg-gray-700
+                          bg-slate-900
+                          dark:bg-black
+                          text-white
                         "
                       >
 
-                        {/* ======================================
-                            NOM
-                        ====================================== */}
+                        <th className="px-4 py-4 text-left font-bold">
+                          Nom
+                        </th>
 
-                        <td className="px-4 py-2">
+                        <th className="px-4 py-4 text-left font-bold">
+                          Prénom
+                        </th>
 
-                          <div
+                        <th className="px-4 py-4 text-left font-bold">
+                          Email
+                        </th>
+
+                        <th className="px-4 py-4 text-left font-bold">
+                          Parrain
+                        </th>
+
+                        <th className="px-4 py-4 text-left font-bold">
+                          Filleuls
+                        </th>
+
+                        <th className="px-4 py-4 text-left font-bold">
+                          Téléphone
+                        </th>
+
+                        <th className="px-4 py-4 text-left font-bold whitespace-nowrap">
+                          Date inscription
+                        </th>
+
+                        <th className="px-4 py-4 text-left font-bold">
+                          Statut
+                        </th>
+
+                        <th className="px-4 py-4 text-left font-bold">
+                          Blocage
+                        </th>
+
+                        <th className="px-4 py-4 text-left font-bold">
+                          Enseignant
+                        </th>
+
+                        <th
+                          className="
+                            px-4
+                            py-4
+                            min-w-[240px]
+                            text-left
+                            font-bold
+                          "
+                        >
+                          Directeur
+                        </th>
+
+                        <th
+                          className="
+                            px-4
+                            py-4
+                            min-w-[260px]
+                            text-left
+                            font-bold
+                          "
+                        >
+                          École
+                        </th>
+
+                        <th className="px-4 py-4 text-left font-bold">
+                          Actions
+                        </th>
+
+                        <th
+                          className="
+                            px-4
+                            py-4
+                            min-w-[280px]
+                            text-left
+                            font-bold
+                          "
+                        >
+                          Documents
+                        </th>
+
+                      </tr>
+
+                    </thead>
+
+                  ) : (
+
+                    <thead>
+
+                      <tr
+                        className="
+                          bg-amber-600
+                          text-white
+                        "
+                      >
+
+                        <th className="px-4 py-4 text-left font-bold">
+                          Nom
+                        </th>
+
+                        <th className="px-4 py-4 text-left font-bold">
+                          Prénom
+                        </th>
+
+                        <th className="px-4 py-4 text-left font-bold">
+                          Email
+                        </th>
+
+                        <th className="px-4 py-4 text-left font-bold">
+                          Téléphone
+                        </th>
+
+                        <th className="px-4 py-4 text-left font-bold whitespace-nowrap">
+                          Date inscription
+                        </th>
+
+                        <th className="px-4 py-4 text-left font-bold">
+                          Statut
+                        </th>
+
+                        <th className="px-4 py-4 text-left font-bold">
+                          Blocage
+                        </th>
+
+                        <th
+                          className="
+                            px-4
+                            py-4
+                            min-w-[220px]
+                            text-left
+                            font-bold
+                          "
+                        >
+                          Prof
+                        </th>
+
+                        <th className="px-4 py-4 text-left font-bold">
+                          Act
+                        </th>
+
+                        <th
+                          className="
+                            px-4
+                            py-4
+                            min-w-[280px]
+                            text-left
+                            font-bold
+                          "
+                        >
+                          Documents
+                        </th>
+
+                      </tr>
+
+                    </thead>
+
+                  )}
+
+
+                  {/* =================================================
+                      CORPS
+                  ================================================= */}
+
+                  <tbody>
+
+                    {displayedInscrits.map(
+                      (
+                        i
+                      ) => {
+
+                        const nombreDocuments =
+                          Array.isArray(
+                            i.documents
+                          )
+                            ? i.documents.length
+                            : 0;
+
+
+                        const activeDirectorships =
+                          (
+                            i.directorships ||
+                            []
+                          ).filter(
+                            (
+                              direction
+                            ) =>
+                              direction.is_active
+                          );
+
+
+                        const teacherSchools =
+                          isDirector &&
+                          !user?.is_admin
+                            ? getTeacherSchoolsForDirector(
+                                i.id
+                              )
+                            : [];
+
+
+                        return (
+
+                          <tr
+                            key={
+                              i.id
+                            }
                             className="
-                              flex
-                              items-center
-                              gap-2
-                              whitespace-nowrap
+                              border-b
+                              border-gray-100
+                              dark:border-gray-800
+                              hover:bg-blue-50/40
+                              dark:hover:bg-gray-800/50
+                              transition-colors
                             "
                           >
 
-                            <span
+                            {/* NOM */}
+
+                            <td className="px-4 py-4 align-top">
+
+                              <div
+                                className="
+                                  flex
+                                  flex-col
+                                  gap-2
+                                  min-w-[170px]
+                                "
+                              >
+
+                                <div
+                                  className="
+                                    flex
+                                    items-center
+                                    gap-2
+                                  "
+                                >
+
+                                  <span
+                                    className="
+                                      font-bold
+                                      text-gray-900
+                                      dark:text-white
+                                      whitespace-nowrap
+                                    "
+                                  >
+                                    {i.nom}
+                                  </span>
+
+
+                                  {nombreDocuments >
+                                    0 && (
+
+                                    <span
+                                      className="
+                                        inline-flex
+                                        items-center
+                                        justify-center
+                                        w-7
+                                        h-7
+                                        rounded-lg
+                                        bg-amber-50
+                                        dark:bg-amber-900/20
+                                        text-amber-600
+                                        dark:text-amber-400
+                                      "
+                                      title={
+                                        `${nombreDocuments} document${
+                                          nombreDocuments >
+                                          1
+                                            ? "s"
+                                            : ""
+                                        } attribué${
+                                          nombreDocuments >
+                                          1
+                                            ? "s"
+                                            : ""
+                                        }`
+                                      }
+                                    >
+
+                                      <KeyRound
+                                        size={15}
+                                      />
+
+                                    </span>
+
+                                  )}
+
+                                </div>
+
+
+                                {i.is_online ? (
+
+                                  <span
+                                    className="
+                                      inline-flex
+                                      w-fit
+                                      items-center
+                                      gap-1.5
+                                      px-2
+                                      py-1
+                                      rounded-full
+                                      bg-emerald-50
+                                      dark:bg-emerald-900/20
+                                      text-emerald-700
+                                      dark:text-emerald-300
+                                      text-xs
+                                      font-bold
+                                    "
+                                  >
+
+                                    <span
+                                      className="
+                                        w-1.5
+                                        h-1.5
+                                        rounded-full
+                                        bg-emerald-500
+                                      "
+                                    />
+
+                                    Connecté
+
+                                  </span>
+
+                                ) : (
+
+                                  <span
+                                    className="
+                                      inline-flex
+                                      w-fit
+                                      items-center
+                                      gap-1.5
+                                      px-2
+                                      py-1
+                                      rounded-full
+                                      bg-gray-100
+                                      dark:bg-gray-800
+                                      text-gray-500
+                                      dark:text-gray-400
+                                      text-xs
+                                      font-semibold
+                                    "
+                                  >
+
+                                    <span
+                                      className="
+                                        w-1.5
+                                        h-1.5
+                                        rounded-full
+                                        bg-gray-400
+                                      "
+                                    />
+
+                                    Déconnecté
+
+                                  </span>
+
+                                )}
+
+                              </div>
+
+                            </td>
+
+
+                            {/* PRÉNOM */}
+
+                            <td
                               className="
-                                font-semibold
+                                px-4
+                                py-4
+                                align-top
+                                whitespace-nowrap
+                              "
+                            >
+                              {i.prenom}
+                            </td>
+
+
+                            {/* EMAIL */}
+
+                            <td
+                              className="
+                                px-4
+                                py-4
+                                align-top
+                              "
+                            >
+
+                              <span
+                                className="
+                                  text-gray-700
+                                  dark:text-gray-300
+                                  whitespace-nowrap
+                              "
+                              >
+                                {i.email}
+                              </span>
+
+                            </td>
+
+
+                            {/* ADMIN : PARRAIN / FILLEULS */}
+
+                            {user?.is_admin && (
+
+                              <>
+
+                                <td
+                                  className="
+                                    px-4
+                                    py-4
+                                    align-top
+                                  "
+                                >
+
+                                  {i.parrain_email ? (
+
+                                    <button
+                                      onClick={() =>
+                                        navigate(
+                                          `/admin/parrain/${encodeURIComponent(
+                                            i.parrain_email
+                                          )}`
+                                        )
+                                      }
+                                      className="
+                                        inline-flex
+                                        items-center
+                                        gap-1
+                                        text-blue-600
+                                        dark:text-blue-400
+                                        hover:text-blue-800
+                                        dark:hover:text-blue-300
+                                        hover:underline
+                                        font-medium
+                                      "
+                                    >
+
+                                      {i.parrain_email}
+
+                                    </button>
+
+                                  ) : (
+
+                                    <span
+                                      className="
+                                        text-gray-400
+                                        italic
+                                      "
+                                    >
+                                      Aucun
+                                    </span>
+
+                                  )}
+
+                                </td>
+
+
+                                <td
+                                  className="
+                                    px-4
+                                    py-4
+                                    align-top
+                                  "
+                                >
+
+                                  {i.filleuls_emails &&
+                                  i.filleuls_emails.length >
+                                    0 ? (
+
+                                    <div
+                                      className="
+                                        flex
+                                        flex-col
+                                        gap-1.5
+                                        min-w-[190px]
+                                      "
+                                    >
+
+                                      {i.filleuls_emails.map(
+                                        (
+                                          mail
+                                        ) => (
+
+                                          <button
+                                            key={
+                                              mail
+                                            }
+                                            onClick={() =>
+                                              navigate(
+                                                `/admin/parrain/${encodeURIComponent(
+                                                  mail
+                                                )}`
+                                              )
+                                            }
+                                            className="
+                                              text-left
+                                              text-blue-600
+                                              dark:text-blue-400
+                                              hover:underline
+                                              text-xs
+                                              font-medium
+                                            "
+                                          >
+                                            {mail}
+                                          </button>
+
+                                        )
+                                      )}
+
+                                    </div>
+
+                                  ) : (
+
+                                    <span
+                                      className="
+                                        text-gray-400
+                                        italic
+                                      "
+                                    >
+                                      Aucun
+                                    </span>
+
+                                  )}
+
+                                </td>
+
+                              </>
+
+                            )}
+
+
+                            {/* TÉLÉPHONE */}
+
+                            <td
+                              className="
+                                px-4
+                                py-4
+                                align-top
+                                whitespace-nowrap
                               "
                             >
                               {
-                                i.nom
+                                i.telephone ||
+                                "-"
                               }
-                            </span>
+                            </td>
 
 
-                            {nombreDocuments >
-                              0 && (
+                            {/* DATE */}
 
-                              <span
-                                className="
-                                  text-yellow-500
-                                  text-lg
-                                  tracking-tight
-                                  cursor-help
-                                "
-                                title={
-                                  `${nombreDocuments} document${
-                                    nombreDocuments >
-                                    1
-                                      ? "s"
-                                      : ""
-                                  } attribué${
-                                    nombreDocuments >
-                                    1
-                                      ? "s"
-                                      : ""
-                                  }`
-                                }
-                              >
+                            <td
+                              className="
+                                px-4
+                                py-4
+                                align-top
+                                whitespace-nowrap
+                              "
+                            >
 
-                                {"🔑".repeat(
-                                  nombreDocuments
-                                )}
+                              {i.date_inscription
+                                ? new Date(
+                                    i.date_inscription
+                                  ).toLocaleDateString(
+                                    "fr-FR"
+                                  )
+                                : "-"}
 
-                              </span>
-
-                            )}
+                            </td>
 
 
-                            {i.is_online ? (
+                            {/* STATUT */}
 
-                              <span
-                                className="
-                                  px-2
-                                  py-0.5
-                                  bg-green-500
-                                  text-white
-                                  rounded-full
-                                  text-xs
-                                "
-                              >
-                                Connecté
-                              </span>
+                            <td
+                              className="
+                                px-4
+                                py-4
+                                align-top
+                              "
+                            >
 
-                            ) : (
-
-                              <span
-                                className="
-                                  px-2
-                                  py-0.5
-                                  bg-red-500
-                                  text-white
-                                  rounded-full
-                                  text-xs
-                                "
-                              >
-                                Déconnecté
-                              </span>
-
-                            )}
-
-                          </div>
-
-                        </td>
-
-
-                        {/* ======================================
-                            PRÉNOM
-                        ====================================== */}
-
-                        <td className="px-4 py-2">
-                          {
-                            i.prenom
-                          }
-                        </td>
-
-
-                        {/* ======================================
-                            EMAIL
-                        ====================================== */}
-
-                        <td className="px-4 py-2">
-                          {
-                            i.email
-                          }
-                        </td>
-
-
-                        {/* =================================================
-                            COLONNES ADMIN UNIQUEMENT
-                        ================================================= */}
-
-                        {user?.is_admin && (
-
-                          <>
-
-                            <td className="px-4 py-2">
-
-                              {i.parrain_email ? (
-
-                                <button
-                                  onClick={() =>
-                                    navigate(
-                                      `/admin/parrain/${encodeURIComponent(
-                                        i.parrain_email
-                                      )}`
-                                    )
-                                  }
-                                  className="
-                                    text-blue-600
-                                    hover:underline
-                                  "
-                                >
-                                  {
-                                    i.parrain_email
-                                  }
-                                </button>
-
-                              ) : (
+                              {i.status ===
+                                "validated" && (
 
                                 <span
                                   className="
-                                    text-gray-400
-                                    italic
+                                    inline-flex
+                                    items-center
+                                    gap-1.5
+                                    px-2.5
+                                    py-1.5
+                                    rounded-full
+                                    bg-emerald-50
+                                    dark:bg-emerald-900/20
+                                    text-emerald-700
+                                    dark:text-emerald-300
+                                    text-xs
+                                    font-bold
+                                    whitespace-nowrap
                                   "
                                 >
-                                  Aucun
+
+                                  <CheckCircle2
+                                    size={14}
+                                  />
+
+                                  Validé
+
+                                </span>
+
+                              )}
+
+
+                              {i.status ===
+                                "pending" && (
+
+                                <span
+                                  className="
+                                    inline-flex
+                                    items-center
+                                    gap-1.5
+                                    px-2.5
+                                    py-1.5
+                                    rounded-full
+                                    bg-amber-50
+                                    dark:bg-amber-900/20
+                                    text-amber-700
+                                    dark:text-amber-300
+                                    text-xs
+                                    font-bold
+                                    whitespace-nowrap
+                                  "
+                                >
+
+                                  <Clock3
+                                    size={14}
+                                  />
+
+                                  En attente
+
+                                </span>
+
+                              )}
+
+
+                              {i.status ===
+                                "refused" && (
+
+                                <span
+                                  className="
+                                    inline-flex
+                                    items-center
+                                    gap-1.5
+                                    px-2.5
+                                    py-1.5
+                                    rounded-full
+                                    bg-red-50
+                                    dark:bg-red-900/20
+                                    text-red-700
+                                    dark:text-red-300
+                                    text-xs
+                                    font-bold
+                                    whitespace-nowrap
+                                  "
+                                >
+
+                                  <ShieldAlert
+                                    size={14}
+                                  />
+
+                                  Refusé
+
                                 </span>
 
                               )}
@@ -4115,46 +5304,1022 @@ const ListeInscrits: React.FC = () => {
                             </td>
 
 
-                            <td className="px-4 py-2">
+                            {/* BLOCAGE */}
 
-                              {i.filleuls_emails &&
-                              i.filleuls_emails.length >
+                            <td
+                              className="
+                                px-4
+                                py-4
+                                align-top
+                              "
+                            >
+
+                              {i.is_blocked ? (
+
+                                <span
+                                  className="
+                                    inline-flex
+                                    items-center
+                                    gap-1.5
+                                    px-2.5
+                                    py-1.5
+                                    rounded-full
+                                    bg-red-50
+                                    dark:bg-red-900/20
+                                    text-red-700
+                                    dark:text-red-300
+                                    text-xs
+                                    font-bold
+                                    whitespace-nowrap
+                                  "
+                                >
+
+                                  <Ban
+                                    size={14}
+                                  />
+
+                                  Bloqué
+
+                                </span>
+
+                              ) : (
+
+                                <span
+                                  className="
+                                    inline-flex
+                                    items-center
+                                    gap-1.5
+                                    px-2.5
+                                    py-1.5
+                                    rounded-full
+                                    bg-emerald-50
+                                    dark:bg-emerald-900/20
+                                    text-emerald-700
+                                    dark:text-emerald-300
+                                    text-xs
+                                    font-bold
+                                    whitespace-nowrap
+                                  "
+                                >
+
+                                  <CheckCircle2
+                                    size={14}
+                                  />
+
+                                  Actif
+
+                                </span>
+
+                              )}
+
+                            </td>
+
+
+                            {/* ENSEIGNANT ADMIN */}
+
+                            {user?.is_admin && (
+
+                              <td
+                                className="
+                                  px-4
+                                  py-4
+                                  align-top
+                                "
+                              >
+
+                                {i.enseignant ? (
+
+                                  <div
+                                    className="
+                                      flex
+                                      flex-col
+                                      items-start
+                                      gap-1.5
+                                    "
+                                  >
+
+                                    <span
+                                      className="
+                                        inline-flex
+                                        items-center
+                                        gap-2
+                                        px-3
+                                        py-1.5
+                                        rounded-full
+                                        bg-indigo-50
+                                        dark:bg-indigo-900/30
+                                        text-indigo-700
+                                        dark:text-indigo-300
+                                        text-xs
+                                        font-bold
+                                        whitespace-nowrap
+                                      "
+                                    >
+
+                                      <GraduationCap
+                                        size={15}
+                                      />
+
+                                      Enseignant
+
+                                    </span>
+
+
+                                    {i.enseignant_actif ===
+                                      false && (
+
+                                      <span
+                                        className="
+                                          text-xs
+                                          text-red-600
+                                          dark:text-red-400
+                                        "
+                                      >
+                                        Désactivé
+                                      </span>
+
+                                    )}
+
+                                  </div>
+
+                                ) : (
+
+                                  <button
+                                    onClick={() =>
+                                      handleDeclarerEnseignant(
+                                        i.id
+                                      )
+                                    }
+                                    className="
+                                      inline-flex
+                                      items-center
+                                      gap-2
+                                      px-3
+                                      py-2
+                                      bg-indigo-600
+                                      text-white
+                                      rounded-xl
+                                      hover:bg-indigo-700
+                                      transition
+                                      font-semibold
+                                      text-xs
+                                      whitespace-nowrap
+                                      shadow-sm
+                                    "
+                                  >
+
+                                    <UserPlus
+                                      size={15}
+                                    />
+
+                                    Déclarer enseignant
+
+                                  </button>
+
+                                )}
+
+                              </td>
+
+                            )}
+
+
+                            {/* DIRECTEUR ADMIN */}
+
+                            {user?.is_admin && (
+
+                              <td
+                                className="
+                                  px-4
+                                  py-4
+                                  align-top
+                                  text-center
+                                "
+                              >
+
+                                {activeDirectorships.length >
                                 0 ? (
+
+                                  <div
+                                    className="
+                                      flex
+                                      flex-col
+                                      items-center
+                                      gap-2
+                                    "
+                                  >
+
+                                    {activeDirectorships.map(
+                                      (
+                                        direction
+                                      ) => (
+
+                                        <div
+                                          key={
+                                            `${i.id}-${direction.school_id}`
+                                          }
+                                          className="
+                                            w-full
+                                            min-w-[210px]
+                                            rounded-xl
+                                            bg-emerald-50
+                                            dark:bg-emerald-900/20
+                                            border
+                                            border-emerald-200
+                                            dark:border-emerald-800
+                                            p-3
+                                          "
+                                        >
+
+                                          <div
+                                            className="
+                                              flex
+                                              items-center
+                                              justify-center
+                                              gap-2
+                                              text-emerald-700
+                                              dark:text-emerald-300
+                                              font-bold
+                                              text-sm
+                                            "
+                                          >
+
+                                            <School
+                                              size={17}
+                                            />
+
+                                            Directeur
+
+                                          </div>
+
+
+                                          <div
+                                            className="
+                                              mt-2
+                                              text-sm
+                                              text-gray-700
+                                              dark:text-gray-300
+                                              font-semibold
+                                            "
+                                          >
+                                            {
+                                              direction.school_name
+                                            }
+                                          </div>
+
+
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              handleRemoveDirector(
+                                                i,
+                                                direction.school_id
+                                              )
+                                            }
+                                            disabled={
+                                              directorRemoving ===
+                                              direction.school_id
+                                            }
+                                            className="
+                                              mt-3
+                                              inline-flex
+                                              items-center
+                                              justify-center
+                                              gap-1.5
+                                              px-3
+                                              py-1.5
+                                              text-xs
+                                              font-bold
+                                              rounded-lg
+                                              bg-red-600
+                                              text-white
+                                              hover:bg-red-700
+                                              transition
+                                              disabled:opacity-50
+                                            "
+                                          >
+
+                                            {directorRemoving ===
+                                            direction.school_id ? (
+
+                                              <>
+
+                                                <Loader2
+                                                  size={14}
+                                                  className="animate-spin"
+                                                />
+
+                                                Retrait...
+
+                                              </>
+
+                                            ) : (
+
+                                              <>
+
+                                                <UserMinus
+                                                  size={14}
+                                                />
+
+                                                Retirer
+
+                                              </>
+
+                                            )}
+
+                                          </button>
+
+                                        </div>
+
+                                      )
+                                    )}
+
+
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleOpenDirectorModal(
+                                          i
+                                        )
+                                      }
+                                      className="
+                                        inline-flex
+                                        items-center
+                                        gap-2
+                                        px-3
+                                        py-2
+                                        rounded-xl
+                                        border
+                                        border-emerald-600
+                                        text-emerald-700
+                                        dark:text-emerald-300
+                                        hover:bg-emerald-50
+                                        dark:hover:bg-emerald-900/20
+                                        font-bold
+                                        text-xs
+                                        transition
+                                        whitespace-nowrap
+                                      "
+                                    >
+
+                                      <School
+                                        size={15}
+                                      />
+
+                                      Ajouter une école
+
+                                    </button>
+
+                                  </div>
+
+                                ) : (
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleOpenDirectorModal(
+                                        i
+                                      )
+                                    }
+                                    className="
+                                      inline-flex
+                                      items-center
+                                      gap-2
+                                      px-3
+                                      py-2.5
+                                      bg-emerald-600
+                                      text-white
+                                      rounded-xl
+                                      hover:bg-emerald-700
+                                      transition
+                                      font-bold
+                                      text-xs
+                                      whitespace-nowrap
+                                      shadow-sm
+                                    "
+                                  >
+
+                                    <UserCheck
+                                      size={16}
+                                    />
+
+                                    Désigner directeur
+
+                                  </button>
+
+                                )}
+
+                              </td>
+
+                            )}
+
+
+                            {/* ÉCOLE ADMIN */}
+
+                            {user?.is_admin && (
+
+                              <td
+                                className="
+                                  px-4
+                                  py-4
+                                  align-top
+                                "
+                              >
+
+                                {renderUserSchools(
+                                  i
+                                )}
+
+                              </td>
+
+                            )}
+
+
+                            {/* ACTIONS ADMIN */}
+
+                            {user?.is_admin && (
+
+                              <td
+                                className="
+                                  px-4
+                                  py-4
+                                  align-top
+                                "
+                              >
+
+                                {i.status ===
+                                "pending" ? (
+
+                                  <div
+                                    className="
+                                      flex
+                                      flex-col
+                                      gap-2
+                                      min-w-[110px]
+                                    "
+                                  >
+
+                                    <button
+                                      onClick={() =>
+                                        handleValider(
+                                          i.id
+                                        )
+                                      }
+                                      className="
+                                        inline-flex
+                                        items-center
+                                        justify-center
+                                        gap-2
+                                        px-3
+                                        py-2
+                                        bg-emerald-600
+                                        text-white
+                                        rounded-xl
+                                        hover:bg-emerald-700
+                                        transition
+                                        font-bold
+                                        text-xs
+                                      "
+                                    >
+
+                                      <CheckCircle2
+                                        size={15}
+                                      />
+
+                                      Valider
+
+                                    </button>
+
+
+                                    <button
+                                      onClick={() =>
+                                        handleRefuser(
+                                          i.id
+                                        )
+                                      }
+                                      className="
+                                        inline-flex
+                                        items-center
+                                        justify-center
+                                        gap-2
+                                        px-3
+                                        py-2
+                                        bg-red-600
+                                        text-white
+                                        rounded-xl
+                                        hover:bg-red-700
+                                        transition
+                                        font-bold
+                                        text-xs
+                                      "
+                                    >
+
+                                      <X
+                                        size={15}
+                                      />
+
+                                      Refuser
+
+                                    </button>
+
+                                  </div>
+
+                                ) : (
+
+                                  <button
+                                    onClick={() =>
+                                      handleBlock(
+                                        i.id,
+                                        i.is_blocked
+                                      )
+                                    }
+                                    className={`
+                                      inline-flex
+                                      items-center
+                                      justify-center
+                                      gap-2
+                                      px-3
+                                      py-2
+                                      rounded-xl
+                                      text-white
+                                      transition
+                                      font-bold
+                                      text-xs
+                                      min-w-[110px]
+                                      ${
+                                        i.is_blocked
+                                          ? "bg-emerald-600 hover:bg-emerald-700"
+                                          : "bg-red-600 hover:bg-red-700"
+                                      }
+                                    `}
+                                  >
+
+                                    {i.is_blocked ? (
+                                      <>
+                                        <RefreshCcw
+                                          size={15}
+                                        />
+                                        Réactiver
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Ban
+                                          size={15}
+                                        />
+                                        Bloquer
+                                      </>
+                                    )}
+
+                                  </button>
+
+                                )}
+
+                              </td>
+
+                            )}
+
+
+                            {/* PROF DIRECTEUR */}
+
+                            {isDirector &&
+                            !user?.is_admin && (
+
+                              <td
+                                className="
+                                  px-4
+                                  py-4
+                                  align-top
+                                  text-center
+                                "
+                              >
+
+                                {directorTeachersLoading ? (
+
+                                  <Loader2
+                                    size={19}
+                                    className="
+                                      animate-spin
+                                      mx-auto
+                                      text-amber-600
+                                    "
+                                  />
+
+                                ) : teacherSchools.length >
+                                  0 ? (
+
+                                  <div
+                                    className="
+                                      flex
+                                      flex-col
+                                      items-center
+                                      gap-2
+                                    "
+                                  >
+
+                                    {teacherSchools.map(
+                                      (
+                                        teacherSchool
+                                      ) => (
+
+                                        <span
+                                          key={
+                                            `${teacherSchool.school_id}-${teacherSchool.user_id}`
+                                          }
+                                          className="
+                                            inline-flex
+                                            items-center
+                                            gap-1.5
+                                            px-3
+                                            py-1.5
+                                            rounded-full
+                                            bg-indigo-50
+                                            dark:bg-indigo-900/30
+                                            text-indigo-700
+                                            dark:text-indigo-300
+                                            text-xs
+                                            font-bold
+                                            whitespace-nowrap
+                                          "
+                                        >
+
+                                          <GraduationCap
+                                            size={14}
+                                          />
+
+                                          Prof
+
+                                          <span
+                                            className="
+                                              font-normal
+                                            "
+                                          >
+                                            {teacherSchool.school_name
+                                              ? `— ${teacherSchool.school_name}`
+                                              : ""}
+                                          </span>
+
+                                        </span>
+
+                                      )
+                                    )}
+
+                                  </div>
+
+                                ) : (
+
+                                  <span
+                                    className="
+                                      text-gray-400
+                                      italic
+                                    "
+                                  >
+                                    Non
+                                  </span>
+
+                                )}
+
+                              </td>
+
+                            )}
+
+
+                            {/* ACT DIRECTEUR */}
+
+                            {isDirector &&
+                            !user?.is_admin && (
+
+                              <td
+                                className="
+                                  px-4
+                                  py-4
+                                  align-top
+                                  text-center
+                                "
+                              >
+
+                                {teacherSchools.length >
+                                0 ? (
+
+                                  <div
+                                    className="
+                                      flex
+                                      flex-col
+                                      items-center
+                                      gap-2
+                                    "
+                                  >
+
+                                    {teacherSchools.map(
+                                      (
+                                        teacherSchool
+                                      ) => (
+
+                                        <button
+                                          key={
+                                            `${teacherSchool.school_id}-${teacherSchool.user_id}-remove`
+                                          }
+                                          type="button"
+                                          onClick={() =>
+                                            handleRemoveTeacherFromSchool(
+                                              i,
+                                              teacherSchool.school_id,
+                                              teacherSchool.school_name ||
+                                                "cette école"
+                                            )
+                                          }
+                                          disabled={
+                                            teacherRemoving?.userId ===
+                                              i.id &&
+                                            teacherRemoving?.schoolId ===
+                                              teacherSchool.school_id
+                                          }
+                                          className="
+                                            inline-flex
+                                            items-center
+                                            justify-center
+                                            gap-2
+                                            px-3
+                                            py-2
+                                            rounded-xl
+                                            bg-red-600
+                                            text-white
+                                            hover:bg-red-700
+                                            transition
+                                            font-bold
+                                            text-xs
+                                            disabled:opacity-50
+                                            disabled:cursor-not-allowed
+                                          "
+                                        >
+
+                                          {teacherRemoving?.userId ===
+                                            i.id &&
+                                          teacherRemoving?.schoolId ===
+                                            teacherSchool.school_id ? (
+
+                                            <>
+
+                                              <Loader2
+                                                size={15}
+                                                className="animate-spin"
+                                              />
+
+                                              Retrait...
+
+                                            </>
+
+                                          ) : (
+
+                                            <>
+
+                                              <UserMinus
+                                                size={15}
+                                              />
+
+                                              Supprimer
+
+                                            </>
+
+                                          )}
+
+                                        </button>
+
+                                      )
+                                    )}
+
+                                  </div>
+
+                                ) : (
+
+                                  <span
+                                    className="
+                                      text-gray-400
+                                      italic
+                                    "
+                                  >
+                                    —
+                                  </span>
+
+                                )}
+
+                              </td>
+
+                            )}
+
+
+                            {/* DOCUMENTS */}
+
+                            <td
+                              className="
+                                px-4
+                                py-4
+                                align-top
+                              "
+                            >
+
+                              {nombreDocuments >
+                              0 ? (
 
                                 <div
                                   className="
                                     flex
                                     flex-col
-                                    gap-1
+                                    gap-2
+                                    min-w-[260px]
                                   "
                                 >
 
-                                  {i.filleuls_emails.map(
+                                  {i.documents!.map(
                                     (
-                                      mail
+                                      document
                                     ) => (
 
-                                      <button
+                                      <div
                                         key={
-                                          mail
-                                        }
-                                        onClick={() =>
-                                          navigate(
-                                            `/admin/parrain/${encodeURIComponent(
-                                              mail
-                                            )}`
-                                          )
+                                          document.id
                                         }
                                         className="
-                                          text-blue-600
-                                          hover:underline
-                                          text-sm
+                                          rounded-xl
+                                          bg-purple-50
+                                          dark:bg-purple-900/20
+                                          border
+                                          border-purple-100
+                                          dark:border-purple-800
+                                          p-3
                                         "
                                       >
-                                        {
-                                          mail
-                                        }
-                                      </button>
+
+                                        <div
+                                          className="
+                                            flex
+                                            items-start
+                                            gap-2
+                                          "
+                                        >
+
+                                          <div
+                                            className="
+                                              shrink-0
+                                              w-8
+                                              h-8
+                                              rounded-lg
+                                              bg-purple-100
+                                              dark:bg-purple-900/40
+                                              flex
+                                              items-center
+                                              justify-center
+                                            "
+                                          >
+
+                                            <BookOpen
+                                              size={15}
+                                              className="
+                                                text-purple-600
+                                                dark:text-purple-300
+                                              "
+                                            />
+
+                                          </div>
+
+
+                                          <div
+                                            className="
+                                              min-w-0
+                                            "
+                                          >
+
+                                            <div
+                                              className="
+                                                font-bold
+                                                text-purple-700
+                                                dark:text-purple-300
+                                                text-sm
+                                              "
+                                            >
+
+                                              {
+                                                document.document_name
+                                              }
+
+                                            </div>
+
+
+                                            <div
+                                              className="
+                                                mt-1
+                                                flex
+                                                items-center
+                                                gap-1
+                                                text-xs
+                                                text-gray-600
+                                                dark:text-gray-300
+                                              "
+                                            >
+
+                                              <KeyRound
+                                                size={12}
+                                              />
+
+                                              Code :
+
+                                              <span
+                                                className="
+                                                  font-mono
+                                                  font-bold
+                                                  text-gray-800
+                                                  dark:text-gray-200
+                                                "
+                                              >
+                                                {
+                                                  document.activation_code
+                                                }
+                                              </span>
+
+                                            </div>
+
+
+                                            <div
+                                              className="
+                                                mt-2
+                                              "
+                                            >
+
+                                              {document.is_activated ? (
+
+                                                <span
+                                                  className="
+                                                    inline-flex
+                                                    items-center
+                                                    gap-1
+                                                    text-emerald-600
+                                                    dark:text-emerald-400
+                                                    font-bold
+                                                    text-xs
+                                                  "
+                                                >
+
+                                                  <CheckCircle2
+                                                    size={13}
+                                                  />
+
+                                                  Activé
+
+                                                </span>
+
+                                              ) : (
+
+                                                <span
+                                                  className="
+                                                    inline-flex
+                                                    items-center
+                                                    gap-1
+                                                    text-orange-600
+                                                    dark:text-orange-400
+                                                    font-bold
+                                                    text-xs
+                                                  "
+                                                >
+
+                                                  <Clock3
+                                                    size={13}
+                                                  />
+
+                                                  Non activé
+
+                                                </span>
+
+                                              )}
+
+                                            </div>
+
+
+                                            {document.activated_at && (
+
+                                              <div
+                                                className="
+                                                  text-[11px]
+                                                  text-gray-500
+                                                  dark:text-gray-400
+                                                  mt-1
+                                                "
+                                              >
+
+                                                Activé le{" "}
+
+                                                {new Date(
+                                                  document.activated_at
+                                                ).toLocaleString(
+                                                  "fr-FR"
+                                                )}
+
+                                              </div>
+
+                                            )}
+
+                                          </div>
+
+                                        </div>
+
+                                      </div>
 
                                     )
                                   )}
@@ -4165,1608 +6330,413 @@ const ListeInscrits: React.FC = () => {
 
                                 <span
                                   className="
+                                    inline-flex
+                                    items-center
+                                    gap-1.5
                                     text-gray-400
+                                    dark:text-gray-500
                                     italic
+                                    text-sm
                                   "
                                 >
-                                  Aucun
+
+                                  <FileText
+                                    size={15}
+                                  />
+
+                                  Aucun document
+
                                 </span>
 
                               )}
 
                             </td>
 
-                          </>
+                          </tr>
 
-                        )}
+                        );
 
+                      }
+                    )}
 
-                        {/* ======================================
-                            TÉLÉPHONE
-                        ====================================== */}
+                  </tbody>
 
-                        <td className="px-4 py-2">
-                          {
-                            i.telephone ||
-                            "-"
-                          }
-                        </td>
-
-
-                        {/* ======================================
-                            DATE
-                        ====================================== */}
-
-                        <td className="px-4 py-2">
-
-                          {i.date_inscription
-                            ? new Date(
-                                i.date_inscription
-                              ).toLocaleDateString()
-                            : "-"}
-
-                        </td>
-
-
-                        {/* ======================================
-                            STATUT
-                        ====================================== */}
-
-                        <td className="px-4 py-2">
-
-                          {i.status ===
-                            "validated" &&
-                            "✅ Validé"}
-
-                          {i.status ===
-                            "pending" &&
-                            "⏳ En attente"}
-
-                          {i.status ===
-                            "refused" &&
-                            "❌ Refusé"}
-
-                        </td>
-
-
-                        {/* ======================================
-                            BLOCAGE
-                        ====================================== */}
-
-                        <td
-                          className="
-                            px-4
-                            py-2
-                            text-center
-                          "
-                        >
-
-                          {i.is_blocked ? (
-
-                            <span
-                              className="
-                                text-red-600
-                                font-semibold
-                              "
-                            >
-                              🚫 Bloqué
-                            </span>
-
-                          ) : (
-
-                            <span
-                              className="
-                                text-green-600
-                                font-semibold
-                              "
-                            >
-                              ✅ Actif
-                            </span>
-
-                          )}
-
-                        </td>
-
-
-                        {/* =================================================
-                            👨‍🏫 ENSEIGNANT — ADMIN UNIQUEMENT
-                        ================================================= */}
-
-                        {user?.is_admin && (
-
-                          <td
-                            className="
-                              px-4
-                              py-2
-                              text-center
-                            "
-                          >
-
-                            {i.enseignant ? (
-
-                              <div
-                                className="
-                                  flex
-                                  flex-col
-                                  items-center
-                                  gap-1
-                                "
-                              >
-
-                                <span
-                                  className="
-                                    inline-flex
-                                    items-center
-                                    px-3
-                                    py-1
-                                    rounded-full
-                                    bg-indigo-100
-                                    text-indigo-700
-                                    dark:bg-indigo-900/40
-                                    dark:text-indigo-300
-                                    text-sm
-                                    font-semibold
-                                    whitespace-nowrap
-                                  "
-                                >
-                                  👨‍🏫 Enseignant
-                                </span>
-
-
-                                {i.enseignant_actif ===
-                                  false && (
-
-                                  <span
-                                    className="
-                                      text-xs
-                                      text-red-600
-                                      dark:text-red-400
-                                    "
-                                  >
-                                    Désactivé
-                                  </span>
-
-                                )}
-
-                              </div>
-
-                            ) : (
-
-                              <button
-                                onClick={() =>
-                                  handleDeclarerEnseignant(
-                                    i.id
-                                  )
-                                }
-                                className="
-                                  px-3
-                                  py-1
-                                  bg-indigo-600
-                                  text-white
-                                  rounded-xl
-                                  hover:bg-indigo-700
-                                  transition
-                                  font-semibold
-                                  whitespace-nowrap
-                                "
-                              >
-                                👨‍🏫 Déclarer enseignant
-                              </button>
-
-                            )}
-
-                          </td>
-
-                        )}
-
-
-                        {/* =================================================
-                            🏫 DIRECTEUR — ADMIN UNIQUEMENT
-                        ================================================= */}
-
-                        {user?.is_admin && (
-
-                          <td
-                            className="
-                              px-4
-                              py-2
-                              text-center
-                            "
-                          >
-
-                            {activeDirectorships.length >
-                            0 ? (
-
-                              <div
-                                className="
-                                  flex
-                                  flex-col
-                                  items-center
-                                  gap-2
-                                "
-                              >
-
-                                {activeDirectorships.map(
-                                  (
-                                    direction
-                                  ) => (
-
-                                    <div
-                                      key={
-                                        `${i.id}-${direction.school_id}`
-                                      }
-                                      className="
-                                        w-full
-                                        min-w-[210px]
-                                        rounded-xl
-                                        bg-emerald-50
-                                        dark:bg-emerald-900/20
-                                        border
-                                        border-emerald-200
-                                        dark:border-emerald-700
-                                        p-3
-                                      "
-                                    >
-
-                                      <div
-                                        className="
-                                          flex
-                                          items-center
-                                          justify-center
-                                          gap-2
-                                          text-emerald-700
-                                          dark:text-emerald-300
-                                          font-semibold
-                                          text-sm
-                                        "
-                                      >
-
-                                        <School
-                                          size={
-                                            18
-                                          }
-                                        />
-
-                                        <span>
-                                          Directeur
-                                        </span>
-
-                                      </div>
-
-
-                                      <div
-                                        className="
-                                          mt-1
-                                          text-sm
-                                          text-gray-700
-                                          dark:text-gray-300
-                                          font-medium
-                                        "
-                                      >
-                                        {
-                                          direction.school_name
-                                        }
-                                      </div>
-
-
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          handleRemoveDirector(
-                                            i,
-                                            direction.school_id
-                                          )
-                                        }
-                                        disabled={
-                                          directorRemoving ===
-                                          direction.school_id
-                                        }
-                                        className="
-                                          mt-2
-                                          px-3
-                                          py-1
-                                          text-xs
-                                          font-semibold
-                                          rounded-lg
-                                          bg-red-600
-                                          text-white
-                                          hover:bg-red-700
-                                          transition
-                                          disabled:opacity-50
-                                        "
-                                      >
-
-                                        {directorRemoving ===
-                                        direction.school_id ? (
-
-                                          <span
-                                            className="
-                                              flex
-                                              items-center
-                                              gap-1
-                                            "
-                                          >
-
-                                            <Loader2
-                                              size={
-                                                14
-                                              }
-                                              className="
-                                                animate-spin
-                                              "
-                                            />
-
-                                            Retrait...
-
-                                          </span>
-
-                                        ) : (
-
-                                          "Retirer directeur"
-
-                                        )}
-
-                                      </button>
-
-                                    </div>
-
-                                  )
-                                )}
-
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleOpenDirectorModal(
-                                      i
-                                    )
-                                  }
-                                  className="
-                                    px-3
-                                    py-1
-                                    rounded-xl
-                                    border
-                                    border-emerald-600
-                                    text-emerald-700
-                                    dark:text-emerald-300
-                                    hover:bg-emerald-50
-                                    dark:hover:bg-emerald-900/20
-                                    font-semibold
-                                    text-sm
-                                    transition
-                                    whitespace-nowrap
-                                  "
-                                >
-                                  + Ajouter une école
-                                </button>
-
-                              </div>
-
-                            ) : (
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleOpenDirectorModal(
-                                    i
-                                  )
-                                }
-                                className="
-                                  inline-flex
-                                  items-center
-                                  gap-2
-                                  px-3
-                                  py-2
-                                  bg-emerald-600
-                                  text-white
-                                  rounded-xl
-                                  hover:bg-emerald-700
-                                  transition
-                                  font-semibold
-                                  whitespace-nowrap
-                                "
-                              >
-
-                                <UserCheck
-                                  size={
-                                    17
-                                  }
-                                />
-
-                                Désigner directeur
-
-                              </button>
-
-                            )}
-
-                          </td>
-
-                        )}
-
-
-                        {/* =================================================
-                            🏫 ÉCOLE — ADMIN UNIQUEMENT
-                        ================================================= */}
-
-                        {user?.is_admin && (
-
-                          <td
-                            className="
-                              px-4
-                              py-2
-                            "
-                          >
-
-                            {renderUserSchools(
-                              i
-                            )}
-
-                          </td>
-
-                        )}
-
-
-                        {/* =================================================
-                            ACTIONS — ADMIN UNIQUEMENT
-                        ================================================= */}
-
-                        {user?.is_admin && (
-
-                          <td className="px-4 py-2">
-
-                            {i.status ===
-                            "pending" ? (
-
-                              <div
-                                className="
-                                  flex
-                                  gap-2
-                                "
-                              >
-
-                                <button
-                                  onClick={() =>
-                                    handleValider(
-                                      i.id
-                                    )
-                                  }
-                                  className="
-                                    px-3
-                                    py-1
-                                    bg-green-600
-                                    text-white
-                                    rounded-xl
-                                    hover:bg-green-700
-                                    transition
-                                  "
-                                >
-                                  Valider
-                                </button>
-
-
-                                <button
-                                  onClick={() =>
-                                    handleRefuser(
-                                      i.id
-                                    )
-                                  }
-                                  className="
-                                    px-3
-                                    py-1
-                                    bg-red-600
-                                    text-white
-                                    rounded-xl
-                                    hover:bg-red-700
-                                    transition
-                                  "
-                                >
-                                  Refuser
-                                </button>
-
-                              </div>
-
-                            ) : (
-
-                              <div
-                                className="
-                                  flex
-                                  gap-2
-                                "
-                              >
-
-                                <button
-                                  onClick={() =>
-                                    handleBlock(
-                                      i.id,
-                                      i.is_blocked
-                                    )
-                                  }
-                                  className={`
-                                    px-3
-                                    py-1
-                                    rounded-xl
-                                    text-white
-                                    transition
-                                    ${
-                                      i.is_blocked
-                                        ? "bg-green-600 hover:bg-green-700"
-                                        : "bg-red-600 hover:bg-red-700"
-                                    }
-                                  `}
-                                >
-
-                                  {i.is_blocked
-                                    ? "Réactiver"
-                                    : "Bloquer"}
-
-                                </button>
-
-                              </div>
-
-                            )}
-
-                          </td>
-
-                        )}
-
-
-                        {/* =================================================
-                            👨‍🏫 PROF — DIRECTEUR UNIQUEMENT
-                        ================================================= */}
-
-                        {isDirector &&
-                        !user?.is_admin && (
-
-                          <td
-                            className="
-                              px-4
-                              py-2
-                              text-center
-                            "
-                          >
-
-                            {directorTeachersLoading ? (
-
-                              <Loader2
-                                size={
-                                  18
-                                }
-                                className="
-                                  animate-spin
-                                  mx-auto
-                                  text-amber-600
-                                "
-                              />
-
-                            ) : teacherSchools.length >
-                              0 ? (
-
-                              <div
-                                className="
-                                  flex
-                                  flex-col
-                                  items-center
-                                  gap-2
-                                "
-                              >
-
-                                {teacherSchools.map(
-                                  (
-                                    teacherSchool
-                                  ) => (
-
-                                    <span
-                                      key={
-                                        `${teacherSchool.school_id}-${teacherSchool.user_id}`
-                                      }
-                                      className="
-                                        inline-flex
-                                        items-center
-                                        gap-1
-                                        px-3
-                                        py-1
-                                        rounded-full
-                                        bg-indigo-100
-                                        text-indigo-700
-                                        dark:bg-indigo-900/40
-                                        dark:text-indigo-300
-                                        text-sm
-                                        font-semibold
-                                      "
-                                    >
-
-                                      👨‍🏫 Prof
-
-                                      <span
-                                        className="
-                                          text-xs
-                                          font-normal
-                                        "
-                                      >
-                                        {teacherSchool.school_name
-                                          ? ` — ${teacherSchool.school_name}`
-                                          : ""}
-                                      </span>
-
-                                    </span>
-
-                                  )
-                                )}
-
-                              </div>
-
-                            ) : (
-
-                              <span
-                                className="
-                                  text-gray-400
-                                  italic
-                                "
-                              >
-                                Non
-                              </span>
-
-                            )}
-
-                          </td>
-
-                        )}
-
-
-                        {/* =================================================
-                            ⚙️ ACT — DIRECTEUR UNIQUEMENT
-                        ================================================= */}
-
-                        {isDirector &&
-                        !user?.is_admin && (
-
-                          <td
-                            className="
-                              px-4
-                              py-2
-                              text-center
-                            "
-                          >
-
-                            {teacherSchools.length >
-                            0 ? (
-
-                              <div
-                                className="
-                                  flex
-                                  flex-col
-                                  items-center
-                                  gap-2
-                                "
-                              >
-
-                                {teacherSchools.map(
-                                  (
-                                    teacherSchool
-                                  ) => (
-
-                                    <button
-                                      key={
-                                        `${teacherSchool.school_id}-${teacherSchool.user_id}-remove`
-                                      }
-                                      type="button"
-                                      onClick={() =>
-                                        handleRemoveTeacherFromSchool(
-                                          i,
-                                          teacherSchool.school_id,
-                                          teacherSchool.school_name ||
-                                            "cette école"
-                                        )
-                                      }
-                                      disabled={
-                                        teacherRemoving?.userId ===
-                                          i.id &&
-                                        teacherRemoving?.schoolId ===
-                                          teacherSchool.school_id
-                                      }
-                                      className="
-                                        inline-flex
-                                        items-center
-                                        justify-center
-                                        gap-2
-                                        px-3
-                                        py-2
-                                        rounded-xl
-                                        bg-red-600
-                                        text-white
-                                        hover:bg-red-700
-                                        transition
-                                        font-semibold
-                                        text-sm
-                                        disabled:opacity-50
-                                        disabled:cursor-not-allowed
-                                      "
-                                    >
-
-                                      {teacherRemoving?.userId ===
-                                        i.id &&
-                                      teacherRemoving?.schoolId ===
-                                        teacherSchool.school_id ? (
-
-                                        <>
-
-                                          <Loader2
-                                            size={
-                                              16
-                                            }
-                                            className="
-                                              animate-spin
-                                            "
-                                          />
-
-                                          Retrait...
-
-                                        </>
-
-                                      ) : (
-
-                                        <>
-
-                                          <UserMinus
-                                            size={
-                                              16
-                                            }
-                                          />
-
-                                          Supprimer
-
-                                        </>
-
-                                      )}
-
-                                    </button>
-
-                                  )
-                                )}
-
-                              </div>
-
-                            ) : (
-
-                              <span
-                                className="
-                                  text-gray-400
-                                  italic
-                                "
-                              >
-                                —
-                              </span>
-
-                            )}
-
-                          </td>
-
-                        )}
-
-
-                        {/* =================================================
-                            DOCUMENTS
-                        ================================================= */}
-
-                        <td className="px-4 py-2">
-
-                          {nombreDocuments >
-                          0 ? (
-
-                            <div
-                              className="
-                                flex
-                                flex-col
-                                gap-2
-                                min-w-[250px]
-                              "
-                            >
-
-                              {i.documents!.map(
-                                (
-                                  document
-                                ) => (
-
-                                  <div
-                                    key={
-                                      document.id
-                                    }
-                                    className="
-                                      p-2
-                                      rounded-lg
-                                      bg-purple-50
-                                      dark:bg-purple-900/30
-                                      border
-                                      border-purple-200
-                                      dark:border-purple-700
-                                    "
-                                  >
-
-                                    <div
-                                      className="
-                                        font-semibold
-                                        text-purple-700
-                                        dark:text-purple-300
-                                      "
-                                    >
-
-                                      📚{" "}
-                                      {
-                                        document.document_name
-                                      }
-
-                                    </div>
-
-
-                                    <div
-                                      className="
-                                        text-sm
-                                        text-gray-700
-                                        dark:text-gray-300
-                                        mt-1
-                                      "
-                                    >
-
-                                      🔑 Code :{" "}
-
-                                      <span
-                                        className="
-                                          font-mono
-                                          font-semibold
-                                        "
-                                      >
-                                        {
-                                          document.activation_code
-                                        }
-                                      </span>
-
-                                    </div>
-
-
-                                    <div
-                                      className="
-                                        text-sm
-                                        mt-1
-                                      "
-                                    >
-
-                                      {document.is_activated ? (
-
-                                        <span
-                                          className="
-                                            text-green-600
-                                            font-semibold
-                                          "
-                                        >
-                                          ✅ Activé
-                                        </span>
-
-                                      ) : (
-
-                                        <span
-                                          className="
-                                            text-orange-600
-                                            font-semibold
-                                          "
-                                        >
-                                          ⏳ Non activé
-                                        </span>
-
-                                      )}
-
-                                    </div>
-
-
-                                    {document.activated_at && (
-
-                                      <div
-                                        className="
-                                          text-xs
-                                          text-gray-500
-                                          mt-1
-                                        "
-                                      >
-
-                                        Activé le :{" "}
-
-                                        {new Date(
-                                          document.activated_at
-                                        ).toLocaleString()}
-
-                                      </div>
-
-                                    )}
-
-                                  </div>
-
-                                )
-                              )}
-
-                            </div>
-
-                          ) : (
-
-                            <span
-                              className="
-                                text-gray-400
-                                italic
-                              "
-                            >
-                              Aucun document
-                            </span>
-
-                          )}
-
-                        </td>
-
-                      </tr>
-
-                    );
-
-                  }
-                )}
-
-              </tbody>
-
-            </table>
-
-
-            {/* ==================================================
-                CHARGEMENT
-            ================================================== */}
-
-            {loadingListe &&
-            inscrits.length >
-              0 && (
-
-              <p
-                className="
-                  text-center
-                  mt-4
-                  text-gray-600
-                  dark:text-gray-300
-                "
-              >
-                Chargement...
-              </p>
-
-            )}
-
-          </div>
-
-
-          {/* ==================================================
-              INFORMATIONS PAGINATION
-          ================================================== */}
-
-          {totalInscrits >
-            0 && (
-
-            <div
-              className="
-                text-center
-                text-sm
-                text-gray-600
-                dark:text-gray-300
-                mb-4
-              "
-            >
-
-              Affichage de{" "}
-
-              <span
-                className="font-semibold"
-              >
-                {startIndex}
-              </span>
-
-              {" "}à{" "}
-
-              <span
-                className="font-semibold"
-              >
-                {endIndex}
-              </span>
-
-              {" "}sur{" "}
-
-              <span
-                className="font-semibold"
-              >
-                {totalInscrits}
-              </span>
-
-              {" "}inscrit(s).
-
-              <div className="mt-1">
-
-                Page{" "}
-
-                <span
-                  className="font-semibold"
-                >
-                  {page}
-                </span>
-
-                {" "}sur{" "}
-
-                <span
-                  className="font-semibold"
-                >
-                  {totalPages}
-                </span>
+                </table>
 
               </div>
 
-            </div>
 
-          )}
+              {/* ==================================================
+                  CHARGEMENT PENDANT ACTUALISATION
+              ================================================== */}
 
+              {loadingListe &&
+              inscrits.length >
+                0 && (
 
-          {/* ==================================================
-              PAGINATION
-          ================================================== */}
+                <div
+                  className="
+                    flex
+                    items-center
+                    justify-center
+                    gap-2
+                    px-4
+                    py-3
+                    border-t
+                    border-gray-100
+                    dark:border-gray-800
+                    bg-gray-50
+                    dark:bg-gray-950/50
+                    text-sm
+                    text-gray-600
+                    dark:text-gray-300
+                  "
+                >
 
-          {totalPages >
-            1 && (
+                  <Loader2
+                    size={17}
+                    className="
+                      animate-spin
+                      text-blue-600
+                    "
+                  />
 
-            <div
-              className="
-                flex
-                flex-wrap
-                justify-center
-                items-center
-                gap-2
-                mt-6
-                mb-8
-              "
-            >
+                  Actualisation en cours...
 
-              <button
-                onClick={() =>
-                  setPage(
-                    (
-                      currentPage
-                    ) =>
-                      Math.max(
-                        currentPage -
-                          1,
-                        1
-                      )
-                  )
-                }
-                disabled={
-                  page ===
-                    1 ||
-                  loadingListe
-                }
-                className={`
-                  px-4
-                  py-2
-                  rounded-xl
-                  font-semibold
-                  transition
-                  ${
-                    page ===
-                      1 ||
-                    loadingListe
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : "bg-blue-600 text-white hover:bg-blue-700"
-                  }
-                `}
-              >
-                ← Précédent
-              </button>
+                </div>
 
-
-              {visiblePages.map(
-                (
-                  pageNumber,
-                  index
-                ) => {
-
-                  const previousPage =
-                    visiblePages[
-                      index -
-                        1
-                    ];
-
-
-                  const showEllipsis =
-                    previousPage !==
-                      undefined &&
-                    pageNumber -
-                      previousPage >
-                      1;
-
-
-                  return (
-
-                    <React.Fragment
-                      key={
-                        pageNumber
-                      }
-                    >
-
-                      {showEllipsis && (
-
-                        <span
-                          className="
-                            px-2
-                            text-gray-500
-                            dark:text-gray-400
-                          "
-                        >
-                          ...
-                        </span>
-
-                      )}
-
-
-                      <button
-                        onClick={() =>
-                          setPage(
-                            pageNumber
-                          )
-                        }
-                        disabled={
-                          loadingListe
-                        }
-                        className={`
-                          min-w-[42px]
-                          px-3
-                          py-2
-                          rounded-xl
-                          font-semibold
-                          transition
-                          ${
-                            page ===
-                            pageNumber
-                              ? "bg-blue-700 text-white shadow-md"
-                              : "bg-white text-blue-700 border border-blue-300 hover:bg-blue-50 dark:bg-gray-800 dark:text-blue-300 dark:border-blue-700"
-                          }
-                        `}
-                      >
-                        {
-                          pageNumber
-                        }
-                      </button>
-
-                    </React.Fragment>
-
-                  );
-
-                }
               )}
 
-
-              <button
-                onClick={() =>
-                  setPage(
-                    (
-                      currentPage
-                    ) =>
-                      Math.min(
-                        currentPage +
-                          1,
-                        totalPages
-                      )
-                  )
-                }
-                disabled={
-                  page ===
-                    totalPages ||
-                  loadingListe
-                }
-                className={`
-                  px-4
-                  py-2
-                  rounded-xl
-                  font-semibold
-                  transition
-                  ${
-                    page ===
-                      totalPages ||
-                    loadingListe
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : "bg-blue-600 text-white hover:bg-blue-700"
-                  }
-                `}
-              >
-                Suivant →
-              </button>
-
             </div>
 
-          )}
 
-        </>
+            {/* ==================================================
+                PAGINATION
+            ================================================== */}
 
-      )}
+            {totalInscrits >
+              0 && (
 
+              <div
+                className="
+                  mt-5
+                  flex
+                  flex-col
+                  sm:flex-row
+                  sm:items-center
+                  sm:justify-between
+                  gap-4
+                "
+              >
 
-      {/* ====================================================
-          BOUTONS ADMINISTRATION
-      ==================================================== */}
+                <div
+                  className="
+                    text-sm
+                    text-gray-500
+                    dark:text-gray-400
+                  "
+                >
 
-      {user?.is_admin && (
+                  Affichage de{" "}
 
-        <div
-          className="
-            flex
-            flex-col
-            items-center
-            space-y-4
-            mt-6
-          "
-        >
+                  <span
+                    className="
+                      font-bold
+                      text-gray-800
+                      dark:text-gray-200
+                    "
+                  >
+                    {startIndex}
+                  </span>
 
-          {/* ==================================================
-              GESTION DOCUMENTS
-          ================================================== */}
+                  {" "}à{" "}
 
-          <button
-            onClick={() =>
-              navigate(
-                "/admin/documents"
-              )
-            }
-            className="
-              px-6
-              py-3
-              font-semibold
-              rounded-xl
-              bg-purple-600
-              text-white
-              hover:bg-purple-700
-              transition
-              w-64
-              text-center
-            "
-          >
-            📚 GESTION DES DOCUMENTS
-          </button>
+                  <span
+                    className="
+                      font-bold
+                      text-gray-800
+                      dark:text-gray-200
+                    "
+                  >
+                    {endIndex}
+                  </span>
 
+                  {" "}sur{" "}
 
-          {/* ==================================================
-              GESTION ENSEIGNANTS
-          ================================================== */}
+                  <span
+                    className="
+                      font-bold
+                      text-gray-800
+                      dark:text-gray-200
+                    "
+                  >
+                    {totalInscrits}
+                  </span>
 
-          <button
-            onClick={() =>
-              navigate(
-                "/admin/enseignants"
-              )
-            }
-            className="
-              px-6
-              py-3
-              font-semibold
-              rounded-xl
-              bg-indigo-600
-              text-white
-              hover:bg-indigo-700
-              transition
-              w-64
-              text-center
-            "
-          >
-            👨‍🏫 GESTION DES ENSEIGNANTS
-          </button>
+                  {" "}inscrit(s).
+
+                </div>
 
 
-          {/* ==================================================
-              GESTION ÉCOLES
-          ================================================== */}
+                {totalPages >
+                  1 && (
 
-          <button
-            onClick={() =>
-              navigate(
-                "/admin/ecoles"
-              )
-            }
-            className="
-              px-6
-              py-3
-              font-semibold
-              rounded-xl
-              bg-emerald-600
-              text-white
-              hover:bg-emerald-700
-              transition
-              w-64
-              text-center
-            "
-          >
-            🏫 GESTION DES ÉCOLES
-          </button>
+                  <div
+                    className="
+                      flex
+                      flex-wrap
+                      justify-center
+                      items-center
+                      gap-1.5
+                    "
+                  >
 
+                    <button
+                      onClick={() =>
+                        setPage(
+                          (
+                            currentPage
+                          ) =>
+                            Math.max(
+                              currentPage -
+                                1,
+                              1
+                            )
+                        )
+                      }
+                      disabled={
+                        page ===
+                          1 ||
+                        loadingListe
+                      }
+                      className="
+                        inline-flex
+                        items-center
+                        gap-1.5
+                        px-3
+                        py-2
+                        rounded-xl
+                        border
+                        border-gray-200
+                        dark:border-gray-700
+                        bg-white
+                        dark:bg-gray-900
+                        text-gray-700
+                        dark:text-gray-200
+                        hover:bg-gray-50
+                        dark:hover:bg-gray-800
+                        font-semibold
+                        text-sm
+                        transition
+                        disabled:opacity-40
+                        disabled:cursor-not-allowed
+                      "
+                    >
 
-          {/* ==================================================
-              GESTION PROJETS
-          ================================================== */}
+                      <ChevronLeft
+                        size={16}
+                      />
 
-          <button
-            onClick={() =>
-              navigate(
-                "/admin/projets"
-              )
-            }
-            className="
-              px-6
-              py-3
-              font-semibold
-              rounded-xl
-              bg-cyan-600
-              text-white
-              hover:bg-cyan-700
-              transition
-              w-64
-              text-center
-            "
-          >
-            💡 GESTION DES PROJETS
-          </button>
+                      <span className="hidden sm:inline">
+                        Précédent
+                      </span>
 
-
-          {/* ==================================================
-              CODES ACTIVATION
-          ================================================== */}
-
-          <button
-            onClick={() =>
-              navigate(
-                "/admin/codes-activation"
-              )
-            }
-            className="
-              px-6
-              py-3
-              font-semibold
-              rounded-xl
-              bg-orange-600
-              text-white
-              hover:bg-orange-700
-              transition
-              w-64
-              text-center
-            "
-          >
-            🔑 CODES D'ACTIVATION
-          </button>
+                    </button>
 
 
-          {/* ==================================================
-              HISTORIQUE
-          ================================================== */}
+                    {visiblePages.map(
+                      (
+                        pageNumber,
+                        index
+                      ) => {
 
-          <button
-            onClick={() =>
-              navigate(
-                "/admin/historique-connections"
-              )
-            }
-            className="
-              px-6
-              py-3
-              font-semibold
-              rounded-xl
-              bg-green-600
-              text-white
-              hover:bg-green-700
-              transition
-              w-64
-              text-center
-            "
-          >
-            Voir l'historique des connexions
-          </button>
+                        const previousPage =
+                          visiblePages[
+                            index -
+                              1
+                          ];
 
 
-          {/* ==================================================
-              CONTINUER
-          ================================================== */}
-
-          <button
-            onClick={() =>
-              navigate(
-                "/page2"
-              )
-            }
-            disabled={
-              pendingCount >
-              0
-            }
-            className={`
-              px-6
-              py-3
-              font-semibold
-              rounded-xl
-              transition
-              w-64
-              text-center
-              ${
-                pendingCount >
-                0
-                  ? "bg-gray-400 text-gray-700 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700"
-              }
-            `}
-          >
-            CONTINUER
-          </button>
+                        const showEllipsis =
+                          previousPage !==
+                            undefined &&
+                          pageNumber -
+                            previousPage >
+                            1;
 
 
-          {/* ==================================================
-              AVERTISSEMENT
-          ================================================== */}
+                        return (
 
-          {pendingCount >
-            0 && (
+                          <React.Fragment
+                            key={
+                              pageNumber
+                            }
+                          >
 
-            <p
-              className="
-                text-sm
-                text-red-600
-                mt-2
-                text-center
-              "
-            >
-              ⚠️ Vous devez traiter toutes
-              les inscriptions avant de
-              continuer.
-            </p>
+                            {showEllipsis && (
 
-          )}
+                              <span
+                                className="
+                                  px-1
+                                  text-gray-400
+                                "
+                              >
+                                ...
+                              </span>
+
+                            )}
 
 
-          {/* ==================================================
-              CONVERSATIONS ADMIN
-          ================================================== */}
+                            <button
+                              onClick={() =>
+                                setPage(
+                                  pageNumber
+                                )
+                              }
+                              disabled={
+                                loadingListe
+                              }
+                              className={`
+                                min-w-[38px]
+                                h-[38px]
+                                px-3
+                                rounded-xl
+                                font-bold
+                                text-sm
+                                transition
+                                ${
+                                  page ===
+                                  pageNumber
+                                    ? "bg-blue-600 text-white shadow-md"
+                                    : "bg-white text-gray-700 border border-gray-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800"
+                                }
+                                disabled:opacity-40
+                              `}
+                            >
+                              {
+                                pageNumber
+                              }
+                            </button>
+
+                          </React.Fragment>
+
+                        );
+
+                      }
+                    )}
+
+
+                    <button
+                      onClick={() =>
+                        setPage(
+                          (
+                            currentPage
+                          ) =>
+                            Math.min(
+                              currentPage +
+                                1,
+                              totalPages
+                            )
+                        )
+                      }
+                      disabled={
+                        page ===
+                          totalPages ||
+                        loadingListe
+                      }
+                      className="
+                        inline-flex
+                        items-center
+                        gap-1.5
+                        px-3
+                        py-2
+                        rounded-xl
+                        border
+                        border-gray-200
+                        dark:border-gray-700
+                        bg-white
+                        dark:bg-gray-900
+                        text-gray-700
+                        dark:text-gray-200
+                        hover:bg-gray-50
+                        dark:hover:bg-gray-800
+                        font-semibold
+                        text-sm
+                        transition
+                        disabled:opacity-40
+                        disabled:cursor-not-allowed
+                      "
+                    >
+
+                      <span className="hidden sm:inline">
+                        Suivant
+                      </span>
+
+                      <ChevronRight
+                        size={16}
+                      />
+
+                    </button>
+
+                  </div>
+
+                )}
+
+              </div>
+
+            )}
+
+          </>
+
+        )}
+
+
+        {/* ====================================================
+            ADMINISTRATION
+        ==================================================== */}
+
+        {user?.is_admin && (
 
           <div
             className="
-              w-full
-              flex
-              justify-center
               mt-8
-              pt-6
-              border-t
-              border-gray-300
-              dark:border-gray-700
-            "
-          >
-
-            <button
-              onClick={() =>
-                navigate(
-                  "/admin/questions"
-                )
-              }
-              className="
-                px-6
-                py-3
-                font-semibold
-                rounded-xl
-                bg-indigo-600
-                text-white
-                hover:bg-indigo-700
-                transition
-                w-64
-                text-center
-                shadow-md
-              "
-            >
-              💬 CONVERSATIONS ADMIN
-            </button>
-
-          </div>
-
-        </div>
-
-      )}
-
-
-      {/* ====================================================
-          🏫 MODALE DÉSIGNATION DIRECTEUR
-      ==================================================== */}
-
-      {directorModalOpen &&
-      selectedDirector && (
-
-        <div
-          className="
-            fixed
-            inset-0
-            z-[100]
-            flex
-            items-center
-            justify-center
-            bg-black/60
-            backdrop-blur-sm
-            p-4
-          "
-        >
-
-          <div
-            className="
-              relative
-              w-full
-              max-w-lg
+              rounded-3xl
               bg-white
               dark:bg-gray-900
-              rounded-2xl
-              shadow-2xl
-              p-6
+              border
+              border-gray-200
+              dark:border-gray-800
+              shadow-sm
+              p-5
+              sm:p-7
             "
           >
-
-            {/* ==================================================
-                FERMER
-            ================================================== */}
-
-            <button
-              type="button"
-              onClick={
-                handleCloseDirectorModal
-              }
-              disabled={
-                directorSaving
-              }
-              className="
-                absolute
-                top-4
-                right-4
-                p-2
-                rounded-full
-                hover:bg-gray-100
-                dark:hover:bg-gray-800
-                transition
-                disabled:opacity-50
-              "
-              aria-label="Fermer"
-            >
-
-              <X
-                size={
-                  22
-                }
-              />
-
-            </button>
-
-
-            {/* ==================================================
-                TITRE
-            ================================================== */}
 
             <div
               className="
                 flex
                 items-center
                 gap-3
-                mb-6
-                pr-10
+                mb-5
               "
             >
 
               <div
                 className="
-                  p-3
+                  w-11
+                  h-11
                   rounded-xl
-                  bg-emerald-100
-                  dark:bg-emerald-900/30
+                  bg-slate-100
+                  dark:bg-gray-800
+                  flex
+                  items-center
+                  justify-center
                 "
               >
 
-                <School
-                  size={
-                    26
-                  }
-                  className="
-                    text-emerald-600
-                    dark:text-emerald-400
-                  "
+                <Settings
+                  size={22}
+                  className="text-slate-700 dark:text-gray-200"
                 />
 
               </div>
@@ -5776,13 +6746,13 @@ const ListeInscrits: React.FC = () => {
 
                 <h2
                   className="
-                    text-xl
-                    font-bold
+                    font-black
+                    text-lg
                     text-gray-900
                     dark:text-white
                   "
                 >
-                  Désigner un directeur
+                  Administration CODE
                 </h2>
 
                 <p
@@ -5792,356 +6762,405 @@ const ListeInscrits: React.FC = () => {
                     dark:text-gray-400
                   "
                 >
-                  Administration CODE
+                  Accès rapide aux outils de gestion.
                 </p>
 
               </div>
 
             </div>
 
-
-            {/* ==================================================
-                UTILISATEUR
-            ==================================================== */}
 
             <div
               className="
-                p-4
-                rounded-xl
-                bg-blue-50
-                dark:bg-blue-900/20
-                border
-                border-blue-100
-                dark:border-blue-800
-                mb-5
+                grid
+                grid-cols-1
+                sm:grid-cols-2
+                lg:grid-cols-3
+                gap-3
               "
             >
 
-              <div
-                className="
-                  flex
-                  items-center
-                  gap-3
-                "
-              >
-
-                <UserCheck
-                  size={
-                    24
-                  }
-                  className="
-                    text-blue-600
-                  "
-                />
-
-                <div>
-
-                  <p
-                    className="
-                      font-bold
-                      text-gray-900
-                      dark:text-white
-                    "
-                  >
-                    {
-                      selectedDirector.prenom
-                    }{" "}
-                    {
-                      selectedDirector.nom
-                    }
-                  </p>
-
-                  <p
-                    className="
-                      text-sm
-                      text-gray-600
-                      dark:text-gray-300
-                    "
-                  >
-                    {
-                      selectedDirector.email
-                    }
-                  </p>
-
-                </div>
-
-              </div>
-
-            </div>
-
-
-            {/* ==================================================
-                ÉCOLES DÉJÀ ASSOCIÉES
-            ================================================== */}
-
-            {(
-              selectedDirector.directorships ||
-              []
-            ).filter(
-              (
-                direction
-              ) =>
-                direction.is_active
-            ).length >
-              0 && (
-
-              <div
-                className="
-                  mb-5
-                "
-              >
-
-                <p
-                  className="
-                    text-sm
-                    font-semibold
-                    text-gray-700
-                    dark:text-gray-300
-                    mb-2
-                  "
-                >
-                  Directeur actuellement de :
-                </p>
-
-                <div
-                  className="
-                    flex
-                    flex-wrap
-                    gap-2
-                  "
-                >
-
-                  {(
-                    selectedDirector.directorships ||
-                    []
+              <button
+                onClick={() =>
+                  navigate(
+                    "/admin/documents"
                   )
-                    .filter(
-                      (
-                        direction
-                      ) =>
-                        direction.is_active
-                    )
-                    .map(
-                      (
-                        direction
-                      ) => (
-
-                        <span
-                          key={
-                            direction.school_id
-                          }
-                          className="
-                            inline-flex
-                            items-center
-                            gap-1
-                            px-3
-                            py-1
-                            rounded-full
-                            bg-emerald-100
-                            dark:bg-emerald-900/30
-                            text-emerald-700
-                            dark:text-emerald-300
-                            text-sm
-                            font-semibold
-                          "
-                        >
-
-                          <CheckCircle2
-                            size={
-                              15
-                            }
-                          />
-
-                          {
-                            direction.school_name
-                          }
-
-                        </span>
-
-                      )
-                    )}
-
-                </div>
-
-              </div>
-
-            )}
-
-
-            {/* ==================================================
-                CHOIX ÉCOLE
-            ================================================== */}
-
-            <label
-              htmlFor="director-school"
-              className="
-                block
-                text-sm
-                font-semibold
-                text-gray-700
-                dark:text-gray-300
-                mb-2
-              "
-            >
-              École concernée
-            </label>
-
-
-            {schoolsLoading ? (
-
-              <div
+                }
                 className="
-                  flex
+                  inline-flex
                   items-center
                   justify-center
                   gap-2
-                  py-4
-                  text-gray-500
+                  px-5
+                  py-3
+                  font-bold
+                  rounded-xl
+                  bg-purple-600
+                  text-white
+                  hover:bg-purple-700
+                  transition
+                  shadow-sm
                 "
               >
 
-                <Loader2
-                  size={
-                    20
-                  }
-                  className="
-                    animate-spin
-                  "
+                <BookOpen
+                  size={18}
                 />
 
-                Chargement des écoles...
+                Gestion des documents
 
-              </div>
-
-            ) : (
-
-              <select
-                id="director-school"
-                value={
-                  selectedSchoolId
-                }
-                onChange={
-                  (
-                    e
-                  ) =>
-                    setSelectedSchoolId(
-                      e.target.value
-                        ? Number(
-                            e.target.value
-                          )
-                        : ""
-                    )
-                }
-                className="
-                  w-full
-                  px-4
-                  py-3
-                  rounded-xl
-                  border
-                  border-gray-300
-                  dark:border-gray-700
-                  bg-white
-                  dark:bg-gray-800
-                  text-gray-900
-                  dark:text-white
-                  focus:outline-none
-                  focus:ring-2
-                  focus:ring-emerald-500
-                "
-              >
-
-                <option value="">
-                  -- Sélectionner une école --
-                </option>
+              </button>
 
 
-                {schools
-                  .filter(
-                    (
-                      school
-                    ) =>
-                      school.is_active !==
-                      false
+              <button
+                onClick={() =>
+                  navigate(
+                    "/admin/enseignants"
                   )
-                  .map(
-                    (
-                      school
-                    ) => (
-
-                      <option
-                        key={
-                          school.id
-                        }
-                        value={
-                          school.id
-                        }
-                      >
-
-                        {
-                          school.nom
-                        }
-
-                        {school.ville
-                          ? ` — ${school.ville}`
-                          : ""}
-
-                      </option>
-
-                    )
-                  )}
-
-              </select>
-
-            )}
-
-
-            {/* ==================================================
-                AVERTISSEMENT
-            ================================================== */}
-
-            <div
-              className="
-                mt-4
-                p-3
-                rounded-xl
-                bg-gray-50
-                dark:bg-gray-800
-                border
-                border-gray-200
-                dark:border-gray-700
-              "
-            >
-
-              <p
+                }
                 className="
-                  text-sm
-                  text-gray-600
-                  dark:text-gray-300
+                  inline-flex
+                  items-center
+                  justify-center
+                  gap-2
+                  px-5
+                  py-3
+                  font-bold
+                  rounded-xl
+                  bg-indigo-600
+                  text-white
+                  hover:bg-indigo-700
+                  transition
+                  shadow-sm
                 "
               >
 
-                ℹ️ Le directeur est rattaché
-                à l'école sélectionnée. Cela
-                ne lui donne pas les droits
-                d'administrateur global de
-                CODE.
+                <GraduationCap
+                  size={18}
+                />
 
-              </p>
+                Gestion des enseignants
+
+              </button>
+
+
+              <button
+                onClick={() =>
+                  navigate(
+                    "/admin/ecoles"
+                  )
+                }
+                className="
+                  inline-flex
+                  items-center
+                  justify-center
+                  gap-2
+                  px-5
+                  py-3
+                  font-bold
+                  rounded-xl
+                  bg-emerald-600
+                  text-white
+                  hover:bg-emerald-700
+                  transition
+                  shadow-sm
+                "
+              >
+
+                <School
+                  size={18}
+                />
+
+                Gestion des écoles
+
+              </button>
+
+
+              <button
+                onClick={() =>
+                  navigate(
+                    "/admin/projets"
+                  )
+                }
+                className="
+                  inline-flex
+                  items-center
+                  justify-center
+                  gap-2
+                  px-5
+                  py-3
+                  font-bold
+                  rounded-xl
+                  bg-cyan-600
+                  text-white
+                  hover:bg-cyan-700
+                  transition
+                  shadow-sm
+                "
+              >
+
+                <BookOpen
+                  size={18}
+                />
+
+                Gestion des projets
+
+              </button>
+
+
+              <button
+                onClick={() =>
+                  navigate(
+                    "/admin/codes-activation"
+                  )
+                }
+                className="
+                  inline-flex
+                  items-center
+                  justify-center
+                  gap-2
+                  px-5
+                  py-3
+                  font-bold
+                  rounded-xl
+                  bg-orange-600
+                  text-white
+                  hover:bg-orange-700
+                  transition
+                  shadow-sm
+                "
+              >
+
+                <KeyRound
+                  size={18}
+                />
+
+                Codes d'activation
+
+              </button>
+
+
+              <button
+                onClick={() =>
+                  navigate(
+                    "/admin/historique-connections"
+                  )
+                }
+                className="
+                  inline-flex
+                  items-center
+                  justify-center
+                  gap-2
+                  px-5
+                  py-3
+                  font-bold
+                  rounded-xl
+                  bg-green-600
+                  text-white
+                  hover:bg-green-700
+                  transition
+                  shadow-sm
+                "
+              >
+
+                <Eye
+                  size={18}
+                />
+
+                Historique des connexions
+
+              </button>
 
             </div>
 
 
-            {/* ==================================================
-                ACTIONS
-            ================================================== */}
+            <div
+              className="
+                mt-6
+                pt-5
+                border-t
+                border-gray-200
+                dark:border-gray-800
+                flex
+                flex-col
+                items-center
+              "
+            >
+
+              <button
+                onClick={() =>
+                  navigate(
+                    "/page2"
+                  )
+                }
+                disabled={
+                  pendingCount >
+                  0
+                }
+                className={`
+                  inline-flex
+                  items-center
+                  justify-center
+                  gap-2
+                  px-8
+                  py-3
+                  font-bold
+                  rounded-xl
+                  transition
+                  w-full
+                  sm:w-72
+                  ${
+                    pendingCount >
+                    0
+                      ? "bg-gray-200 text-gray-400 dark:bg-gray-800 dark:text-gray-500 cursor-not-allowed"
+                      : "bg-blue-600 text-white hover:bg-blue-700 shadow-md"
+                  }
+                `}
+              >
+
+                <CheckCircle2
+                  size={18}
+                />
+
+                CONTINUER
+
+              </button>
+
+
+              {pendingCount >
+                0 && (
+
+                <p
+                  className="
+                    flex
+                    items-center
+                    gap-2
+                    text-sm
+                    text-red-600
+                    dark:text-red-400
+                    mt-3
+                    text-center
+                  "
+                >
+
+                  <ShieldAlert
+                    size={16}
+                  />
+
+                  Vous devez traiter toutes les inscriptions avant de continuer.
+
+                </p>
+
+              )}
+
+            </div>
+
 
             <div
               className="
-                flex
-                gap-3
                 mt-6
+                pt-5
+                border-t
+                border-gray-200
+                dark:border-gray-800
+                flex
+                justify-center
               "
             >
+
+              <button
+                onClick={() =>
+                  navigate(
+                    "/admin/questions"
+                  )
+                }
+                className="
+                  inline-flex
+                  items-center
+                  justify-center
+                  gap-2
+                  px-6
+                  py-3
+                  font-bold
+                  rounded-xl
+                  bg-indigo-600
+                  text-white
+                  hover:bg-indigo-700
+                  transition
+                  shadow-md
+                  w-full
+                  sm:w-72
+                "
+              >
+
+                <Users
+                  size={18}
+                />
+
+                Conversations admin
+
+              </button>
+
+            </div>
+
+          </div>
+
+        )}
+
+
+        {/* ====================================================
+            MODALE DÉSIGNATION DIRECTEUR
+        ==================================================== */}
+
+        {directorModalOpen &&
+        selectedDirector && (
+
+          <div
+            className="
+              fixed
+              inset-0
+              z-[100]
+              flex
+              items-center
+              justify-center
+              bg-black/60
+              backdrop-blur-sm
+              p-4
+            "
+          >
+
+            <motion.div
+              initial={{
+                opacity: 0,
+                scale: 0.96,
+                y: 15,
+              }}
+              animate={{
+                opacity: 1,
+                scale: 1,
+                y: 0,
+              }}
+              transition={{
+                duration: 0.2,
+              }}
+              className="
+                relative
+                w-full
+                max-w-lg
+                max-h-[90vh]
+                overflow-y-auto
+                bg-white
+                dark:bg-gray-900
+                rounded-3xl
+                shadow-2xl
+                border
+                border-gray-200
+                dark:border-gray-800
+                p-6
+              "
+            >
+
+              {/* FERMER */}
 
               <button
                 type="button"
@@ -6152,97 +7171,550 @@ const ListeInscrits: React.FC = () => {
                   directorSaving
                 }
                 className="
-                  flex-1
-                  px-4
-                  py-3
+                  absolute
+                  top-4
+                  right-4
+                  w-9
+                  h-9
                   rounded-xl
-                  border
-                  border-gray-300
-                  dark:border-gray-700
-                  text-gray-700
-                  dark:text-gray-300
-                  hover:bg-gray-50
-                  dark:hover:bg-gray-800
-                  font-semibold
-                  transition
-                  disabled:opacity-50
-                "
-              >
-                Annuler
-              </button>
-
-
-              <button
-                type="button"
-                onClick={
-                  handleDesignateDirector
-                }
-                disabled={
-                  directorSaving ||
-                  !selectedSchoolId ||
-                  schoolsLoading
-                }
-                className="
-                  flex-1
                   flex
                   items-center
                   justify-center
-                  gap-2
-                  px-4
-                  py-3
-                  rounded-xl
-                  bg-emerald-600
-                  hover:bg-emerald-700
-                  text-white
-                  font-semibold
+                  text-gray-500
+                  hover:text-gray-900
+                  dark:hover:text-white
+                  hover:bg-gray-100
+                  dark:hover:bg-gray-800
                   transition
                   disabled:opacity-50
-                  disabled:cursor-not-allowed
                 "
+                aria-label="Fermer"
               >
 
-                {directorSaving ? (
-
-                  <>
-
-                    <Loader2
-                      size={
-                        19
-                      }
-                      className="
-                        animate-spin
-                      "
-                    />
-
-                    Enregistrement...
-
-                  </>
-
-                ) : (
-
-                  <>
-
-                    <CheckCircle2
-                      size={
-                        19
-                      }
-                    />
-
-                    Valider directeur
-
-                  </>
-
-                )}
+                <X
+                  size={20}
+                />
 
               </button>
 
-            </div>
+
+              {/* TITRE */}
+
+              <div
+                className="
+                  flex
+                  items-center
+                  gap-3
+                  mb-6
+                  pr-10
+                "
+              >
+
+                <div
+                  className="
+                    w-12
+                    h-12
+                    rounded-2xl
+                    bg-emerald-50
+                    dark:bg-emerald-900/30
+                    flex
+                    items-center
+                    justify-center
+                  "
+                >
+
+                  <School
+                    size={25}
+                    className="
+                      text-emerald-600
+                      dark:text-emerald-400
+                    "
+                  />
+
+                </div>
+
+
+                <div>
+
+                  <h2
+                    className="
+                      text-xl
+                      font-black
+                      text-gray-900
+                      dark:text-white
+                    "
+                  >
+                    Désigner un directeur
+                  </h2>
+
+                  <p
+                    className="
+                      text-sm
+                      text-gray-500
+                      dark:text-gray-400
+                    "
+                  >
+                    Administration CODE
+                  </p>
+
+                </div>
+
+              </div>
+
+
+              {/* UTILISATEUR */}
+
+              <div
+                className="
+                  p-4
+                  rounded-2xl
+                  bg-blue-50
+                  dark:bg-blue-900/20
+                  border
+                  border-blue-100
+                  dark:border-blue-800
+                  mb-5
+                "
+              >
+
+                <div
+                  className="
+                    flex
+                    items-center
+                    gap-3
+                  "
+                >
+
+                  <div
+                    className="
+                      w-10
+                      h-10
+                      rounded-xl
+                      bg-blue-100
+                      dark:bg-blue-900/40
+                      flex
+                      items-center
+                      justify-center
+                    "
+                  >
+
+                    <UserCheck
+                      size={21}
+                      className="text-blue-600"
+                    />
+
+                  </div>
+
+
+                  <div
+                    className="
+                      min-w-0
+                    "
+                  >
+
+                    <p
+                      className="
+                        font-black
+                        text-gray-900
+                        dark:text-white
+                      "
+                    >
+                      {
+                        selectedDirector.prenom
+                      }{" "}
+                      {
+                        selectedDirector.nom
+                      }
+                    </p>
+
+                    <p
+                      className="
+                        text-sm
+                        text-gray-600
+                        dark:text-gray-300
+                        truncate
+                      "
+                    >
+                      {
+                        selectedDirector.email
+                      }
+                    </p>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+
+              {/* ÉCOLES DÉJÀ ASSOCIÉES */}
+
+              {(
+                selectedDirector.directorships ||
+                []
+              ).filter(
+                (
+                  direction
+                ) =>
+                  direction.is_active
+              ).length >
+                0 && (
+
+                <div
+                  className="
+                    mb-5
+                  "
+                >
+
+                  <p
+                    className="
+                      text-sm
+                      font-bold
+                      text-gray-700
+                      dark:text-gray-300
+                      mb-2
+                    "
+                  >
+                    Directeur actuellement de :
+                  </p>
+
+                  <div
+                    className="
+                      flex
+                      flex-wrap
+                      gap-2
+                    "
+                  >
+
+                    {(
+                      selectedDirector.directorships ||
+                      []
+                    )
+                      .filter(
+                        (
+                          direction
+                        ) =>
+                          direction.is_active
+                      )
+                      .map(
+                        (
+                          direction
+                        ) => (
+
+                          <span
+                            key={
+                              direction.school_id
+                            }
+                            className="
+                              inline-flex
+                              items-center
+                              gap-1.5
+                              px-3
+                              py-1.5
+                              rounded-full
+                              bg-emerald-50
+                              dark:bg-emerald-900/30
+                              text-emerald-700
+                              dark:text-emerald-300
+                              text-xs
+                              font-bold
+                            "
+                          >
+
+                            <CheckCircle2
+                              size={14}
+                            />
+
+                            {
+                              direction.school_name
+                            }
+
+                          </span>
+
+                        )
+                      )}
+
+                  </div>
+
+                </div>
+
+              )}
+
+
+              {/* CHOIX ÉCOLE */}
+
+              <label
+                htmlFor="director-school"
+                className="
+                  block
+                  text-sm
+                  font-bold
+                  text-gray-700
+                  dark:text-gray-300
+                  mb-2
+                "
+              >
+                École concernée
+              </label>
+
+
+              {schoolsLoading ? (
+
+                <div
+                  className="
+                    flex
+                    items-center
+                    justify-center
+                    gap-2
+                    py-5
+                    text-gray-500
+                    dark:text-gray-400
+                  "
+                >
+
+                  <Loader2
+                    size={20}
+                    className="animate-spin"
+                  />
+
+                  Chargement des écoles...
+
+                </div>
+
+              ) : (
+
+                <select
+                  id="director-school"
+                  value={
+                    selectedSchoolId
+                  }
+                  onChange={
+                    (
+                      e
+                    ) =>
+                      setSelectedSchoolId(
+                        e.target.value
+                          ? Number(
+                              e.target.value
+                            )
+                          : ""
+                      )
+                  }
+                  className="
+                    w-full
+                    px-4
+                    py-3
+                    rounded-xl
+                    border
+                    border-gray-300
+                    dark:border-gray-700
+                    bg-white
+                    dark:bg-gray-800
+                    text-gray-900
+                    dark:text-white
+                    outline-none
+                    focus:ring-2
+                    focus:ring-emerald-500
+                    focus:border-emerald-500
+                  "
+                >
+
+                  <option value="">
+                    -- Sélectionner une école --
+                  </option>
+
+
+                  {schools
+                    .filter(
+                      (
+                        school
+                      ) =>
+                        school.is_active !==
+                        false
+                    )
+                    .map(
+                      (
+                        school
+                      ) => (
+
+                        <option
+                          key={
+                            school.id
+                          }
+                          value={
+                            school.id
+                          }
+                        >
+
+                          {
+                            school.nom
+                          }
+
+                          {school.ville
+                            ? ` — ${school.ville}`
+                            : ""}
+
+                        </option>
+
+                      )
+                    )}
+
+                </select>
+
+              )}
+
+
+              {/* INFORMATION */}
+
+              <div
+                className="
+                  mt-4
+                  p-4
+                  rounded-xl
+                  bg-gray-50
+                  dark:bg-gray-800
+                  border
+                  border-gray-200
+                  dark:border-gray-700
+                "
+              >
+
+                <p
+                  className="
+                    flex
+                    gap-2
+                    text-sm
+                    text-gray-600
+                    dark:text-gray-300
+                  "
+                >
+
+                  <ShieldCheck
+                    size={18}
+                    className="
+                      shrink-0
+                      text-blue-600
+                    "
+                  />
+
+                  <span>
+                    Le directeur est rattaché à l'école sélectionnée. Cela ne lui donne pas les droits d'administrateur global de CODE.
+                  </span>
+
+                </p>
+
+              </div>
+
+
+              {/* ACTIONS */}
+
+              <div
+                className="
+                  flex
+                  flex-col-reverse
+                  sm:flex-row
+                  gap-3
+                  mt-6
+                "
+              >
+
+                <button
+                  type="button"
+                  onClick={
+                    handleCloseDirectorModal
+                  }
+                  disabled={
+                    directorSaving
+                  }
+                  className="
+                    flex-1
+                    px-4
+                    py-3
+                    rounded-xl
+                    border
+                    border-gray-300
+                    dark:border-gray-700
+                    text-gray-700
+                    dark:text-gray-300
+                    hover:bg-gray-50
+                    dark:hover:bg-gray-800
+                    font-bold
+                    transition
+                    disabled:opacity-50
+                  "
+                >
+                  Annuler
+                </button>
+
+
+                <button
+                  type="button"
+                  onClick={
+                    handleDesignateDirector
+                  }
+                  disabled={
+                    directorSaving ||
+                    !selectedSchoolId ||
+                    schoolsLoading
+                  }
+                  className="
+                    flex-1
+                    flex
+                    items-center
+                    justify-center
+                    gap-2
+                    px-4
+                    py-3
+                    rounded-xl
+                    bg-emerald-600
+                    hover:bg-emerald-700
+                    text-white
+                    font-bold
+                    transition
+                    disabled:opacity-50
+                    disabled:cursor-not-allowed
+                    shadow-sm
+                  "
+                >
+
+                  {directorSaving ? (
+
+                    <>
+
+                      <Loader2
+                        size={19}
+                        className="animate-spin"
+                      />
+
+                      Enregistrement...
+
+                    </>
+
+                  ) : (
+
+                    <>
+
+                      <CheckCircle2
+                        size={19}
+                      />
+
+                      Valider directeur
+
+                    </>
+
+                  )}
+
+                </button>
+
+              </div>
+
+            </motion.div>
 
           </div>
 
-        </div>
+        )}
 
-      )}
+      </div>
 
     </motion.div>
 
@@ -6252,4 +7724,3 @@ const ListeInscrits: React.FC = () => {
 
 
 export default ListeInscrits;
-
