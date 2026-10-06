@@ -178,10 +178,10 @@ const AnnouncementBanner: React.FC = () => {
      * le navigateur est réellement en ligne.
      */
     const interval = window.setInterval(() => {
-      if (navigator.onLine) {
-        fetchCurrentAnnouncement();
-      }
-    }, 1000);
+  if (navigator.onLine) {
+    fetchCurrentAnnouncement();
+  }
+}, 5 * 60 * 1000);
 
     return () => {
       isMounted = false;
