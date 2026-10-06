@@ -805,88 +805,221 @@ const Activation: React.FC = () => {
     setPhoto(file);
   };
 
-  // ==========================================================
+  
+// ==========================================================
 // ACTIVATION + GÉNÉRATION PDF
 // ==========================================================
 
 const handleActivation =
   async () => {
+
+    // ======================================================
+    // LOG 01 — CLIC SUR LE BOUTON
+    // ======================================================
+
+    console.log("");
+    console.log(
+      "=========================================================="
+    );
+    console.log(
+      "🚀 ACTIVATION FRONTEND — BOUTON CLIQUÉ"
+    );
+    console.log(
+      "=========================================================="
+    );
+
+    console.log(
+      "🔎 État initial activation :",
+      {
+        userExists,
+        target,
+        email: email?.trim(),
+        beneficiaryEmail:
+          beneficiaryEmail?.trim(),
+        codePresent:
+          Boolean(code?.trim()),
+        photoPresent:
+          Boolean(photo),
+        loading,
+        step,
+      }
+    );
+
     setError("");
     setDownloaded(false);
 
-    // ------------------------------------------------------
-    // Validation identité nouveau compte
-    // ------------------------------------------------------
+    // ======================================================
+    // VALIDATION IDENTITÉ NOUVEAU COMPTE
+    // ======================================================
+
+    console.log(
+      "🔎 ACTIVATION — vérification identité"
+    );
 
     if (!userExists) {
+
+      console.log(
+        "👤 ACTIVATION — nouveau compte détecté"
+      );
+
       if (!nom.trim()) {
+
+        console.warn(
+          "⚠️ ACTIVATION — nom absent"
+        );
+
         setError(
           "Le nom est obligatoire."
         );
+
         return;
       }
 
       if (!prenom.trim()) {
+
+        console.warn(
+          "⚠️ ACTIVATION — prénom absent"
+        );
+
         setError(
           "Le prénom est obligatoire."
         );
+
         return;
       }
 
       if (!pays.trim()) {
+
+        console.warn(
+          "⚠️ ACTIVATION — pays absent"
+        );
+
         setError(
           "Le pays de résidence est obligatoire."
         );
+
         return;
       }
 
       if (!password.trim()) {
+
+        console.warn(
+          "⚠️ ACTIVATION — mot de passe absent"
+        );
+
         setError(
           "Veuillez définir un mot de passe."
         );
+
         return;
       }
 
       if (
         password.length < 6
       ) {
+
+        console.warn(
+          "⚠️ ACTIVATION — mot de passe trop court | longueur=%s",
+          password.length
+        );
+
         setError(
           "Le mot de passe doit contenir au moins 6 caractères."
         );
+
         return;
       }
+
+      console.log(
+        "🟢 ACTIVATION — identité nouveau compte valide"
+      );
+
+    } else {
+
+      console.log(
+        "🟢 ACTIVATION — compte bénéficiaire existant"
+      );
+
     }
 
-    // ------------------------------------------------------
-    // Détermination e-mail bénéficiaire
-    // ------------------------------------------------------
+    // ======================================================
+    // DÉTERMINATION EMAIL BÉNÉFICIAIRE
+    // ======================================================
 
     const finalBeneficiaryEmail =
       target === "self"
         ? email.trim()
         : beneficiaryEmail.trim();
 
+    console.log(
+      "📧 ACTIVATION — email bénéficiaire déterminé |",
+      {
+        target,
+        buyerEmail:
+          email.trim(),
+        beneficiaryEmail:
+          finalBeneficiaryEmail,
+      }
+    );
+
     if (
       !finalBeneficiaryEmail
     ) {
+
+      console.warn(
+        "⚠️ ACTIVATION — email bénéficiaire vide"
+      );
+
       setError(
         "L'adresse e-mail du bénéficiaire est obligatoire."
       );
+
       return;
     }
 
-    // ------------------------------------------------------
-    // FormData
-    // ------------------------------------------------------
+    // ======================================================
+    // FORMDATA
+    // ======================================================
+
+    console.log(
+      "📦 ACTIVATION — création FormData"
+    );
 
     const formData =
       new FormData();
 
+    // ======================================================
+    // IDENTIFICATION TERMINAL
+    // ======================================================
+
+    console.log(
+      "📱 ACTIVATION — génération/récupération device ID"
+    );
+
     const deviceId =
       getOrCreateDeviceId();
 
+    console.log(
+      "📱 ACTIVATION — device ID obtenu |",
+      {
+        present:
+          Boolean(deviceId),
+        length:
+          deviceId?.length,
+      }
+    );
+
     const deviceType =
       getDeviceType();
+
+    console.log(
+      "📱 ACTIVATION — device type |",
+      deviceType
+    );
+
+    // ======================================================
+    // CHAMPS PRINCIPAUX
+    // ======================================================
 
     formData.append(
       "activation_code",
@@ -908,11 +1041,12 @@ const handleActivation =
       finalBeneficiaryEmail
     );
 
-    // ------------------------------------------------------
-    // Identité
-    // ------------------------------------------------------
+    // ======================================================
+    // IDENTITÉ
+    // ======================================================
 
     if (!userExists) {
+
       formData.append(
         "nom",
         nom.trim()
@@ -926,10 +1060,12 @@ const handleActivation =
       if (
         telephone.trim()
       ) {
+
         formData.append(
           "telephone",
           telephone.trim()
         );
+
       }
 
       formData.append(
@@ -940,54 +1076,87 @@ const handleActivation =
       if (
         password.trim()
       ) {
+
         formData.append(
           "password",
           password
         );
+
       }
+
     }
 
-    // ------------------------------------------------------
-    // Personnalisation
-    // ------------------------------------------------------
+    // ======================================================
+    // PERSONNALISATION
+    // ======================================================
 
     if (
       etablissement.trim()
     ) {
+
       formData.append(
         "etablissement",
         etablissement.trim()
       );
+
     }
 
     if (
       ville.trim()
     ) {
+
       formData.append(
         "ville",
         ville.trim()
       );
+
     }
 
     if (
       anneeScolaire.trim()
     ) {
+
       formData.append(
         "annee_scolaire",
         anneeScolaire.trim()
       );
+
     }
 
+    // ======================================================
+    // PHOTO
+    // ======================================================
+
     if (photo) {
+
+      console.log(
+        "📷 ACTIVATION — photo ajoutée au FormData |",
+        {
+          name:
+            photo.name,
+          type:
+            photo.type,
+          size:
+            photo.size,
+        }
+      );
+
       formData.append(
         "photo",
         photo
       );
+
+    } else {
+
+      console.log(
+        "📷 ACTIVATION — aucune photo"
+      );
+
     }
 
-    // ------------------------------------------------------
-    // IDENTIFICATION DU TERMINAL
-    // ------------------------------------------------------
+    // ======================================================
+    // DEVICE
+    // ======================================================
 
     formData.append(
       "device_id",
@@ -999,85 +1168,585 @@ const handleActivation =
       deviceType
     );
 
-    // ------------------------------------------------------
-    // ACTIVATION
-    // ------------------------------------------------------
+    // ======================================================
+    // DIAGNOSTIC FORMDATA
+    // ======================================================
 
-    try {
-      setLoading(true);
+    console.log(
+      "📦 ACTIVATION — contenu FormData"
+    );
 
-      const response =
-        await fetch(
-          `${API_URL}/api/activation/activate`,
-          {
-            method: "POST",
-            body: formData,
-          }
+    for (
+      const [key, value]
+      of formData.entries()
+    ) {
+
+      if (
+        key === "password"
+      ) {
+
+        console.log(
+          `   ${key}: [MASQUÉ]`
         );
 
+      } else if (
+        key === "photo"
+      ) {
+
+        if (
+          value instanceof File
+        ) {
+
+          console.log(
+            `   ${key}: File(name=${value.name}, type=${value.type}, size=${value.size})`
+          );
+
+        } else {
+
+          console.log(
+            `   ${key}:`,
+            value
+          );
+
+        }
+
+      } else {
+
+        console.log(
+          `   ${key}:`,
+          value
+        );
+
+      }
+
+    }
+
+    // ======================================================
+    // URL API
+    // ======================================================
+
+    const activationUrl =
+      `${API_URL}/api/activation/activate`;
+
+    console.log("");
+    console.log(
+      "🌐 ACTIVATION — URL API"
+    );
+    console.log(
+      "🌐 API_URL =",
+      API_URL
+    );
+    console.log(
+      "🌐 activationUrl =",
+      activationUrl
+    );
+
+    // ======================================================
+    // ACTIVATION
+    // ======================================================
+
+    try {
+
+      // ====================================================
+      // LOG — LOADING
+      // ====================================================
+
+      console.log(
+        "⏳ ACTIVATION — setLoading(true)"
+      );
+
+      setLoading(true);
+
+      // ====================================================
+      // LOG — AVANT FETCH
+      // ====================================================
+
+      console.log("");
+      console.log(
+        "🚨🚨🚨 ACTIVATION — AVANT FETCH 🚨🚨🚨"
+      );
+
+      console.log(
+        "📤 ACTIVATION — envoi de la requête POST"
+      );
+
+      console.log(
+        "📤 ACTIVATION — méthode : POST"
+      );
+
+      console.log(
+        "📤 ACTIVATION — URL :",
+        activationUrl
+      );
+
+      console.log(
+        "📤 ACTIVATION — FormData prêt :",
+        Boolean(formData)
+      );
+
+      const fetchStartTime =
+        Date.now();
+
+      // ====================================================
+      // FETCH
+      // ====================================================
+
+      let response: Response;
+
+      try {
+
+        response =
+          await fetch(
+            activationUrl,
+            {
+              method: "POST",
+              body: formData,
+            }
+          );
+
+      } catch (fetchError) {
+
+        // ================================================
+        // ERREUR RÉSEAU PURE
+        // ================================================
+
+        const elapsed =
+          Date.now() -
+          fetchStartTime;
+
+        console.error("");
+        console.error(
+          "❌❌❌ ACTIVATION — FETCH A ÉCHOUÉ ❌❌❌"
+        );
+
+        console.error(
+          "⏱️ Temps avant erreur :",
+          `${elapsed} ms`
+        );
+
+        console.error(
+          "🌐 URL :",
+          activationUrl
+        );
+
+        console.error(
+          "⚠️ Type erreur :",
+          fetchError instanceof Error
+            ? fetchError.name
+            : typeof fetchError
+        );
+
+        console.error(
+          "⚠️ Message erreur :",
+          fetchError instanceof Error
+            ? fetchError.message
+            : fetchError
+        );
+
+        console.error(
+          "⚠️ Erreur complète :",
+          fetchError
+        );
+
+        console.error(
+          "🚨 IMPORTANT : aucune réponse HTTP n'a été reçue du backend."
+        );
+
+        console.error(
+          "🚨 Donc response.ok / response.status ne sont pas disponibles."
+        );
+
+        throw fetchError;
+      }
+
+      // ====================================================
+      // FETCH TERMINÉ
+      // ====================================================
+
+      const fetchElapsed =
+        Date.now() -
+        fetchStartTime;
+
+      console.log("");
+      console.log(
+        "✅ ACTIVATION — FETCH TERMINÉ"
+      );
+
+      console.log(
+        "⏱️ Durée fetch :",
+        `${fetchElapsed} ms`
+      );
+
+      console.log(
+        "📥 ACTIVATION — status :",
+        response.status
+      );
+
+      console.log(
+        "📥 ACTIVATION — statusText :",
+        response.statusText
+      );
+
+      console.log(
+        "📥 ACTIVATION — ok :",
+        response.ok
+      );
+
+      console.log(
+        "📥 ACTIVATION — redirected :",
+        response.redirected
+      );
+
+      console.log(
+        "📥 ACTIVATION — type :",
+        response.type
+      );
+
+      console.log(
+        "📥 ACTIVATION — URL finale :",
+        response.url
+      );
+
+      // ====================================================
+      // HEADERS
+      // ====================================================
+
+      console.log(
+        "📋 ACTIVATION — headers réponse :"
+      );
+
+      response.headers.forEach(
+        (
+          value,
+          key
+        ) => {
+
+          console.log(
+            `   ${key}: ${value}`
+          );
+
+        }
+      );
+
+      // ====================================================
+      // CONTENT-TYPE
+      // ====================================================
+
+      const contentType =
+        response.headers.get(
+          "content-type"
+        );
+
+      console.log(
+        "📄 ACTIVATION — Content-Type :",
+        contentType
+      );
+
+      // ====================================================
+      // ERREUR HTTP
+      // ====================================================
+
       if (!response.ok) {
+
+        console.error("");
+        console.error(
+          "❌ ACTIVATION — réponse HTTP en erreur"
+        );
+
+        console.error(
+          "❌ Status :",
+          response.status
+        );
+
+        console.error(
+          "❌ StatusText :",
+          response.statusText
+        );
+
+        console.error(
+          "❌ Content-Type :",
+          contentType
+        );
+
+        // ----------------------------------------------
+        // getApiError
+        // ----------------------------------------------
+
+        console.log(
+          "🔎 ACTIVATION — appel de getApiError()"
+        );
+
         const message =
           await getApiError(
             response
           );
+
+        console.error(
+          "❌ ACTIVATION — message getApiError :",
+          message
+        );
 
         throw new Error(
           message
         );
       }
 
-      // ----------------------------------------------------
-      // Le backend ne renvoie désormais PLUS le PDF.
-      // Il renvoie uniquement une confirmation JSON.
-      // ----------------------------------------------------
+      // ====================================================
+      // RÉPONSE HTTP OK
+      // ====================================================
 
-      const data =
-        await response.json();
+      console.log("");
+      console.log(
+        "🟢 ACTIVATION — réponse HTTP OK"
+      );
+
+      // ====================================================
+      // LECTURE JSON
+      // ====================================================
+
+      if (
+        !contentType ||
+        !contentType.includes(
+          "application/json"
+        )
+      ) {
+
+        console.warn(
+          "⚠️ ACTIVATION — Content-Type inattendu |",
+          contentType
+        );
+
+      }
+
+      console.log(
+        "📖 ACTIVATION — lecture response.json()..."
+      );
+
+      let data: any;
+
+      try {
+
+        data =
+          await response.json();
+
+      } catch (jsonError) {
+
+        console.error("");
+        console.error(
+          "❌ ACTIVATION — impossible de lire le JSON"
+        );
+
+        console.error(
+          "⚠️ JSON error :",
+          jsonError
+        );
+
+        throw new Error(
+          "Le serveur a répondu, mais sa réponse n'est pas un JSON valide."
+        );
+      }
+
+      console.log(
+        "✅ ACTIVATION — JSON reçu :",
+        data
+      );
+
+      // ====================================================
+      // VALIDATION RÉPONSE BACKEND
+      // ====================================================
+
+      console.log(
+        "🔎 ACTIVATION — vérification data.success |",
+        data?.success
+      );
 
       if (
         data?.success !== true
       ) {
+
+        console.error(
+          "❌ ACTIVATION — backend n'a pas confirmé success=true"
+        );
+
+        console.error(
+          "📦 Réponse backend :",
+          data
+        );
+
         throw new Error(
           data?.message ||
             "L'activation du document n'a pas pu être confirmée."
         );
       }
 
-      // ----------------------------------------------------
-      // Activation réussie
-      // ----------------------------------------------------
+      // ====================================================
+      // ACTIVATION RÉUSSIE
+      // ====================================================
+
+      console.log("");
+      console.log(
+        "=========================================================="
+      );
+
+      console.log(
+        "🎉🎉🎉 ACTIVATION FRONTEND — SUCCÈS 🎉🎉🎉"
+      );
+
+      console.log(
+        "🆔 activation_id :",
+        data?.activation_id
+      );
+
+      console.log(
+        "📄 document :",
+        data?.document
+      );
+
+      console.log(
+        "💬 message :",
+        data?.message
+      );
+
+      console.log(
+        "=========================================================="
+      );
 
       setDownloaded(true);
 
-      // ----------------------------------------------------
-      // Nettoyage local de la photo
-      // ----------------------------------------------------
+      console.log(
+        "🟢 ACTIVATION — setDownloaded(true)"
+      );
+
+      // ====================================================
+      // NETTOYAGE PHOTO
+      // ====================================================
 
       setPhoto(null);
 
+      console.log(
+        "🧹 ACTIVATION — photo locale supprimée"
+      );
+
     } catch (err) {
-      setError(
+
+      // ====================================================
+      // ERREUR GLOBALE
+      // ====================================================
+
+      console.error("");
+      console.error(
+        "=========================================================="
+      );
+
+      console.error(
+        "❌❌❌ ACTIVATION FRONTEND — ERREUR ❌❌❌"
+      );
+
+      console.error(
+        "=========================================================="
+      );
+
+      console.error(
+        "⚠️ Erreur brute :",
+        err
+      );
+
+      console.error(
+        "⚠️ Type :",
+        typeof err
+      );
+
+      console.error(
+        "⚠️ Nom :",
+        err instanceof Error
+          ? err.name
+          : "N/A"
+      );
+
+      console.error(
+        "⚠️ Message :",
         err instanceof Error
           ? err.message
-          : "Impossible d'activer le document."
+          : String(err)
       );
+
+      console.error(
+        "⚠️ Stack :",
+        err instanceof Error
+          ? err.stack
+          : "N/A"
+      );
+
+      // ====================================================
+      // MESSAGE UTILISATEUR
+      // ====================================================
+
+      const userMessage =
+        err instanceof Error
+          ? err.message
+          : "Impossible d'activer le document.";
+
+      console.error(
+        "📢 ACTIVATION — message affiché à l'utilisateur :",
+        userMessage
+      );
+
+      setError(
+        userMessage
+      );
+
     } finally {
-      setLoading(false);
-    }
-  };
-  // ==========================================================
-  // RETOUR
-  // ==========================================================
 
-  const goBack = () => {
-    setError("");
+      // ====================================================
+      // FIN
+      // ====================================================
 
-    if (step > 1) {
-      setStep(
-        step - 1
+      console.log(
+        "🏁 ACTIVATION — finally"
       );
+
+      console.log(
+        "⏳ ACTIVATION — setLoading(false)"
+      );
+
+      setLoading(false);
+
+      console.log(
+        "=========================================================="
+      );
+      console.log(
+        "🏁 ACTIVATION FRONTEND — FIN"
+      );
+      console.log(
+        "=========================================================="
+      );
+      console.log("");
+
     }
   };
+
+
+// ==========================================================
+// RETOUR
+// ==========================================================
+
+const goBack = () => {
+
+  console.log(
+    "↩️ ACTIVATION — retour | step=",
+    step
+  );
+
+  setError("");
+
+  if (step > 1) {
+
+    setStep(
+      step - 1
+    );
+
+  }
+};
 
   // ==========================================================
   // CLASSES COMMUNES
