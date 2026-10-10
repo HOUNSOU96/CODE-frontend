@@ -1552,6 +1552,51 @@ const handleActivation =
       );
 
       // ====================================================
+      // ACTIVATION — suivi de la génération asynchrone
+      // ====================================================
+
+      if (data?.pending === true && data?.job_id) {
+        const jobId = String(data.job_id);
+        let completed = false;
+
+        for (let attempt = 0; attempt < 120; attempt++) {
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+
+          const statusResponse = await fetch(
+            `${API_URL}/api/activation/jobs/${encodeURIComponent(jobId)}`
+          );
+
+          if (!statusResponse.ok) {
+            throw new Error(
+              "Impossible de vérifier l'état de génération du document."
+            );
+          }
+
+          const statusData = await statusResponse.json();
+
+          if (statusData?.status === "completed" && statusData?.success === true) {
+            data = statusData;
+            completed = true;
+            break;
+          }
+
+          if (statusData?.status === "failed") {
+            throw new Error(
+              statusData?.message ||
+              "La génération du document a échoué."
+            );
+          }
+        }
+
+        if (!completed) {
+          throw new Error(
+            "La génération prend plus de temps que prévu. " +
+            "Votre demande a été enregistrée ; vérifiez « Mes documents » avant de recommencer."
+          );
+        }
+      }
+
+      // ====================================================
       // VALIDATION RÉPONSE BACKEND
       // ====================================================
 
