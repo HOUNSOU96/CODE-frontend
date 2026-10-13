@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { BookOpen, ExternalLink, RefreshCw } from "lucide-react";
 import api from "@/utils/axios";
 
+const DEVICE_ID_KEY = "CODE_DEVICE_ID";
+
 interface DocumentVersion {
   id: number;
   document_name: string;
@@ -16,6 +18,7 @@ const Bibliotheque: React.FC = () => {
   const [documents, setDocuments] = useState<DocumentVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [openingDocumentId, setOpeningDocumentId] = useState<number | null>(null);
 
   const loadDocuments = async () => {
     setLoading(true);
@@ -37,6 +40,106 @@ const Bibliotheque: React.FC = () => {
   useEffect(() => {
     void loadDocuments();
   }, []);
+
+  const openOriginalDocument = async (
+    document: DocumentVersion
+  ) => {
+    // Ouvrir la fenêtre immédiatement pour éviter le blocage du navigateur.
+    const popup = window.open("about:blank", "_blank");
+
+    if (!popup) {
+      setError(
+        "Le navigateur a bloqué la fenêtre. Autorise les fenêtres contextuelles puis réessaie."
+      );
+      return;
+    }
+
+    const deviceId = localStorage.getItem(DEVICE_ID_KEY);
+
+    if (!deviceId) {
+      popup.close();
+      setError(
+        "Cet appareil n'est pas identifié. Active d'abord ton document sur cet appareil."
+      );
+      return;
+    }
+
+    setOpeningDocumentId(document.id);
+    setError("");
+
+    try {
+      const baseURL = (api.defaults.baseURL || "").replace(/\/+$/, "");
+
+      const response = await fetch(
+        `${baseURL}/api/document-versions/${document.id}/original`,
+        {
+          method: "GET",
+          headers: {
+            "X-Device-ID": deviceId,
+            Accept: "application/pdf",
+          },
+          cache: "no-store",
+        }
+      );
+
+      if (!response.ok) {
+        let detail = "";
+
+        try {
+          const data = await response.json();
+          detail = data?.detail || data?.message || "";
+        } catch {
+          // La réponse ne contient pas de JSON exploitable.
+        }
+
+        if (response.status === 403) {
+          throw new Error(
+            "Accès refusé : vérifie que ce téléphone ou cette tablette est enregistré et que l'activation du document est toujours valide."
+          );
+        }
+
+        if (response.status === 404) {
+          throw new Error(
+            "Le manuel original n'est pas disponible actuellement."
+          );
+        }
+
+        throw new Error(
+          detail || `Impossible d'ouvrir le manuel (HTTP ${response.status}).`
+        );
+      }
+
+      const contentType = response.headers.get("content-type") || "";
+
+      if (!contentType.toLowerCase().includes("application/pdf")) {
+        throw new Error(
+          "Le serveur n'a pas renvoyé un document PDF valide."
+        );
+      }
+
+      const blob = await response.blob();
+
+      if (blob.size === 0) {
+        throw new Error("Le PDF reçu est vide.");
+      }
+
+      const objectUrl = URL.createObjectURL(blob);
+      popup.location.href = objectUrl;
+
+      // Laisser au lecteur PDF le temps de charger le document.
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    } catch (err) {
+      popup.close();
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Une erreur est survenue lors de l'ouverture du manuel."
+      );
+    } finally {
+      setOpeningDocumentId(null);
+    }
+  };
 
   const formatDate = (date: string | null) => {
     if (!date) return "";
@@ -108,10 +211,6 @@ const Bibliotheque: React.FC = () => {
             className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
           >
             {documents.map((document) => {
-              const originalUrl =
-                `${api.defaults.baseURL}/api/document-versions/` +
-                `${document.id}/original`;
-
               return (
                 <article
                   key={document.id}
@@ -154,16 +253,18 @@ const Bibliotheque: React.FC = () => {
                       </p>
                     )}
 
-                    <a
-                      href={originalUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-3 text-center font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    <button
+                      type="button"
+                      onClick={() => void openOriginalDocument(document)}
+                      disabled={openingDocumentId === document.id}
+                      className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-3 text-center font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
                     >
                       <BookOpen size={18} aria-hidden="true" />
-                      Lire le manuel
+                      {openingDocumentId === document.id
+                        ? "Ouverture en cours..."
+                        : "Lire le manuel"}
                       <ExternalLink size={16} aria-hidden="true" />
-                    </a>
+                    </button>
                   </div>
                 </article>
               );
