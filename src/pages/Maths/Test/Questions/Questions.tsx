@@ -1,31 +1,61 @@
-// Questions.tsx
 import React, { useEffect, useState, useRef } from "react";
+
 import { useParams, useNavigate } from "react-router-dom";
+
 import api from "@/utils/axios";
+
+import {
+  getOfflineData,
+  saveOfflineData,
+  STORES,
+} from "@/offline/offlineDB";
+
 import { motion } from "framer-motion";
+
 import { Loader2, CheckCircle } from "lucide-react";
+
 import DarkModeToggle from "@/components/DarkModeToggle";
+
 import AudioManager from "@/components/AudioManager";
+
 import CountdownCircle from "@/components/CountdownCircle";
+
 import { useAuth } from "../../../../hooks/useAuth";
-import { serialize } from "v8";
+
+// ============================================================
+// TYPES
+// ============================================================
 
 type Question = {
   id: string;
+
   question: string;
+
   choix: string[];
 
   bonneReponse?: string;
+
   bonne_reponse?: string;
 
   notion: string;
 
   duree?: number;
 
+  // Matière
+  matiere?: string;
+
+  // Série
+  serie?: string | string[];
+
+  // Enseignant
+  enseignant?: string;
+
   situation?: {
     texte?: string;
     image?: string;
   };
+
+  [key: string]: any;
 };
 
 type Reponse = {
@@ -38,21 +68,218 @@ type TimerStatus = {
   [key: string]: boolean;
 };
 
+type CachedQuestionTest = {
+  id: string;
+  test_id: string;
+  questions: Question[];
+  matiere: string;
+  niveau: string;
+  serie: string;
+  cachedAt: number;
+};
+
+type OfflineSubmission = {
+  id: string;
+  type: "questionnaire_result";
+  createdAt: number;
+  status: "pending";
+  endpoint: string;
+  method: "POST";
+
+  payload: {
+    matiere: string;
+    niveau: string;
+    serie: string;
+    test_id: string;
+
+    resultats: {
+      id: string;
+      reponse: string;
+    }[];
+  };
+};
+
+// ============================================================
+// PROFIL PUBLIC DE L'ENSEIGNANT
+// ============================================================
+
+type TeacherProfile = {
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone?: string | null;
+  pays_residence?: string | null;
+  teacher_photo?: string | null;
+};
+
+// ============================================================
+// COMPOSANT
+// ============================================================
+
 const Questions = () => {
+  // ==========================================================
+  // PARAMÈTRES URL
+  //
+  // /test/questions/:matiere/:niveau/:serie
+  //
+  // Exemples :
+  // /test/questions/maths/6e/none
+  // /test/questions/maths/5e/none
+  // /test/questions/maths/2nde/a
+  // /test/questions/maths/1ere/a1
+  // /test/questions/maths/tle/d
+  // ==========================================================
 
-  
+  const { matiere, niveau, serie } = useParams<{
+    matiere: string;
+    niveau: string;
+    serie: string;
+  }>();
 
-
-  const { niveau, serie } = useParams<{ niveau: string; serie: string }>();
   const navigate = useNavigate();
+
   const { loading: authLoading } = useAuth();
 
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [reponses, setReponses] = useState<Reponse[]>([]);
-  const [currentIndex, setCurrentIndex] = useState<number>(0);
-  
-  
-    // 🔝 Remonter complètement en haut à chaque changement de question
+  // ==========================================================
+  // ÉTATS
+  // ==========================================================
+
+  const [questions, setQuestions] =
+    useState<Question[]>([]);
+
+  const [reponses, setReponses] =
+    useState<Reponse[]>([]);
+
+  const [currentIndex, setCurrentIndex] =
+    useState<number>(0);
+
+  const [loading, setLoading] =
+    useState<boolean>(true);
+
+  const [timersEnded, setTimersEnded] =
+    useState<TimerStatus>({});
+
+  const [testId, setTestId] =
+    useState<string | null>(null);
+
+  const [remainingTime, setRemainingTime] =
+    useState<{ [key: string]: number }>({});
+
+  // ==========================================================
+  // PROFILS ENSEIGNANTS
+  // ==========================================================
+
+  const [teacherProfiles, setTeacherProfiles] =
+    useState<Record<string, TeacherProfile | null>>({});
+
+  const questionSoundRef =
+    useRef<HTMLAudioElement | null>(null);
+
+  // ==========================================================
+  // NIVEAUX
+  // ==========================================================
+
+  const generalLevels = [
+    "6e",
+    "5e",
+    "4e",
+    "3e",
+  ] as const;
+
+  const lyceeLevels = [
+    "2nde",
+    "1ere",
+    "tle",
+  ] as const;
+
+  // ==========================================================
+  // NORMALISATION DES NIVEAUX
+  // ==========================================================
+
+  const normalizeNiveau = (value?: string) => {
+    if (!value) return "";
+
+    const normalized = value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+
+    const mapping: Record<string, string> = {
+      "6eme": "6e",
+      "5eme": "5e",
+      "4eme": "4e",
+      "3eme": "3e",
+      "2nde": "2nde",
+      "seconde": "2nde",
+      "1ere": "1ere",
+      "1re": "1ere",
+      "premiere": "1ere",
+      terminale: "tle",
+      tle: "tle",
+    };
+
+    return mapping[normalized] ?? normalized;
+  };
+
+  // ==========================================================
+  // NORMALISATION MATIÈRE
+  // ==========================================================
+
+  const normalizeMatiere = (value?: string) => {
+    if (!value) return "";
+
+    return value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, "")
+      .replace(/[-_]/g, "");
+  };
+
+  // ==========================================================
+  // NORMALISATION SÉRIE
+  // ==========================================================
+
+  const normalizeSerie = (value?: string) => {
+    if (!value) return "";
+
+    const normalized = value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+
+    if (
+      normalized === "none" ||
+      normalized === "null" ||
+      normalized === ""
+    ) {
+      return "";
+    }
+
+    return normalized.toUpperCase();
+  };
+
+  // ==========================================================
+  // NIVEAU NORMALISÉ ACTUEL
+  // ==========================================================
+
+  const niveauNormalise =
+    normalizeNiveau(niveau);
+
+  // ==========================================================
+  // SÉRIE NORMALISÉE ACTUELLE
+  // ==========================================================
+
+  const serieNormalisee =
+    normalizeSerie(serie);
+
+  // ==========================================================
+  // REMONTER EN HAUT À CHAQUE QUESTION
+  // ==========================================================
+
   useEffect(() => {
     window.scrollTo({
       top: 0,
@@ -60,592 +287,1634 @@ const Questions = () => {
       behavior: "instant",
     });
   }, [currentIndex]);
-  
-  const [loading, setLoading] = useState<boolean>(true);
-  const [timersEnded, setTimersEnded] = useState<TimerStatus>({});
-  const [testId, setTestId] = useState<string | null>(null);
-  const [remainingTime, setRemainingTime] = useState<{ [key: string]: number }>({});
 
-  const questionSoundRef = useRef<HTMLAudioElement | null>(null);
+  // ==========================================================
+  // QUESTION ACTUELLE
+  // ==========================================================
 
-  const generalLevels = ['6e', '5e', '4e', '3e'] as const;
-  const lyceeLevels = ['2nde', '1ere', 'tle'] as const;
+  const currentQuestion =
+    questions[currentIndex];
 
-  const currentQuestion = questions[currentIndex];
-  const totalQuestions = questions.length;
-  const allAnswered = reponses.every(r => r.reponse !== null);
+  const totalQuestions =
+    questions.length;
+
+  const allAnswered =
+    reponses.length > 0 &&
+    reponses.every(
+      (r) => r.reponse !== null
+    );
+
+  // ==========================================================
+  // INITIALISATION DU SON
+  // ==========================================================
 
   useEffect(() => {
-    questionSoundRef.current = new Audio("/sounds/click.mp3");
+    questionSoundRef.current =
+      new Audio("/sounds/click.mp3");
   }, []);
 
-  // Récupération de la génération du test + questions + testId
-  useEffect(() => {
-  const fetchTest = async () => {
-    try {
-      // Déterminer les niveaux à inclure
-      let niveauxAInclure: string[] = [];
+  // ==========================================================
+  // PROFILS DES ENSEIGNANTS
+  // ==========================================================
 
-      const generalLevels = ['6e', '5e', '4e', '3e'];
-      const lyceeLevels = ['2nde', '1ere', 'tle'];
+  const fetchTeacherProfiles = async (
+    questionsRecues: Question[]
+  ) => {
+    const emails = [
+      ...new Set(
+        questionsRecues
+          .map((q) => q.enseignant)
+          .filter(
+            (
+              email
+            ): email is string =>
+              typeof email === "string" &&
+              email.trim() !== ""
+          )
+      ),
+    ];
 
-      if (generalLevels.includes(niveau!)) {
-        const index = generalLevels.indexOf(niveau!);
-        niveauxAInclure = generalLevels.slice(0, index + 1);
-      } else if (lyceeLevels.includes(niveau!)) {
-        const index = lyceeLevels.indexOf(niveau!);
-        // Ajouter aussi les niveaux du collège
-        niveauxAInclure = [...generalLevels, ...lyceeLevels.slice(0, index + 1)];
-      }
-
-      // Construire l’URL avec plusieurs niveaux
-      let url = `/api/questions/${niveau}/generation${serie ? `?serie=${serie}` : ''}`;
-      if (serie && serie.toLowerCase() !== "none") {
-        url += `&serie=${serie}`;
-      }
-
-      const res = await api.get(url);
-      const { test_id, questions: questionsRecues } = res.data;
-
-      setTestId(test_id);
-      setQuestions(questionsRecues);
-      setReponses(
-        questionsRecues.map((q: Question) => ({
-          questionId: q.id,
-          reponse: null,
-          notion: q.notion,
-        }))
-      );
-      setLoading(false);
-    } catch (error) {
-      console.error("Erreur lors du chargement des questions :", error);
-      setLoading(false);
+    if (emails.length === 0) {
+      return;
     }
+
+    const profiles: Record<
+      string,
+      TeacherProfile | null
+    > = {};
+
+    await Promise.all(
+      emails.map(async (email) => {
+        try {
+          const res =
+            await api.get(
+              "/api/teacher/public-profile",
+              {
+                params: {
+                  email,
+                },
+              }
+            );
+
+          profiles[email] =
+            res.data;
+        } catch (error) {
+          console.error(
+            `Impossible de récupérer l'enseignant ${email}`,
+            error
+          );
+
+          profiles[email] = null;
+        }
+      })
+    );
+
+    setTeacherProfiles(profiles);
   };
 
-  if (niveau) fetchTest();
-}, [niveau, serie]);
+  // ==========================================================
+  // RÉCUPÉRATION DU TEST
+  //
+  // RÈGLE PÉDAGOGIQUE :
+  //
+  // 6e  -> uniquement 6e
+  //
+  // 5e  -> uniquement 6e
+  //
+  // 4e  -> 6e + 5e
+  //
+  // 3e  -> 6e + 5e + 4e
+  //
+  // 2nde -> 6e + 5e + 4e + 3e
+  //
+  // 1ere -> collège + 2nde de la même série
+  //
+  // tle -> collège + 2nde + 1ere
+  //
+  // JAMAIS la classe actuelle.
+  // ==========================================================
 
+  useEffect(() => {
+    const fetchTest = async () => {
+      try {
+        // ------------------------------------------------------
+        // VÉRIFICATION
+        // ------------------------------------------------------
+
+        if (!matiere || !niveau) {
+          console.error(
+            "Paramètres manquants :",
+            {
+              matiere,
+              niveau,
+              serie,
+            }
+          );
+
+          setLoading(false);
+          return;
+        }
+
+        // ------------------------------------------------------
+        // NIVEAU NORMALISÉ
+        // ------------------------------------------------------
+
+        const niveauActuel =
+          normalizeNiveau(niveau);
+
+        // ------------------------------------------------------
+        // SÉRIE
+        // ------------------------------------------------------
+
+        const serieActuelle =
+          normalizeSerie(serie);
+
+        // ------------------------------------------------------
+        // DÉTERMINER SI L'ON EST AU COLLÈGE
+        // ------------------------------------------------------
+
+        const estCollege =
+          generalLevels.includes(
+            niveauActuel as
+              (typeof generalLevels)[number]
+          );
+
+        // ------------------------------------------------------
+        // DÉTERMINER SI L'ON EST AU LYCÉE
+        // ------------------------------------------------------
+
+        const estLycee =
+          lyceeLevels.includes(
+            niveauActuel as
+              (typeof lyceeLevels)[number]
+          );
+
+        // ------------------------------------------------------
+        // LA SÉRIE EST OBLIGATOIRE AU LYCÉE
+        // ------------------------------------------------------
+
+        if (
+          estLycee &&
+          !serieActuelle
+        ) {
+          console.error(
+            "❌ Série obligatoire pour un niveau du lycée."
+          );
+
+          setLoading(false);
+
+          alert(
+            "La série est obligatoire pour ce niveau."
+          );
+
+          navigate("/");
+
+          return;
+        }
+
+        // ------------------------------------------------------
+        // INFORMATION DE DEBUG
+        // ------------------------------------------------------
+
+        console.log(
+          "================================================"
+        );
+
+        console.log(
+          "📚 MATIÈRE :",
+          matiere
+        );
+
+        console.log(
+          "🎓 NIVEAU ACTUEL :",
+          niveauActuel
+        );
+
+        console.log(
+          "📖 SÉRIE ACTUELLE :",
+          serieActuelle || "none"
+        );
+
+        console.log(
+          "📌 RÈGLE : EXCLURE LA CLASSE ACTUELLE"
+        );
+
+        console.log(
+          "================================================"
+        );
+
+        // ------------------------------------------------------
+        // PARAMÈTRES BACKEND
+        // ------------------------------------------------------
+
+        const params: Record<
+          string,
+          string
+        > = {
+          matiere:
+            normalizeMatiere(
+              matiere
+            ),
+
+          // IMPORTANT :
+          // On demande au backend de construire
+          // le test avec les niveaux précédents.
+          //
+          // Le backend doit donc :
+          //
+          // - exclure le niveau actuel
+          // - conserver la série demandée
+          //   pour les niveaux lycée précédents.
+          //
+          // Exemple :
+          //
+          // 1ere A1
+          // => 6e,5e,4e,3e + 2nde A1
+          //
+          // Tle F2
+          // => 6e,5e,4e,3e + 2nde F2 + 1ere F2
+
+          exclure_niveau_actuel:
+            "true",
+        };
+
+        // ------------------------------------------------------
+        // AJOUT DE LA SÉRIE SI NÉCESSAIRE
+        // ------------------------------------------------------
+
+        if (
+          estLycee &&
+          serieActuelle
+        ) {
+          params.serie =
+            serieActuelle;
+        }
+
+        // ------------------------------------------------------
+        // CLÉ UNIQUE DU CACHE
+        // ------------------------------------------------------
+
+        const cacheId = [
+          "test",
+          normalizeMatiere(matiere),
+          niveauActuel,
+          serieActuelle || "none",
+        ].join("_");
+
+        // ------------------------------------------------------
+        // APPEL BACKEND AVEC FALLBACK HORS LIGNE
+        // ------------------------------------------------------
+
+        let test_id: string | null =
+          null;
+
+        let questionsRecues: Question[] =
+          [];
+
+        // ------------------------------------------------------
+        // 1. TENTATIVE DE RÉCUPÉRATION EN LIGNE
+        // ------------------------------------------------------
+
+        if (navigator.onLine) {
+          try {
+            const res =
+              await api.get(
+                `/api/questions/${niveauActuel}/generation`,
+                {
+                  params,
+                }
+              );
+
+            test_id =
+              res.data?.test_id ??
+              null;
+
+            questionsRecues =
+              Array.isArray(
+                res.data?.questions
+              )
+                ? res.data.questions
+                : [];
+
+            // ----------------------------------------------------
+            // MISE EN CACHE DU TEST COMPLET
+            // ----------------------------------------------------
+
+            if (
+              test_id &&
+              questionsRecues.length >
+                0
+            ) {
+              await saveOfflineData(
+                STORES.questions,
+                {
+                  id: cacheId,
+                  test_id:
+                    String(test_id),
+                  questions:
+                    questionsRecues,
+                  matiere:
+                    normalizeMatiere(
+                      matiere
+                    ),
+                  niveau:
+                    niveauActuel,
+                  serie:
+                    serieActuelle ||
+                    "none",
+                  cachedAt:
+                    Date.now(),
+                }
+              );
+
+              console.log(
+                "💾 Test enregistré hors ligne :",
+                cacheId
+              );
+            }
+          } catch (error) {
+            console.warn(
+              "⚠️ Backend inaccessible. Tentative de chargement hors ligne.",
+              error
+            );
+          }
+        }
+
+        // ------------------------------------------------------
+        // 2. SI LE BACKEND EST INACCESSIBLE
+        //    → INDEXEDDB
+        // ------------------------------------------------------
+
+        if (
+          !test_id ||
+          questionsRecues.length === 0
+        ) {
+          console.log(
+            "📴 Recherche du test dans IndexedDB..."
+          );
+
+          const cachedTest =
+            await getOfflineData<CachedQuestionTest>(
+              STORES.questions,
+              cacheId
+            );
+
+          if (
+            cachedTest &&
+            Array.isArray(
+              cachedTest.questions
+            ) &&
+            cachedTest.questions.length >
+              0
+          ) {
+            test_id =
+              cachedTest.test_id;
+
+            questionsRecues =
+              cachedTest.questions;
+
+            console.log(
+              "✅ Test chargé depuis IndexedDB :",
+              cacheId
+            );
+          }
+        }
+
+        // ------------------------------------------------------
+        // 3. AUCUNE SOURCE DISPONIBLE
+        // ------------------------------------------------------
+
+        if (
+          !test_id ||
+          questionsRecues.length === 0
+        ) {
+          console.error(
+            "❌ Aucun test disponible en ligne ou hors ligne."
+          );
+
+          alert(
+            "Impossible de charger les questions. Connectez-vous à Internet au moins une fois pour télécharger ce test."
+          );
+
+          setLoading(false);
+
+          return;
+        }
+
+        // ------------------------------------------------------
+        // VALIDATION
+        // ------------------------------------------------------
+
+        if (
+          !Array.isArray(
+            questionsRecues
+          ) ||
+          questionsRecues.length === 0
+        ) {
+          console.error(
+            "❌ Aucune question reçue."
+          );
+
+          alert(
+            "Aucune question disponible pour ce niveau."
+          );
+
+          setLoading(false);
+
+          return;
+        }
+
+        // ------------------------------------------------------
+        // ENREGISTRER LE TEST
+        // ------------------------------------------------------
+
+        setTestId(test_id);
+
+        // ------------------------------------------------------
+        // ENREGISTRER LES QUESTIONS
+        // ------------------------------------------------------
+
+        setQuestions(
+          questionsRecues
+        );
+
+        // ------------------------------------------------------
+        // INITIALISER LES RÉPONSES
+        // ------------------------------------------------------
+
+        setReponses(
+          questionsRecues.map(
+            (q: Question) => ({
+              questionId:
+                String(q.id),
+
+              reponse:
+                null,
+
+              notion:
+                q.notion ?? "",
+            })
+          )
+        );
+
+        // ------------------------------------------------------
+        // PROFILS ENSEIGNANTS
+        // ------------------------------------------------------
+
+        await fetchTeacherProfiles(
+          questionsRecues
+        );
+
+        // ------------------------------------------------------
+        // DEBUG
+        // ------------------------------------------------------
+
+        console.log(
+          "📋 QUESTIONS REÇUES :",
+          questionsRecues
+        );
+
+        console.log(
+          "📊 NOMBRE DE QUESTIONS :",
+          questionsRecues.length
+        );
+
+        // ------------------------------------------------------
+        // FIN CHARGEMENT
+        // ------------------------------------------------------
+
+        setLoading(false);
+      } catch (error) {
+        console.error(
+          "Erreur lors du chargement des questions :",
+          error
+        );
+
+        alert(
+          "Impossible de charger les questions du test."
+        );
+
+        setLoading(false);
+      }
+    };
+
+    if (
+      matiere &&
+      niveau
+    ) {
+      fetchTest();
+    }
+  }, [
+    matiere,
+    niveau,
+    serie,
+    navigate,
+  ]);
+
+  // ==========================================================
+  // SON
+  // ==========================================================
 
   const playClickSound = () => {
-    questionSoundRef.current?.play().catch((e) => console.warn("Son non joué :", e));
+    questionSoundRef.current
+      ?.play()
+      .catch((e) =>
+        console.warn(
+          "Son non joué :",
+          e
+        )
+      );
   };
 
-  const handleOptionSelect = (questionId: string, selected: number) => {
+  // ==========================================================
+  // SÉLECTION OPTION
+  // ==========================================================
+
+  const handleOptionSelect = (
+    questionId: string,
+    selected: number
+  ) => {
     setReponses((prev) =>
       prev.map((r) =>
-        r.questionId === questionId ? { ...r, reponse: selected } : r
+        r.questionId ===
+        questionId
+          ? {
+              ...r,
+              reponse:
+                selected,
+            }
+          : r
       )
     );
   };
 
+  // ==========================================================
+  // QUESTION SUIVANTE
+  // ==========================================================
+
   const handleNext = () => {
-    const currentReponse = reponses.find(r => r.questionId === currentQuestion.id);
-    if (currentReponse?.reponse === null) {
-      alert("Veuillez choisir une réponse avant de continuer.");
+    const currentReponse =
+      reponses.find(
+        (r) =>
+          r.questionId ===
+          currentQuestion?.id
+      );
+
+    if (
+      currentReponse?.reponse ===
+      null
+    ) {
+      alert(
+        "Veuillez choisir une réponse avant de continuer."
+      );
+
       return;
     }
 
     playClickSound();
-    let nextIndex = currentIndex + 1;
+
+    let nextIndex =
+      currentIndex + 1;
+
     while (
-      nextIndex < totalQuestions &&
-      timersEnded[questions[nextIndex].id]
+      nextIndex <
+        totalQuestions &&
+      timersEnded[
+        questions[nextIndex].id
+      ]
     ) {
       nextIndex++;
     }
 
-    if (nextIndex < totalQuestions) {
-      setCurrentIndex(nextIndex);
+    if (
+      nextIndex <
+      totalQuestions
+    ) {
+      setCurrentIndex(
+        nextIndex
+      );
     }
   };
 
+  // ==========================================================
+  // QUESTION PRÉCÉDENTE
+  // ==========================================================
+
   const handlePrevious = () => {
     playClickSound();
-    let prevIndex = currentIndex - 1;
-    while (prevIndex >= 0 && timersEnded[questions[prevIndex].id]) {
+
+    let prevIndex =
+      currentIndex - 1;
+
+    while (
+      prevIndex >= 0 &&
+      timersEnded[
+        questions[prevIndex].id
+      ]
+    ) {
       prevIndex--;
     }
 
     if (prevIndex >= 0) {
-      setCurrentIndex(prevIndex);
+      setCurrentIndex(
+        prevIndex
+      );
     }
   };
 
-  const handleSubmit = async () => {
-  if (!testId) {
-    alert(
-      "Erreur : test ID manquant, impossible de soumettre les réponses."
-    );
-    return;
-  }
+  // ==========================================================
+  // SOUMISSION
+  // ==========================================================
 
-  /*
-   * ==========================================================
-   * 1. CONSTRUIRE LES RÉPONSES DE L'APPRENANT
-   * ==========================================================
-   */
+  const handleSubmit =
+    async () => {
+      if (!testId) {
+        alert(
+          "Erreur : test ID manquant, impossible de soumettre les réponses."
+        );
 
-  const toutesLesReponses = reponses.map((r) => {
-    const lettre =
-      ["a", "b", "c", "d", "e"][r.reponse ?? 0];
+        return;
+      }
 
-    return {
-      id: String(r.questionId),
-      reponse: lettre,
-    };
-  });
+      if (
+        !matiere ||
+        !niveau
+      ) {
+        alert(
+          "Erreur : matière ou niveau manquant."
+        );
 
-  /*
-   * ==========================================================
-   * 2. CONSTRUIRE LES QUESTIONS AVEC LA RÉPONSE APPRENANT
-   * ==========================================================
-   */
+        return;
+      }
 
-  const questionsAvecReponses = questions.map((question) => {
+      // --------------------------------------------------------
+      // RÉPONSES DE L'APPRENANT
+      // --------------------------------------------------------
 
-    const reponse = reponses.find(
-      (r) =>
-        String(r.questionId) ===
-        String(question.id)
-    );
+      const toutesLesReponses =
+        reponses.map((r) => {
+          const index =
+            r.reponse;
 
-    const indexReponse =
-      reponse?.reponse ?? null;
+          const lettre =
+            index !== null
+              ? [
+                  "a",
+                  "b",
+                  "c",
+                  "d",
+                  "e",
+                ][index]
+              : "";
 
-    const reponseApprenant =
-      indexReponse !== null
-        ? ["a", "b", "c", "d", "e"][indexReponse]
-        : null;
+          return {
+            id: String(
+              r.questionId
+            ),
+            reponse:
+              lettre ?? "",
+          };
+        });
 
-    /*
-     * La bonne réponse peut venir sous
-     * bonneReponse ou bonne_reponse.
-     */
+      // --------------------------------------------------------
+      // QUESTIONS AVEC COMPARAISON
+      // --------------------------------------------------------
 
-    const bonneReponse =
-      question.bonneReponse ??
-      question.bonne_reponse ??
-      "";
+      const questionsAvecReponses =
+        questions.map(
+          (question) => {
+            const reponse =
+              reponses.find(
+                (r) =>
+                  String(
+                    r.questionId
+                  ) ===
+                  String(
+                    question.id
+                  )
+              );
 
-    /*
-     * ========================================================
-     * COMPARAISON
-     * ========================================================
-     */
+            const indexReponse =
+              reponse?.reponse ??
+              null;
 
-    const correcte =
-      reponseApprenant !== null &&
-      String(reponseApprenant)
-        .trim()
-        .toLowerCase() ===
-      String(bonneReponse)
-        .trim()
-        .toLowerCase();
+            const reponseApprenant =
+              indexReponse !==
+              null
+                ? [
+                    "a",
+                    "b",
+                    "c",
+                    "d",
+                    "e",
+                  ][
+                    indexReponse
+                  ]
+                : null;
 
-    return {
-      ...question,
+            const bonneReponse =
+              question.bonneReponse ??
+              question.bonne_reponse ??
+              "";
 
-      /*
-       * Réponse de l'apprenant
-       */
-      reponse_apprenant:
-        reponseApprenant,
+            const correcte =
+              reponseApprenant !==
+                null &&
+              String(
+                reponseApprenant
+              )
+                .trim()
+                .toLowerCase() ===
+                String(
+                  bonneReponse
+                )
+                  .trim()
+                  .toLowerCase();
 
-      /*
-       * Bonne réponse
-       */
-      bonne_reponse:
-        bonneReponse,
+            return {
+              ...question,
 
-      /*
-       * Résultat de la comparaison
-       */
-      correcte,
+              matiere:
+                question.matiere ??
+                matiere,
 
-      /*
-       * Classe
-       */
-      classe:
-        niveau,
+              serie:
+                question.serie ??
+                serie ??
+                "none",
 
-      /*
-       * Notion
-       */
-      notion:
-        question.notion ?? null,
-    };
-  });
+              reponse_apprenant:
+                reponseApprenant,
 
-  /*
-   * ==========================================================
-   * 3. EXTRAIRE LES QUESTIONS INCORRECTES
-   * ==========================================================
-   */
+              bonne_reponse:
+                bonneReponse,
 
-  const questionsRemediation =
-    questionsAvecReponses.filter(
-      (question) =>
-        question.correcte === false
-    );
+              correcte,
 
-  /*
-   * ==========================================================
-   * 4. EXTRAIRE LES NOTIONS NON ACQUISES
-   * ==========================================================
-   */
+              classe:
+                question.niveau ??
+                niveau,
 
-  const notionsNonAcquises = [
-    ...new Set(
-      questionsRemediation
-        .map(
+              notion:
+                question.notion ??
+                null,
+            };
+          }
+        );
+
+      // --------------------------------------------------------
+      // QUESTIONS INCORRECTES
+      // --------------------------------------------------------
+
+      const questionsRemediation =
+        questionsAvecReponses.filter(
           (question) =>
-            question.notion
-        )
-        .filter(
-          (notion): notion is string =>
-            typeof notion === "string" &&
-            notion.trim() !== ""
-        )
-    ),
-  ];
+            question.correcte ===
+            false
+        );
 
-  /*
-   * ==========================================================
-   * DEBUG
-   * ==========================================================
-   */
+      // --------------------------------------------------------
+      // NOTIONS NON ACQUISES
+      // --------------------------------------------------------
 
-  console.log(
-    "================================================"
-  );
+      const notionsNonAcquises =
+        [
+          ...new Set(
+            questionsRemediation
+              .map(
+                (question) =>
+                  question.notion
+              )
+              .filter(
+                (
+                  notion
+                ): notion is string =>
+                  typeof notion ===
+                    "string" &&
+                  notion.trim() !==
+                    ""
+              )
+          ),
+        ];
 
-  console.log(
-    "📋 QUESTIONS DU TEST :",
-    questions
-  );
+      // --------------------------------------------------------
+      // DEBUG
+      // --------------------------------------------------------
 
-  console.log(
-    "📋 RÉPONSES APPRENANT :",
-    reponses
-  );
-
-  console.log(
-    "📋 QUESTIONS AVEC COMPARAISON :",
-    questionsAvecReponses
-  );
-
-  console.log(
-    "❌ QUESTIONS DE REMÉDIATION :",
-    questionsRemediation
-  );
-
-  console.log(
-    "📚 NOTIONS NON ACQUISES :",
-    notionsNonAcquises
-  );
-
-  console.log(
-    "📊 Nombre questions :",
-    questions.length
-  );
-
-  console.log(
-    "📊 Nombre questions remédiation :",
-    questionsRemediation.length
-  );
-
-  console.log(
-    "================================================"
-  );
-
-  /*
-   * ==========================================================
-   * 5. ENVOYER LES RÉPONSES AU BACKEND
-   * ==========================================================
-   */
-
-  try {
-
-    const baseUrl =
-      `/api/questions/${niveau}/resultats?test_id=${testId}`;
-
-    const url =
-      serie &&
-      serie.toLowerCase() !== "none"
-        ? `${baseUrl}&serie=${serie}`
-        : baseUrl;
-
-    const res =
-      await api.post(
-        url,
-        {
-          resultats:
-            toutesLesReponses,
-        }
+      console.log(
+        "================================================"
       );
 
-    /*
-     * ========================================================
-     * 6. DEBUG BACKEND
-     * ========================================================
-     */
+      console.log(
+        "📚 MATIÈRE :",
+        matiere
+      );
 
-    console.log(
-      "📥 RÉPONSE BACKEND :",
-      res.data
-    );
+      console.log(
+        "🎓 NIVEAU :",
+        niveau
+      );
 
-    /*
-     * ==========================================================
-     * 7. ENVOYER À RESULTATS.TSX
-     * ==========================================================
-     */
+      console.log(
+        "📖 SÉRIE :",
+        serie
+      );
 
-    navigate(
-      `/maths/test/resultats/${niveau}/${serie ?? "none"}`,
-      {
-        replace: true,
+      console.log(
+        "🆔 TEST ID :",
+        testId
+      );
 
-        state: {
+      console.log(
+        "📋 QUESTIONS DU TEST :",
+        questions
+      );
 
-          /*
-           * Résultat officiel calculé par le backend
-           */
+      console.log(
+        "📋 RÉPONSES APPRENANT :",
+        reponses
+      );
+
+      console.log(
+        "📋 QUESTIONS AVEC COMPARAISON :",
+        questionsAvecReponses
+      );
+
+      console.log(
+        "❌ QUESTIONS DE REMÉDIATION :",
+        questionsRemediation
+      );
+
+      console.log(
+        "📚 NOTIONS NON ACQUISES :",
+        notionsNonAcquises
+      );
+
+      console.log(
+        "📊 Nombre questions :",
+        questions.length
+      );
+
+      console.log(
+        "📊 Nombre questions remédiation :",
+        questionsRemediation.length
+      );
+
+      console.log(
+        "================================================"
+      );
+
+      // --------------------------------------------------------
+      // ENVOI BACKEND
+      // --------------------------------------------------------
+
+      try {
+        // ========================================================
+        // DONNÉES À ENVOYER AU BACKEND
+        // ========================================================
+
+        const payload = {
+          matiere,
+
+          niveau,
+
+          serie:
+            serie &&
+            serie.toLowerCase() !==
+              "none"
+              ? serie
+              : "none",
+
+          test_id: testId,
+
           resultats:
-            res.data,
+            toutesLesReponses,
+        };
 
-          /*
-           * Les 20 questions originales
-           */
-          questionsDuTest:
+        // ========================================================
+        // TENTATIVE D'ENVOI EN LIGNE
+        // ========================================================
+
+        if (navigator.onLine) {
+          try {
+            const res =
+              await api.post(
+                `/api/questions/${niveau}/resultats`,
+                payload
+              );
+
+            console.log(
+              "📥 RÉPONSE BACKEND :",
+              res.data
+            );
+
+            // ----------------------------------------------------
+            // NAVIGATION RÉSULTATS
+            // ----------------------------------------------------
+
+            navigate(
+              `/test/resultats/${matiere}/${niveau}/${serie ?? "none"}`,
+              {
+                replace: true,
+
+                state: {
+                  matiereActuelle:
+                    matiere,
+
+                  resultats:
+                    res.data,
+
+                  questionsDuTest:
+                    questions,
+
+                  reponsesDuTest:
+                    reponses,
+
+                  questionsAvecReponses:
+                    questionsAvecReponses,
+
+                  questionsRemediation:
+                    questionsRemediation,
+
+                  notionsNonAcquises:
+                    notionsNonAcquises,
+
+                  toutesLesReponses:
+                    toutesLesReponses,
+
+                  testId:
+                    testId,
+
+                  niveauActuel:
+                    niveau,
+
+                  serieActuelle:
+                    serie ??
+                    "none",
+                },
+              }
+            );
+
+            return;
+          } catch (onlineError) {
+            console.warn(
+              "⚠️ Envoi en ligne impossible. Sauvegarde locale.",
+              onlineError
+            );
+          }
+        }
+
+        // ========================================================
+        // MODE HORS LIGNE
+        // ========================================================
+
+        const submissionId =
+          `result_${testId}_${Date.now()}`;
+
+        const offlineSubmission:
+          OfflineSubmission = {
+            id:
+              submissionId,
+
+            type:
+              "questionnaire_result",
+
+            createdAt:
+              Date.now(),
+
+            status:
+              "pending",
+
+            endpoint:
+              `/api/questions/${niveau}/resultats`,
+
+            method:
+              "POST",
+
+            payload,
+          };
+
+        // ========================================================
+        // ENREGISTREMENT DANS syncQueue
+        // ========================================================
+
+        await saveOfflineData(
+          STORES.syncQueue,
+          offlineSubmission
+        );
+
+        console.log(
+          "📴 Résultat sauvegardé hors ligne :",
+          offlineSubmission
+        );
+
+        // ========================================================
+        // CRÉATION D'UN RÉSULTAT LOCAL
+        //
+        // Cela permet à la page suivante de fonctionner
+        // immédiatement sans attendre Internet.
+        // ========================================================
+
+        const resultatsOffline = {
+          offline: true,
+
+          pendingSync: true,
+
+          message:
+            "Votre évaluation est terminée. Le résultat sera synchronisé automatiquement dès que la connexion Internet sera rétablie.",
+
+          test_id:
+            testId,
+
+          matiere,
+
+          niveau,
+
+          serie:
+            serie ?? "none",
+
+          resultats:
+            toutesLesReponses,
+
+          questions:
             questions,
 
-          /*
-           * Les réponses brutes de l'apprenant
-           */
-          reponsesDuTest:
-            reponses,
-
-          /*
-           * Questions avec comparaison
-           */
           questionsAvecReponses:
             questionsAvecReponses,
 
-          /*
-           * UNIQUEMENT les questions incorrectes
-           */
           questionsRemediation:
             questionsRemediation,
 
-          /*
-           * Notions non acquises
-           */
           notionsNonAcquises:
             notionsNonAcquises,
+        };
 
-          /*
-           * Réponses envoyées au backend
-           */
-          toutesLesReponses:
-            toutesLesReponses,
+        // ========================================================
+        // NAVIGATION IMMÉDIATE
+        // ========================================================
 
-          /*
-           * Informations du test
-           */
-          testId:
-            testId,
+        navigate(
+          `/test/resultats/${matiere}/${niveau}/${serie ?? "none"}`,
+          {
+            replace: true,
 
-          niveauActuel:
-            niveau,
+            state: {
+              matiereActuelle:
+                matiere,
 
-          serieActuelle:
-            serie ?? "",
-        },
+              resultats:
+                resultatsOffline,
+
+              questionsDuTest:
+                questions,
+
+              reponsesDuTest:
+                reponses,
+
+              questionsAvecReponses:
+                questionsAvecReponses,
+
+              questionsRemediation:
+                questionsRemediation,
+
+              notionsNonAcquises:
+                notionsNonAcquises,
+
+              toutesLesReponses:
+                toutesLesReponses,
+
+              testId:
+                testId,
+
+              niveauActuel:
+                niveau,
+
+              serieActuelle:
+                serie ??
+                "none",
+
+              offline:
+                true,
+
+              pendingSync:
+                true,
+            },
+          }
+        );
+      } catch (error) {
+        console.error(
+          "❌ Erreur sauvegarde hors ligne :",
+          error
+        );
+
+        alert(
+          "Impossible d'enregistrer votre évaluation. Veuillez réessayer."
+        );
       }
-    );
+    };
 
-  } catch (error) {
-
-    console.error(
-      "❌ Erreur soumission :",
-      error
-    );
-
-    alert(
-      "Une erreur s'est produite lors de la soumission."
-    );
-  }
-};
+  // ==========================================================
+  // FIN DU TEMPS
+  // ==========================================================
 
   const handleTimeUp = () => {
-    const currentId = currentQuestion?.id;
-    if (!currentId) return;
+    const currentId =
+      currentQuestion?.id;
 
-    const currentReponse = reponses.find(r => r.questionId === currentId);
-    const isUnanswered = currentReponse?.reponse === null;
-
-    if (isUnanswered) {
-      alert("Temps écoulé sans réponse. L'évaluation va recommencer.");
-      // Recharger la page actuelle pour relancer l'évaluation
-      navigate("/matiere"); // ou window.location.reload();
+    if (!currentId) {
       return;
     }
 
-    setTimersEnded((prev) => ({ ...prev, [currentId]: true }));
+    const currentReponse =
+      reponses.find(
+        (r) =>
+          r.questionId ===
+          currentId
+      );
 
-    if (currentIndex < totalQuestions - 1) {
+    const isUnanswered =
+      currentReponse?.reponse ===
+      null;
+
+    if (isUnanswered) {
+      alert(
+        "Temps écoulé sans réponse. L'évaluation va recommencer."
+      );
+
+      navigate("/matiere");
+
+      return;
+    }
+
+    setTimersEnded(
+      (prev) => ({
+        ...prev,
+
+        [currentId]:
+          true,
+      })
+    );
+
+    if (
+      currentIndex <
+      totalQuestions - 1
+    ) {
       handleNext();
     } else {
       handleSubmit();
     }
   };
 
-  if (authLoading || loading) {
+  // ==========================================================
+  // ENSEIGNANT ACTUEL
+  // ==========================================================
+
+  const currentTeacher =
+    currentQuestion?.enseignant
+      ? teacherProfiles[
+          currentQuestion
+            .enseignant
+        ]
+      : null;
+
+  // ==========================================================
+  // PROFIL ENSEIGNANT
+  // ==========================================================
+
+  const handleTeacherProfile =
+    () => {
+      if (
+        !currentTeacher?.email
+      ) {
+        return;
+      }
+
+      navigate(
+        `/enseignant/profil/${encodeURIComponent(
+          currentTeacher.email
+        )}`
+      );
+    };
+
+  // ==========================================================
+  // PHOTO ENSEIGNANT
+  // ==========================================================
+
+  const currentTeacherPhoto =
+    currentTeacher?.teacher_photo
+      ? currentTeacher.teacher_photo.startsWith(
+          "http"
+        )
+        ? currentTeacher.teacher_photo
+        : (() => {
+            const baseUrl =
+              api.defaults.baseURL?.replace(
+                /\/+$/,
+                ""
+              ) || "";
+
+            const normalizedBase =
+              baseUrl.endsWith(
+                "/api"
+              )
+                ? baseUrl.slice(
+                    0,
+                    -4
+                  )
+                : baseUrl;
+
+            return `${normalizedBase}/${currentTeacher.teacher_photo.replace(
+              /^\/+/,
+              ""
+            )}`;
+          })()
+      : null;
+
+  // ==========================================================
+  // CHARGEMENT
+  // ==========================================================
+
+  if (
+    authLoading ||
+    loading
+  ) {
     return (
       <div className="flex flex-col items-center mt-20 text-center gap-4 text-gray-700 dark:text-gray-300">
         <Loader2 className="animate-spin h-10 w-10" />
-        <p>Chargement des questions...</p>
+
+        <p>
+          Chargement des questions...
+        </p>
       </div>
     );
   }
 
+  // ==========================================================
+  // AFFICHAGE
+  // ==========================================================
+
   return (
     <div className="max-w-3xl mx-auto p-4 relative">
+
+      {/* ======================================================
+          CONTRÔLES
+      ======================================================= */}
+
       <div className="absolute top-4 right-4 flex items-center gap-4">
         <DarkModeToggle />
+
         <AudioManager />
       </div>
 
+      {/* ======================================================
+          CONTENEUR PRINCIPAL
+      ======================================================= */}
+
       <div className="rounded-2xl p-6 shadow-xl bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 space-y-6">
+
+        {/* ====================================================
+            TITRE
+        ===================================================== */}
+
         <h1 className="text-3xl font-bold text-center text-blue-700 dark:text-blue-300">
-          ÉVALUATION DIAGNOSTIQUE : {niveau} {serie}
+          ÉVALUATION DIAGNOSTIQUE:{" "}
+          {matiere}
+          {" — "}
+          {niveau}
+
+          {serie &&
+          serie.toLowerCase() !==
+            "none"
+            ? ` — ${serie}`
+            : ""}
         </h1>
+
+        {/* ====================================================
+            INFORMATION SUR LA RÈGLE
+        ===================================================== */}
+
+        <div className="text-center text-sm text-gray-600 dark:text-gray-400">
+          Cette évaluation porte sur les
+          notions des classes précédentes sauf la classe de 6ème.
+        </div>
+
+        {/* ====================================================
+            PROGRESSION
+        ===================================================== */}
 
         <div>
           <div className="w-full bg-gray-200 dark:bg-gray-700 h-3 rounded-full overflow-hidden">
             <div
               className="bg-blue-600 h-full transition-all duration-500"
-              style={{ width: `${((currentIndex + 1) / totalQuestions) * 100}%` }}
+              style={{
+                width: `${
+                  totalQuestions > 0
+                    ? ((currentIndex + 1) /
+                        totalQuestions) *
+                      100
+                    : 0
+                }%`,
+              }}
             />
           </div>
+
           <p className="text-sm text-center mt-1 text-gray-600 dark:text-gray-400">
-            Question {currentIndex + 1} / {totalQuestions}
+            Question{" "}
+            {totalQuestions > 0
+              ? currentIndex + 1
+              : 0}{" "}
+            /{" "}
+            {totalQuestions}
           </p>
         </div>
 
+        {/* ====================================================
+            ENSEIGNANT
+        ===================================================== */}
+
+        {currentQuestion?.enseignant && (
+          <div className="mt-2 mb-2 flex items-center gap-4 rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm dark:border-blue-800 dark:bg-blue-950/30">
+
+            {/* PHOTO */}
+
+            <button
+              type="button"
+              onClick={
+                handleTeacherProfile
+              }
+              disabled={
+                !currentTeacher
+              }
+              className="h-14 w-14 shrink-0 overflow-hidden rounded-full border-2 border-blue-500 bg-gray-200 dark:bg-gray-700 hover:ring-4 hover:ring-blue-300 dark:hover:ring-blue-800 transition-all cursor-pointer disabled:cursor-default focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800"
+              title={
+                currentTeacher
+                  ? "Voir le profil de l'enseignant"
+                  : "Chargement de l'enseignant..."
+              }
+            >
+              {currentTeacherPhoto ? (
+                <img
+                  src={
+                    currentTeacherPhoto
+                  }
+                  alt={
+                    currentTeacher
+                      ? `Photo de ${currentTeacher.prenom} ${currentTeacher.nom}`
+                      : "Photo de l'enseignant"
+                  }
+                  className="h-full w-full object-cover"
+                  onError={(
+                    event
+                  ) => {
+                    event.currentTarget.style.display =
+                      "none";
+                  }}
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-sm font-bold text-blue-700 dark:text-blue-300">
+                  {currentTeacher
+                    ? `${currentTeacher.prenom?.[0] ?? ""}${currentTeacher.nom?.[0] ?? ""}`
+                    : "?"}
+                </div>
+              )}
+            </button>
+
+            {/* NOM */}
+
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
+                Enseignant
+              </p>
+
+              {currentTeacher ? (
+                <button
+                  type="button"
+                  onClick={
+                    handleTeacherProfile
+                  }
+                  className="text-lg font-bold text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 hover:underline transition text-left focus:outline-none"
+                  title="Voir le profil de l'enseignant"
+                >
+                  {
+                    currentTeacher.prenom
+                  }{" "}
+                  {
+                    currentTeacher.nom
+                  }
+                </button>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Chargement de l'enseignant...
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ====================================================
+            QUESTION
+        ===================================================== */}
+
         {currentQuestion && (
           <motion.div
-            key={currentQuestion.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            key={
+              currentQuestion.id
+            }
+            initial={{
+              opacity: 0,
+              y: 20,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            transition={{
+              duration: 0.5,
+            }}
             className="p-4 border rounded-xl shadow-md bg-white dark:bg-gray-800"
           >
-            {currentQuestion.situation?.texte && (
+
+            {/* SITUATION */}
+
+            {currentQuestion
+              .situation
+              ?.texte && (
               <p className="mb-3 italic text-gray-700 dark:text-gray-300">
-                {currentQuestion.situation.texte}
+                {
+                  currentQuestion
+                    .situation
+                    .texte
+                }
               </p>
             )}
 
-            {currentQuestion.situation?.image && (
+            {/* IMAGE */}
+
+            {currentQuestion
+              .situation
+              ?.image && (
               <div className="mb-4 flex justify-center">
                 <img
-                  src={currentQuestion.situation.image}
+                  src={
+                    currentQuestion
+                      .situation
+                      .image
+                  }
                   alt="Illustration"
                   className="rounded-lg shadow max-w-full h-auto"
                 />
               </div>
             )}
 
+            {/* QUESTION + CHRONOMÈTRE */}
+
             <div className="flex justify-between items-start mb-4">
               <div
                 className="font-medium text-lg text-gray-800 dark:text-gray-200 w-full pr-4"
-                dangerouslySetInnerHTML={{ __html: currentQuestion.question }}
+                dangerouslySetInnerHTML={{
+                  __html:
+                    currentQuestion.question,
+                }}
               />
-              <CountdownCircle
-  key={currentQuestion.id} // utiliser l'ID pour éviter reset quand on reste sur la même question
-  duration={currentQuestion.duree ?? 60}
-  initialRemainingTime={remainingTime[currentQuestion.id]} // temps restant s'il existe
-  onTick={(timeLeft) =>
-    setRemainingTime((prev) => ({ ...prev, [currentQuestion.id]: timeLeft }))
-  }
-  onComplete={handleTimeUp}
-/>
 
+              <CountdownCircle
+                key={
+                  currentQuestion.id
+                }
+                duration={
+                  currentQuestion.duree ??
+                  60
+                }
+                initialRemainingTime={
+                  remainingTime[
+                    currentQuestion.id
+                  ]
+                }
+                onTick={(
+                  timeLeft
+                ) =>
+                  setRemainingTime(
+                    (prev) => ({
+                      ...prev,
+                      [currentQuestion.id]:
+                        timeLeft,
+                    })
+                  )
+                }
+                onComplete={
+                  handleTimeUp
+                }
+              />
             </div>
 
-            {/* ** CORRECTION AJOUTÉE ICI ** */}
+            {/* OPTIONS */}
+
             {!currentQuestion.choix ? (
-              <div>Chargement des options...</div>
+              <div>
+                Chargement des options...
+              </div>
             ) : (
               <div className="grid gap-4 mt-4">
-                {currentQuestion.choix.map((opt, idx) => {
-                  const selected =
-                    reponses.find((r) => r.questionId === currentQuestion.id)
-                      ?.reponse === idx;
+                {currentQuestion.choix.map(
+                  (
+                    opt,
+                    idx
+                  ) => {
+                    const selected =
+                      reponses.find(
+                        (r) =>
+                          r.questionId ===
+                          currentQuestion.id
+                      )?.reponse ===
+                      idx;
 
-                  return (
-                    <label
-                      key={idx}
-                      className={`flex items-center gap-3 p-4 border rounded-lg shadow-sm cursor-pointer transition text-base
-                        ${
+                    return (
+                      <label
+                        key={idx}
+                        className={`flex items-center gap-3 p-4 border rounded-lg shadow-sm cursor-pointer transition text-base ${
                           selected
                             ? "bg-blue-100 dark:bg-blue-800/40 border-blue-500"
                             : "hover:bg-gray-100 dark:hover:bg-gray-700"
                         }`}
-                    >
-                      <input
-                        type="radio"
-                        name={`q-${currentQuestion.id}`}
-                        value={idx}
-                        checked={selected}
-                        onChange={() =>
-                          handleOptionSelect(currentQuestion.id, idx)
-                        }
-                        className="accent-blue-600 scale-125"
-                      />
-                      <span className="text-gray-800 dark:text-gray-200">
-                        {opt}
-                      </span>
-                    </label>
-                  );
-                })}
+                      >
+                        <input
+                          type="radio"
+                          name={`q-${currentQuestion.id}`}
+                          value={idx}
+                          checked={
+                            selected
+                          }
+                          onChange={() =>
+                            handleOptionSelect(
+                              currentQuestion.id,
+                              idx
+                            )
+                          }
+                          className="accent-blue-600 scale-125"
+                        />
+
+                        <span className="text-gray-800 dark:text-gray-200">
+                          {opt}
+                        </span>
+                      </label>
+                    );
+                  }
+                )}
               </div>
             )}
           </motion.div>
         )}
 
+        {/* ====================================================
+            NAVIGATION
+        ===================================================== */}
+
         <div className="flex justify-between items-center mt-6">
+
+          {/* PRÉCÉDENT */}
+
           <button
-            onClick={handlePrevious}
-            disabled={currentIndex === 0}
-            className="px-4 py-2 rounded-full border text-sm transition disabled:opacity-40
-              bg-blue-600 text-white hover:bg-blue-700 border-blue-600"
+            onClick={
+              handlePrevious
+            }
+            disabled={
+              currentIndex === 0
+            }
+            className="px-4 py-2 rounded-full border text-sm transition disabled:opacity-40 bg-blue-600 text-white hover:bg-blue-700 border-blue-600"
           >
             ← Précédent
           </button>
 
-          {currentIndex < totalQuestions - 1 ? (
+          {/* SUIVANT / TERMINER */}
+
+          {currentIndex <
+          totalQuestions - 1 ? (
             <button
-              onClick={handleNext}
+              onClick={
+                handleNext
+              }
               className="bg-blue-600 text-white px-6 py-2 rounded-full shadow hover:bg-blue-700 transition"
             >
               Suivant →
             </button>
           ) : (
             <button
-              onClick={handleSubmit}
-              disabled={!allAnswered}
-              className={`px-6 py-2 rounded-full shadow flex items-center gap-2 transition
-                ${allAnswered
+              onClick={
+                handleSubmit
+              }
+              disabled={
+                !allAnswered
+              }
+              className={`px-6 py-2 rounded-full shadow flex items-center gap-2 transition ${
+                allAnswered
                   ? "bg-green-600 text-white hover:bg-green-700 cursor-pointer"
                   : "bg-gray-400 text-gray-700 cursor-not-allowed"
-                }`}
+              }`}
             >
               <CheckCircle className="w-5 h-5" />
-              Terminer l'évaluation
+
+              Terminer
+              l'évaluation
             </button>
           )}
         </div>

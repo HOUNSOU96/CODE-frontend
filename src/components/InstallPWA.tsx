@@ -1,111 +1,518 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Download, CheckCircle } from "lucide-react";
+import {
+  Download,
+  CheckCircle,
+  X,
+  Smartphone,
+  Share,
+} from "lucide-react";
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{
+    outcome: "accepted" | "dismissed";
+    platform: string;
+  }>;
+}
 
 const InstallPWA: React.FC = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isIos, setIsIos] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [showToast, setShowToast] = useState(false);
-  const [skipInstall, setSkipInstall] = useState(false); // <-- Nouvel état
+  const [deferredPrompt, setDeferredPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
+
+  const [isInstalled, setIsInstalled] =
+    useState(false);
+
+  const [isIos, setIsIos] =
+    useState(false);
+
+  const [showPanel, setShowPanel] =
+    useState(false);
+
+  const [message, setMessage] =
+    useState("");
+
+  const [showMessage, setShowMessage] =
+    useState(false);
 
   useEffect(() => {
-    const userAgent = window.navigator.userAgent.toLowerCase();
-    const ios = /iphone|ipad|ipod/.test(userAgent);
+    const userAgent =
+      window.navigator.userAgent.toLowerCase();
+
+    const ios =
+      /iphone|ipad|ipod/.test(userAgent) ||
+      (
+        navigator.platform === "MacIntel" &&
+        navigator.maxTouchPoints > 1
+      );
+
     setIsIos(ios);
 
-    if (window.matchMedia("(display-mode: standalone)").matches) {
+    const standalone =
+      window.matchMedia(
+        "(display-mode: standalone)"
+      ).matches ||
+      (window.navigator as any).standalone === true;
+
+    if (standalone) {
       setIsInstalled(true);
       return;
     }
 
-    const handler = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
+    const handleBeforeInstallPrompt = (
+      event: Event
+    ) => {
+      event.preventDefault();
+
+      const installEvent =
+        event as BeforeInstallPromptEvent;
+
+      setDeferredPrompt(installEvent);
+
+      setShowPanel(true);
     };
 
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    const handleAppInstalled = () => {
+      console.log("✅ CODE a été installé.");
+
+      setIsInstalled(true);
+      setDeferredPrompt(null);
+      setShowPanel(false);
+
+      setMessage(
+        "CODE a été installé avec succès sur votre appareil."
+      );
+
+      setShowMessage(true);
+
+      window.setTimeout(() => {
+        setShowMessage(false);
+      }, 5000);
+    };
+
+    window.addEventListener(
+      "beforeinstallprompt",
+      handleBeforeInstallPrompt
+    );
+
+    window.addEventListener(
+      "appinstalled",
+      handleAppInstalled
+    );
+
+    /*
+     * Sur iOS, beforeinstallprompt n'existe généralement pas.
+     * On affiche donc notre panneau manuellement.
+     */
+    if (ios) {
+      setShowPanel(true);
+    }
+
+    return () => {
+      window.removeEventListener(
+        "beforeinstallprompt",
+        handleBeforeInstallPrompt
+      );
+
+      window.removeEventListener(
+        "appinstalled",
+        handleAppInstalled
+      );
+    };
   }, []);
 
-  const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const choice = await deferredPrompt.userChoice;
-      if (choice.outcome === "accepted") {
-        setIsInstalled(true);
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 4000);
-      }
-      setDeferredPrompt(null);
-    }
+  const closePanel = () => {
+    setShowPanel(false);
   };
 
-  // ✅ Ne pas afficher si installé ou choisi “Pas maintenant”
-  if (isInstalled || skipInstall) return null;
+  const showTemporaryMessage = (
+    text: string
+  ) => {
+    setMessage(text);
+    setShowMessage(true);
+
+    window.setTimeout(() => {
+      setShowMessage(false);
+    }, 6000);
+  };
+
+  const handleInstall = async () => {
+    /*
+     * On ferme immédiatement le panneau.
+     * L'utilisateur peut donc continuer à utiliser CODE
+     * même si l'installation rencontre un problème.
+     */
+    setShowPanel(false);
+
+    /*
+     * iPhone / iPad
+     */
+    if (isIos) {
+      showTemporaryMessage(
+        "Sur iPhone/iPad : appuyez sur Partager, puis « Ajouter à l’écran d’accueil »."
+      );
+
+      return;
+    }
+
+    /*
+     * Navigateurs compatibles avec beforeinstallprompt
+     */
+    if (deferredPrompt) {
+      try {
+        await deferredPrompt.prompt();
+
+        const choice =
+          await deferredPrompt.userChoice;
+
+        if (choice.outcome === "accepted") {
+          showTemporaryMessage(
+            "Installation de CODE lancée."
+          );
+        } else {
+          showTemporaryMessage(
+            "Installation de CODE annulée. Vous pouvez continuer à utiliser l'application normalement."
+          );
+        }
+      } catch (error) {
+        console.error(
+          "❌ Erreur pendant l'installation de CODE :",
+          error
+        );
+
+        showTemporaryMessage(
+          "L'installation de CODE n'a pas pu être lancée sur ce navigateur. Vous pouvez continuer à utiliser l'application normalement."
+        );
+      }
+
+      setDeferredPrompt(null);
+
+      return;
+    }
+
+    /*
+     * Aucun mécanisme d'installation disponible.
+     */
+    showTemporaryMessage(
+      "L'installation automatique n'est pas disponible sur ce navigateur. Vous pouvez continuer à utiliser CODE normalement."
+    );
+  };
+
+  /*
+   * Si CODE est déjà installé,
+   * aucun panneau d'installation.
+   */
+  if (isInstalled) {
+    return null;
+  }
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 backdrop-blur-md bg-black/60 flex items-center justify-center px-6"
-      >
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.8, opacity: 0 }}
-          transition={{ duration: 0.6 }}
-          className="bg-gradient-to-b from-blue-800 to-blue-600 text-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center border border-blue-400/30"
-        >
-          <h1 className="text-2xl font-extrabold mb-3 tracking-wide text-gold">
-            🚀 Installez <span className="text-yellow-400">CODE</span>
-          </h1>
-          <p className="text-sm opacity-90 mb-6">
-            Pour continuer, installez l’application <strong>CODE</strong> sur votre appareil.
-          </p>
+      {/* =====================================================
+          PANNEAU D'INSTALLATION
+      ====================================================== */}
 
-          {isIos ? (
-            <p className="text-sm leading-relaxed">
-              📱 Sur iPhone : Ouvrez Safari → <strong className="text-yellow-300">Partager</strong> → <strong className="text-yellow-300">Ajouter à l’écran d’accueil</strong>.
-            </p>
-          ) : (
-            <>
-              <motion.button
-                onClick={handleInstallClick}
-                className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-blue-900 font-bold px-6 py-3 rounded-full shadow-lg hover:scale-105 hover:shadow-yellow-200/50 transition-all duration-300 w-full mt-3 flex items-center justify-center gap-2"
-              >
-                <Download size={18} />
-                Installer CODE
-              </motion.button>
-
-              {/* ⬅️ Bouton "Pas maintenant" */}
-              <button
-                onClick={() => setSkipInstall(true)}
-                className="mt-3 text-sm underline opacity-80 hover:opacity-100"
-              >
-                Pas maintenant
-              </button>
-            </>
-          )}
-        </motion.div>
-      </motion.div>
-
-      {/* ✅ Toast de confirmation */}
       <AnimatePresence>
-        {showToast && (
+        {showPanel && (
           <motion.div
-            initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 50, opacity: 0 }}
-            transition={{ duration: 0.5 }}
-            className="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-green-600 text-white rounded-2xl px-4 py-2 shadow-lg flex items-center space-x-2 z-50"
+            initial={{
+              opacity: 0,
+              y: -30,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            exit={{
+              opacity: 0,
+              y: -30,
+            }}
+            transition={{
+              duration: 0.3,
+            }}
+            className="
+              fixed
+              top-4
+              left-1/2
+              -translate-x-1/2
+              z-[9999]
+              w-[calc(100%-2rem)]
+              max-w-md
+            "
           >
-            <CheckCircle size={18} />
-            <span className="text-sm font-medium">
-              ✅ CODE est maintenant installé !
-            </span>
+            <div
+              className="
+                relative
+                rounded-2xl
+                border
+                border-blue-200
+                bg-white
+                p-5
+                shadow-2xl
+              "
+            >
+              {/* Bouton fermer */}
+
+              <button
+                type="button"
+                onClick={closePanel}
+                aria-label="Fermer"
+                className="
+                  absolute
+                  right-3
+                  top-3
+                  rounded-full
+                  p-2
+                  text-gray-500
+                  transition
+                  hover:bg-gray-100
+                  hover:text-gray-800
+                "
+              >
+                <X size={20} />
+              </button>
+
+              {/* Icône */}
+
+              <div className="flex items-center gap-3 pr-8">
+                <div
+                  className="
+                    flex
+                    h-12
+                    w-12
+                    shrink-0
+                    items-center
+                    justify-center
+                    rounded-xl
+                    bg-blue-600
+                    text-white
+                  "
+                >
+                  {isIos ? (
+                    <Smartphone size={25} />
+                  ) : (
+                    <Download size={25} />
+                  )}
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">
+                    Installer CODE
+                  </h2>
+
+                  <p className="text-sm text-gray-600">
+                    L'écosystème éducatif mondial
+                  </p>
+                </div>
+              </div>
+
+              {/* =================================================
+                  ANDROID / NAVIGATEUR COMPATIBLE
+              ================================================== */}
+
+              {!isIos && deferredPrompt && (
+                <>
+                  <p className="mt-4 text-sm leading-6 text-gray-700">
+                    Installez CODE sur votre appareil pour
+                    accéder plus facilement à votre espace
+                    éducatif.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={handleInstall}
+                    className="
+                      mt-4
+                      flex
+                      w-full
+                      items-center
+                      justify-center
+                      gap-2
+                      rounded-xl
+                      bg-blue-600
+                      px-4
+                      py-3
+                      font-semibold
+                      text-white
+                      transition
+                      hover:bg-blue-700
+                      active:scale-[0.98]
+                    "
+                  >
+                    <Download size={19} />
+
+                    Installer CODE
+                  </button>
+                </>
+              )}
+
+              {/* =================================================
+                  IPHONE / IPAD
+              ================================================== */}
+
+              {isIos && (
+                <>
+                  <p className="mt-4 text-sm leading-6 text-gray-700">
+                    Pour installer CODE sur cet appareil :
+                  </p>
+
+                  <div className="mt-4 space-y-3 text-sm text-gray-700">
+                    <div className="flex gap-3">
+                      <div
+                        className="
+                          flex
+                          h-7
+                          w-7
+                          shrink-0
+                          items-center
+                          justify-center
+                          rounded-full
+                          bg-blue-100
+                          font-bold
+                          text-blue-700
+                        "
+                      >
+                        1
+                      </div>
+
+                      <p>
+                        Appuyez sur le bouton{" "}
+                        <Share
+                          size={16}
+                          className="mx-1 inline"
+                        />{" "}
+                        <strong>Partager</strong>.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <div
+                        className="
+                          flex
+                          h-7
+                          w-7
+                          shrink-0
+                          items-center
+                          justify-center
+                          rounded-full
+                          bg-blue-100
+                          font-bold
+                          text-blue-700
+                        "
+                      >
+                        2
+                      </div>
+
+                      <p>
+                        Sélectionnez{" "}
+                        <strong>
+                          Ajouter à l’écran d’accueil
+                        </strong>
+                        .
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <div
+                        className="
+                          flex
+                          h-7
+                          w-7
+                          shrink-0
+                          items-center
+                          justify-center
+                          rounded-full
+                          bg-blue-100
+                          font-bold
+                          text-blue-700
+                        "
+                      >
+                        3
+                      </div>
+
+                      <p>
+                        Confirmez avec{" "}
+                        <strong>Ajouter</strong>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleInstall}
+                    className="
+                      mt-5
+                      w-full
+                      rounded-xl
+                      bg-blue-600
+                      px-4
+                      py-3
+                      font-semibold
+                      text-white
+                      transition
+                      hover:bg-blue-700
+                    "
+                  >
+                    J'ai compris
+                  </button>
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* =====================================================
+          MESSAGE NON BLOQUANT
+      ====================================================== */}
+
+      <AnimatePresence>
+        {showMessage && (
+          <motion.div
+            initial={{
+              opacity: 0,
+              y: 20,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            exit={{
+              opacity: 0,
+              y: 20,
+            }}
+            className="
+              fixed
+              bottom-5
+              left-1/2
+              z-[10000]
+              w-[calc(100%-2rem)]
+              max-w-md
+              -translate-x-1/2
+            "
+          >
+            <div
+              className="
+                flex
+                items-start
+                gap-3
+                rounded-2xl
+                border
+                border-gray-200
+                bg-white
+                p-4
+                shadow-2xl
+              "
+            >
+              <CheckCircle
+                className="mt-0.5 shrink-0 text-green-600"
+                size={22}
+              />
+
+              <p className="text-sm leading-5 text-gray-700">
+                {message}
+              </p>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

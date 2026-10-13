@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { GraduationCap, ListChecks } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from "../../hooks/useAuth";
+
 const generalLevels = ['6e', '5e', '4e', '3e'] as const;
 const lyceeLevels = ['2nde', '1ère', 'Terminale'] as const;
 const series = ['A', 'B', 'C', 'D', 'E', 'F', 'G'] as const;
@@ -19,8 +20,11 @@ type Serie = (typeof series)[number];
 export default function Homefootball() {
   const { loading } = useAuth();
 
-
   const navigate = useNavigate();
+
+  // Matière transmise au système générique de diagnostic
+  const matiere = "football";
+
   const [selectedLevel, setSelectedLevel] = useState<Level | null>(null);
   const [showSeries, setShowSeries] = useState(false);
   const [selectedSerie, setSelectedSerie] = useState<Serie | null>(null);
@@ -54,11 +58,14 @@ export default function Homefootball() {
 
   /* ---------------------------------
      Navigation vers la route dynamique
-     /maths/test/questions/:classe/:serie
+     /test/questions/:matiere/:classe/:serie
   ---------------------------------- */
   const goToTest = (classe: string, serie?: string) => {
     const serieSlug = serie ? serie.toLowerCase() : 'none';
-    const target = `/football/test/questions/${niveauToUrlPart(classe)}/${serieSlug}`;
+
+    const target =
+      `/test/questions/${matiere}/${niveauToUrlPart(classe)}/${serieSlug}`;
+
     navigate(target);
   };
 
@@ -76,21 +83,27 @@ export default function Homefootball() {
 
   const handleSeriesSelect = (serie: Serie) => {
     setSelectedSerie(serie);
+
     const hasSubSeries = subSeriesMap[serie];
 
     if (!hasSubSeries && selectedLevel) {
       setConfirmation(`Vous avez choisi : ${selectedLevel} ${serie}`);
-      setTimeout(() => goToTest(selectedLevel, serie), 1000);
+
+      setTimeout(() => {
+        goToTest(selectedLevel, serie);
+      }, 1000);
     }
   };
 
   const handleSubSeriesSelect = (subSerie: string) => {
     if (selectedLevel) {
       setConfirmation(`Vous avez choisi : ${selectedLevel} ${subSerie}`);
-      setTimeout(() => goToTest(selectedLevel, subSerie), 1000);
+
+      setTimeout(() => {
+        goToTest(selectedLevel, subSerie);
+      }, 1000);
     }
   };
-
 
   if (loading) return <div>Chargement...</div>;
 
@@ -102,7 +115,11 @@ export default function Homefootball() {
       transition={{ duration: 0.4 }}
     >
       <div className="min-h-screen flex flex-col items-center justify-center px-6 py-8 text-white z-20">
-        <h1 className="text-3xl font-extrabold mb-6">🎓 BIENVENUE SUR CODE</h1>
+
+        <h1 className="text-3xl font-extrabold mb-6">
+          🎓 BIENVENUE SUR CODE
+        </h1>
+
         <p className="mb-6 text-lg text-white/90">
           Choisissez votre classe pour commencer le test en FOOTBALL :
         </p>
@@ -122,9 +139,11 @@ export default function Homefootball() {
 
         {showSeries && (
           <div className="mt-6 text-center">
+
             <p className="mb-4 font-semibold text-white">
               Vous êtes en {selectedLevel} ? Choisissez votre série :
             </p>
+
             <div className="flex flex-wrap justify-center gap-3">
               {series.map((serie) => (
                 <button
@@ -137,14 +156,17 @@ export default function Homefootball() {
                 </button>
               ))}
             </div>
+
           </div>
         )}
 
         {selectedSerie && subSeriesMap[selectedSerie] && (
           <div className="mt-6 text-center">
+
             <p className="mb-4 font-semibold text-white">
               Vous avez choisi la série {selectedSerie}. Sélectionnez votre sous-série :
             </p>
+
             <div className="flex flex-wrap justify-center gap-3">
               {subSeriesMap[selectedSerie].map((sub) => (
                 <button
@@ -157,6 +179,7 @@ export default function Homefootball() {
                 </button>
               ))}
             </div>
+
           </div>
         )}
 
@@ -172,6 +195,7 @@ export default function Homefootball() {
         >
           ⬅️ Changer de matière
         </button>
+
       </div>
     </motion.div>
   );

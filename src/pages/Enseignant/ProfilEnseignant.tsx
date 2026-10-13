@@ -1,0 +1,1867 @@
+
+import React, {
+  ChangeEvent,
+  FormEvent,
+  useEffect,
+  useState,
+} from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Camera,
+  CheckCircle,
+  Loader2,
+  Mail,
+  MapPin,
+  Phone,
+  User,
+  BookOpen,
+  ArrowRight,
+  AlertCircle,
+  ShieldCheck,
+  GraduationCap,
+  Sparkles,
+  CircleCheck,
+  ImagePlus,
+  ChevronRight,
+  Building2,
+  X,
+  Search,
+  Clock3,
+  Plus,
+} from "lucide-react";
+
+import api from "@/utils/axios";
+
+// ============================================================
+// TYPES
+// ============================================================
+
+type TeacherProfile = {
+  id: number;
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone: string | null;
+  pays_residence: string | null;
+  subjects: string[];
+  teacher_photo: string | null;
+  teacher_profile_validated: boolean;
+  enseignant: boolean;
+  enseignant_actif: boolean;
+};
+
+type School = {
+  id: number;
+  nom: string;
+  adresse: string | null;
+  ville: string | null;
+  pays: string | null;
+  email: string | null;
+  telephone: string | null;
+};
+
+type SchoolMembership = {
+  membership_id: number;
+  school_id: number;
+  school_name: string;
+  role: string;
+  status: "pending" | "approved" | "rejected";
+  academic_year: string;
+  requested_at: string | null;
+  approved_at: string | null;
+};
+
+type MySchoolInformation = {
+  role: "teacher" | "student";
+  academic_year: string;
+  can_choose_school: boolean;
+  memberships: SchoolMembership[];
+};
+
+// ============================================================
+// COMPOSANT
+// ============================================================
+
+const ProfilEnseignant: React.FC = () => {
+  const navigate = useNavigate();
+
+  const [profile, setProfile] =
+    useState<TeacherProfile | null>(null);
+
+  const [photo, setPhoto] =
+    useState<File | null>(null);
+
+  const [preview, setPreview] =
+    useState<string | null>(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [submitting, setSubmitting] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [success, setSuccess] =
+    useState("");
+
+  // ==========================================================
+  // ÉCOLES
+  // ==========================================================
+
+  const [schoolModalOpen, setSchoolModalOpen] =
+    useState(false);
+
+  const [schools, setSchools] =
+    useState<School[]>([]);
+
+  const [mySchoolInformation, setMySchoolInformation] =
+    useState<MySchoolInformation | null>(null);
+
+  const [schoolsLoading, setSchoolsLoading] =
+    useState(false);
+
+  const [schoolError, setSchoolError] =
+    useState("");
+
+  const [schoolSuccess, setSchoolSuccess] =
+    useState("");
+
+  const [schoolSearch, setSchoolSearch] =
+    useState("");
+
+  const [requestingSchoolId, setRequestingSchoolId] =
+    useState<number | null>(null);
+
+  // ==========================================================
+  // CHARGEMENT DU PROFIL
+  // ==========================================================
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const response =
+          await api.get<TeacherProfile>(
+            "/api/teacher/profile"
+          );
+
+        const data = response.data;
+
+        setProfile(data);
+
+        if (data.teacher_photo) {
+          const apiUrl =
+            import.meta.env.VITE_API_URL || "";
+
+          setPreview(
+            data.teacher_photo.startsWith("http")
+              ? data.teacher_photo
+              : data.teacher_photo.startsWith("/")
+                ? `${apiUrl}${data.teacher_photo}`
+                : `${apiUrl}/${data.teacher_photo}`
+          );
+        }
+      } catch (err: any) {
+        console.error(
+          "Erreur récupération profil enseignant :",
+          err
+        );
+
+        const message =
+          err?.response?.data?.detail ||
+          "Impossible de récupérer votre profil enseignant.";
+
+        setError(message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, []);
+
+  // ==========================================================
+  // NETTOYAGE DE L'URL TEMPORAIRE DE LA PHOTO
+  // ==========================================================
+
+  useEffect(() => {
+    return () => {
+      if (preview?.startsWith("blob:")) {
+        URL.revokeObjectURL(preview);
+      }
+    };
+  }, [preview]);
+
+  // ==========================================================
+  // CHARGER LES INFORMATIONS DES ÉCOLES
+  // ==========================================================
+
+  const loadSchoolInformation = async () => {
+    try {
+      setSchoolsLoading(true);
+      setSchoolError("");
+      setSchoolSuccess("");
+
+      const [schoolsResponse, mySchoolResponse] =
+        await Promise.all([
+          api.get<{ schools: School[] }>(
+            "/api/schools"
+          ),
+
+          api.get<MySchoolInformation>(
+            "/api/schools/me"
+          ),
+        ]);
+
+      setSchools(
+        schoolsResponse.data?.schools || []
+      );
+
+      setMySchoolInformation(
+        mySchoolResponse.data
+      );
+    } catch (err: any) {
+      console.error(
+        "Erreur récupération des écoles :",
+        err
+      );
+
+      const message =
+        err?.response?.data?.detail ||
+        "Impossible de récupérer les écoles.";
+
+      setSchoolError(message);
+    } finally {
+      setSchoolsLoading(false);
+    }
+  };
+
+  // ==========================================================
+  // OUVRIR LA FENÊTRE DES ÉCOLES
+  // ==========================================================
+
+  const handleOpenSchoolModal = async () => {
+    setSchoolModalOpen(true);
+    setSchoolSearch("");
+    setSchoolError("");
+    setSchoolSuccess("");
+
+    await loadSchoolInformation();
+  };
+
+  // ==========================================================
+  // FERMER LA FENÊTRE
+  // ==========================================================
+
+  const handleCloseSchoolModal = () => {
+    if (requestingSchoolId !== null) {
+      return;
+    }
+
+    setSchoolModalOpen(false);
+    setSchoolSearch("");
+    setSchoolError("");
+    setSchoolSuccess("");
+  };
+
+  // ==========================================================
+  // DEMANDER UNE ÉCOLE
+  // ==========================================================
+
+  const handleRequestSchool = async (
+    school: School
+  ) => {
+    try {
+      setRequestingSchoolId(school.id);
+      setSchoolError("");
+      setSchoolSuccess("");
+
+      const response =
+        await api.post(
+          "/api/schools/request",
+          {
+            school_id: school.id,
+          }
+        );
+
+      setSchoolSuccess(
+        response.data?.message ||
+          "Votre demande a été envoyée au directeur de l'école."
+      );
+
+      // Recharger immédiatement les états
+      // pour afficher "En attente".
+      await loadSchoolInformation();
+
+    } catch (err: any) {
+      console.error(
+        "Erreur demande d'école :",
+        err
+      );
+
+      const message =
+        err?.response?.data?.detail ||
+        "Impossible d'envoyer votre demande d'école.";
+
+      setSchoolError(message);
+    } finally {
+      setRequestingSchoolId(null);
+    }
+  };
+
+  // ==========================================================
+  // VÉRIFIER LE STATUT D'UNE ÉCOLE
+  // ==========================================================
+
+  const getSchoolMembership = (
+    schoolId: number
+  ): SchoolMembership | undefined => {
+    return mySchoolInformation?.memberships?.find(
+      (membership) =>
+        membership.school_id === schoolId
+    );
+  };
+
+  // ==========================================================
+  // FILTRER LES ÉCOLES
+  // ==========================================================
+
+  const filteredSchools = schools.filter(
+    (school) => {
+      const search =
+        schoolSearch.trim().toLowerCase();
+
+      if (!search) {
+        return true;
+      }
+
+      return (
+        school.nom
+          ?.toLowerCase()
+          .includes(search) ||
+        school.ville
+          ?.toLowerCase()
+          .includes(search) ||
+        school.pays
+          ?.toLowerCase()
+          .includes(search) ||
+        school.adresse
+          ?.toLowerCase()
+          .includes(search)
+      );
+    }
+  );
+
+  // ==========================================================
+  // CHOIX DE LA PHOTO
+  // ==========================================================
+
+  const handlePhotoChange = (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    setError("");
+    setSuccess("");
+
+    // --------------------------------------------------------
+    // FORMAT
+    // --------------------------------------------------------
+
+    if (
+      !["image/jpeg", "image/png"].includes(
+        file.type
+      )
+    ) {
+      setError(
+        "La photo doit être au format JPG ou PNG."
+      );
+
+      event.target.value = "";
+      return;
+    }
+
+    // --------------------------------------------------------
+    // TAILLE
+    // --------------------------------------------------------
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError(
+        "La photo ne doit pas dépasser 5 Mo."
+      );
+
+      event.target.value = "";
+      return;
+    }
+
+    // --------------------------------------------------------
+    // NOUVELLE PHOTO
+    // --------------------------------------------------------
+
+    setPhoto(file);
+
+    const objectUrl =
+      URL.createObjectURL(file);
+
+    setPreview(objectUrl);
+  };
+
+  // ==========================================================
+  // VALIDATION DU PROFIL
+  // ==========================================================
+
+  const handleSubmit = async (
+    event: FormEvent
+  ) => {
+    event.preventDefault();
+
+    if (!photo) {
+      setError(
+        "Veuillez sélectionner votre photo avant de continuer."
+      );
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setError("");
+      setSuccess("");
+
+      const formData =
+        new FormData();
+
+      formData.append(
+        "photo",
+        photo
+      );
+
+      const response =
+        await api.post(
+          "/api/teacher/profile/validate",
+          formData
+        );
+
+      setSuccess(
+        response.data?.message ||
+          "Votre profil enseignant a été validé avec succès."
+      );
+
+      setProfile((current) =>
+        current
+          ? {
+              ...current,
+              teacher_profile_validated:
+                true,
+              teacher_photo:
+                response.data?.teacher_photo ||
+                current.teacher_photo,
+              subjects:
+                response.data?.subjects ||
+                current.subjects,
+            }
+          : current
+      );
+    } catch (err: any) {
+      console.error(
+        "Erreur validation profil enseignant :",
+        err
+      );
+
+      const message =
+        err?.response?.data?.detail ||
+        "Impossible de valider votre profil enseignant.";
+
+      setError(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // ==========================================================
+  // CONTINUER
+  // ==========================================================
+
+  const handleContinue = () => {
+    if (
+      !profile?.teacher_profile_validated
+    ) {
+      setError(
+        "Vous devez valider votre profil enseignant avant de continuer."
+      );
+      return;
+    }
+
+    navigate("/enseignant");
+  };
+
+  // ==========================================================
+  // CHARGEMENT
+  // ==========================================================
+
+  if (loading) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center px-4">
+
+        <div className="relative">
+
+          <div className="absolute inset-0 rounded-full bg-blue-500/20 blur-3xl" />
+
+          <div className="relative flex flex-col items-center">
+
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-blue-200 bg-blue-100 shadow-lg dark:border-blue-900/50 dark:bg-blue-950/50">
+
+              <Loader2
+                className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400"
+              />
+
+            </div>
+
+            <p className="mt-5 text-sm font-semibold text-slate-600 dark:text-slate-300">
+              Chargement de votre profil enseignant...
+            </p>
+
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+              Veuillez patienter
+            </p>
+
+          </div>
+
+        </div>
+
+      </div>
+    );
+  }
+
+  // ==========================================================
+  // ERREUR DE CHARGEMENT
+  // ==========================================================
+
+  if (error && !profile) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center px-4">
+
+        <div className="w-full max-w-xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950">
+
+          <div className="h-1.5 bg-gradient-to-r from-red-500 via-orange-500 to-red-600" />
+
+          <div className="p-8 text-center md:p-10">
+
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-red-100 dark:bg-red-500/10">
+
+              <AlertCircle
+                className="h-8 w-8 text-red-500 dark:text-red-400"
+              />
+
+            </div>
+
+            <h1 className="mt-6 text-2xl font-black text-slate-900 dark:text-white">
+              Profil enseignant
+            </h1>
+
+            <p className="mt-3 leading-7 text-red-600 dark:text-red-200">
+              {error}
+            </p>
+
+            <button
+              type="button"
+              onClick={() =>
+                window.location.reload()
+              }
+              className="mt-7 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3 font-bold text-white shadow-lg transition hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700"
+            >
+              Réessayer
+              <ArrowRight size={17} />
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return null;
+  }
+
+  // ==========================================================
+  // URL PHOTO
+  // ==========================================================
+
+  const photoUrl =
+    preview ||
+    (profile.teacher_photo
+      ? profile.teacher_photo.startsWith("http")
+        ? profile.teacher_photo
+        : profile.teacher_photo.startsWith("/")
+          ? `${import.meta.env.VITE_API_URL || ""}${profile.teacher_photo}`
+          : `${import.meta.env.VITE_API_URL || ""}/${profile.teacher_photo}`
+      : null);
+
+  // ==========================================================
+  // RENDU
+  // ==========================================================
+
+  return (
+    <div className="min-h-screen bg-transparent pb-16">
+
+      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
+
+        {/* =====================================================
+            BARRE SUPÉRIEURE
+        ====================================================== */}
+
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+          <div className="flex items-center gap-3">
+
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">
+              <GraduationCap className="h-6 w-6" />
+            </div>
+
+            <div>
+
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">
+                CODE
+              </p>
+
+              <h2 className="text-lg font-black text-slate-900 dark:text-white">
+                Profil enseignant
+              </h2>
+
+            </div>
+
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+
+            {/* =================================================
+                BOUTON MES ÉCOLES
+            ================================================== */}
+
+            <button
+              type="button"
+              onClick={handleOpenSchoolModal}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-100 hover:text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:border-blue-700 dark:hover:bg-blue-900/50"
+            >
+              <Building2 className="h-4 w-4" />
+
+              Mes écoles
+
+              <ChevronRight className="h-4 w-4" />
+            </button>
+
+            {profile.teacher_profile_validated && (
+              <button
+                type="button"
+                onClick={handleContinue}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-700 dark:hover:bg-slate-800 dark:hover:text-blue-300"
+              >
+                <ArrowRight className="h-4 w-4" />
+                Mon espace enseignant
+              </button>
+            )}
+
+          </div>
+
+        </div>
+
+        {/* =====================================================
+            SECTION UNIQUE — PROFIL ET INFORMATIONS DE
+            L'ENSEIGNANT
+        ====================================================== */}
+
+        <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/20">
+
+          {/* BARRE SUPÉRIEURE */}
+
+          <div className="h-1.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500" />
+
+          <div className="p-5 sm:p-7 md:p-8 lg:p-10">
+
+            {/* =================================================
+                EN-TÊTE / HERO
+            ================================================== */}
+
+            <div className="relative overflow-hidden rounded-[1.75rem] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-blue-50 dark:border-blue-900/40 dark:from-slate-950 dark:via-blue-950 dark:to-indigo-950">
+
+              <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl" />
+
+              <div className="pointer-events-none absolute -bottom-32 -left-24 h-80 w-80 rounded-full bg-indigo-500/10 blur-3xl" />
+
+              <div className="relative px-6 py-8 md:px-8 lg:px-10">
+
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+
+                  <div className="max-w-4xl">
+
+                    <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-blue-700 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-300">
+
+                      <Sparkles className="h-4 w-4" />
+
+                      Espace enseignant
+
+                    </div>
+
+                    <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white md:text-4xl">
+
+                      Construisons ensemble{" "}
+
+                      <span className="text-blue-600 dark:text-blue-300">
+                        l'avenir de l'éducation.
+                      </span>
+
+                    </h1>
+
+                    <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 dark:text-blue-100 md:text-base">
+
+                      Complétez votre profil pour
+                      accompagner les apprenants, répondre à leurs
+                      questions et partager votre expertise sur{" "}
+
+                      <span className="font-bold text-slate-900 dark:text-white">
+                        CODE
+                      </span>
+                      .
+
+                    </p>
+
+                  </div>
+
+                  <div className="hidden shrink-0 items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-xs font-bold text-slate-600 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-white/5 dark:text-slate-300 sm:flex">
+
+                    <ShieldCheck
+                      size={17}
+                      className={
+                        profile.teacher_profile_validated
+                          ? "text-emerald-500"
+                          : "text-amber-500"
+                      }
+                    />
+
+                    {profile.teacher_profile_validated
+                      ? "Profil sécurisé"
+                      : "Validation requise"}
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* =================================================
+                STATUT VALIDÉ
+            ================================================== */}
+
+            {profile.teacher_profile_validated && (
+              <div className="mt-6 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50/90 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+
+                <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+
+                  <div className="flex items-start gap-4">
+
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-500/15">
+
+                      <CircleCheck
+                        size={23}
+                        className="text-emerald-600 dark:text-emerald-400"
+                      />
+
+                    </div>
+
+                    <div>
+
+                      <p className="font-black text-emerald-900 dark:text-emerald-200">
+                        Profil enseignant validé
+                      </p>
+
+                      <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-300/80">
+                        Votre profil est complet et vous pouvez
+                        accéder à votre espace enseignant.
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleContinue}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-emerald-700"
+                  >
+                    Accéder à mon espace
+                    <ChevronRight size={17} />
+                  </button>
+
+                </div>
+
+              </div>
+            )}
+
+            {/* =================================================
+                IDENTITÉ + INFORMATIONS DE L'ENSEIGNANT
+            ================================================== */}
+
+            <div className="mt-8 border-t border-slate-200/80 pt-8 dark:border-white/10">
+
+              {/* INTRODUCTION */}
+
+              <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+
+                <div>
+
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">
+                    Votre identité
+                  </p>
+
+                  <h2 className="mt-1.5 text-2xl font-black text-slate-900 dark:text-white md:text-3xl">
+                    Informations de l'enseignant
+                  </h2>
+
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
+                    Vérifiez vos informations et ajoutez une
+                    photo afin de finaliser votre profil.
+                  </p>
+
+                </div>
+
+                <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 dark:border-slate-800 dark:bg-slate-900">
+
+                  <ShieldCheck
+                    size={18}
+                    className={
+                      profile.teacher_profile_validated
+                        ? "text-emerald-500"
+                        : "text-amber-500"
+                    }
+                  />
+
+                  <span className="text-sm font-black text-slate-700 dark:text-slate-200">
+
+                    {profile.teacher_profile_validated
+                      ? "Profil validé"
+                      : "Validation requise"}
+
+                  </span>
+
+                </div>
+
+              </div>
+
+              {/* =================================================
+                  PHOTO + INFORMATIONS PERSONNELLES
+              ================================================== */}
+
+              <div className="grid gap-8 lg:grid-cols-[220px_1fr] xl:grid-cols-[240px_1fr]">
+
+                {/* =================================================
+                    PHOTO
+                ================================================== */}
+
+                <div className="flex flex-col items-center">
+
+                  <div className="relative">
+
+                    <div className="absolute -inset-4 rounded-full bg-blue-500/10 blur-2xl" />
+
+                    <div className="relative h-44 w-44 overflow-hidden rounded-full border-[5px] border-white bg-gradient-to-br from-slate-100 to-slate-200 shadow-2xl ring-1 ring-slate-200 dark:border-slate-800 dark:from-slate-800 dark:to-slate-900 dark:ring-slate-700">
+
+                      {photoUrl ? (
+                        <img
+                          src={photoUrl}
+                          alt={`Photo de ${profile.prenom} ${profile.nom}`}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full flex-col items-center justify-center">
+
+                          <User
+                            size={58}
+                            className="text-slate-300 dark:text-slate-600"
+                          />
+
+                          <span className="mt-2 text-xs font-semibold text-slate-400 dark:text-slate-500">
+                            Aucune photo
+                          </span>
+
+                        </div>
+                      )}
+
+                    </div>
+
+                    <label
+                      htmlFor="teacher-photo"
+                      className="absolute bottom-1 right-0 flex h-12 w-12 cursor-pointer items-center justify-center rounded-xl border-4 border-white bg-blue-600 text-white shadow-xl transition hover:scale-105 hover:bg-blue-700 dark:border-slate-950"
+                      title="Choisir une photo"
+                    >
+                      <Camera size={21} />
+                    </label>
+
+                    <input
+                      id="teacher-photo"
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      onChange={handlePhotoChange}
+                      className="hidden"
+                    />
+
+                  </div>
+
+                  <div className="mt-5 text-center">
+
+                    <p className="text-sm font-black text-slate-900 dark:text-white">
+                      Votre photo
+                    </p>
+
+                    <p className="mt-1 max-w-[220px] text-xs leading-5 text-slate-500 dark:text-slate-400">
+                      Une photo claire et professionnelle
+                      est recommandée.
+                    </p>
+
+                    <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300">
+
+                      <ImagePlus size={13} />
+
+                      JPG ou PNG · 5 Mo max.
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+                {/* =================================================
+                    INFORMATIONS
+                ================================================== */}
+
+                <div>
+
+                  <div className="mb-4 flex items-center gap-3">
+
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600 dark:border-blue-900/40 dark:bg-blue-950/50 dark:text-blue-400">
+
+                      <User size={19} />
+
+                    </div>
+
+                    <div>
+
+                      <h3 className="font-black text-slate-900 dark:text-white">
+                        Informations personnelles
+                      </h3>
+
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Informations associées à votre compte
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+
+                    {/* NOM */}
+
+                    <div className="group rounded-2xl border border-slate-200 bg-slate-50/80 p-4 transition hover:border-blue-200 hover:bg-blue-50/50 dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-blue-900/60 dark:hover:bg-blue-950/20">
+
+                      <div className="flex items-start gap-3">
+
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-400">
+
+                          <User size={17} />
+
+                        </div>
+
+                        <div className="min-w-0">
+
+                          <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                            Nom
+                          </p>
+
+                          <p className="mt-1 truncate text-sm font-black text-slate-900 dark:text-white">
+                            {profile.nom ||
+                              "Non renseigné"}
+                          </p>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+
+                    {/* PRÉNOM */}
+
+                    <div className="group rounded-2xl border border-slate-200 bg-slate-50/80 p-4 transition hover:border-blue-200 hover:bg-blue-50/50 dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-blue-900/60 dark:hover:bg-blue-950/20">
+
+                      <div className="flex items-start gap-3">
+
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-400">
+
+                          <User size={17} />
+
+                        </div>
+
+                        <div className="min-w-0">
+
+                          <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                            Prénom
+                          </p>
+
+                          <p className="mt-1 truncate text-sm font-black text-slate-900 dark:text-white">
+                            {profile.prenom ||
+                              "Non renseigné"}
+                          </p>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+
+                    {/* EMAIL */}
+
+                    <div className="group rounded-2xl border border-slate-200 bg-slate-50/80 p-4 transition hover:border-blue-200 hover:bg-blue-50/50 dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-blue-900/60 dark:hover:bg-blue-950/20 sm:col-span-2">
+
+                      <div className="flex items-start gap-3">
+
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-400">
+
+                          <Mail size={17} />
+
+                        </div>
+
+                        <div className="min-w-0">
+
+                          <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                            Adresse e-mail
+                          </p>
+
+                          <p className="mt-1 break-all text-sm font-black text-slate-900 dark:text-white">
+                            {profile.email}
+                          </p>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+
+                    {/* TÉLÉPHONE */}
+
+                    <div className="group rounded-2xl border border-slate-200 bg-slate-50/80 p-4 transition hover:border-blue-200 hover:bg-blue-50/50 dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-blue-900/60 dark:hover:bg-blue-950/20">
+
+                      <div className="flex items-start gap-3">
+
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-400">
+
+                          <Phone size={17} />
+
+                        </div>
+
+                        <div className="min-w-0">
+
+                          <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                            Téléphone / WhatsApp
+                          </p>
+
+                          <p className="mt-1 truncate text-sm font-black text-slate-900 dark:text-white">
+                            {profile.telephone ||
+                              "Non renseigné"}
+                          </p>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+
+                    {/* PAYS */}
+
+                    <div className="group rounded-2xl border border-slate-200 bg-slate-50/80 p-4 transition hover:border-blue-200 hover:bg-blue-50/50 dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-blue-900/60 dark:hover:bg-blue-950/20">
+
+                      <div className="flex items-start gap-3">
+
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-400">
+
+                          <MapPin size={17} />
+
+                        </div>
+
+                        <div className="min-w-0">
+
+                          <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                            Pays de résidence
+                          </p>
+
+                          <p className="mt-1 truncate text-sm font-black text-slate-900 dark:text-white">
+                            {profile.pays_residence ||
+                              "Non renseigné"}
+                          </p>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* =================================================
+                  MATIÈRES
+              ================================================== */}
+
+              <div className="mt-8 border-t border-slate-200/80 pt-7 dark:border-white/10">
+
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+                  <div className="flex items-center gap-3">
+
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-indigo-100 bg-indigo-50 text-indigo-600 dark:border-indigo-900/40 dark:bg-indigo-950/50 dark:text-indigo-400">
+
+                      <BookOpen size={19} />
+
+                    </div>
+
+                    <div>
+
+                      <h3 className="font-black text-slate-900 dark:text-white">
+                        Matières enseignées
+                      </h3>
+
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Matières associées à votre profil
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                  <div className="inline-flex w-fit items-center rounded-full border border-slate-200 bg-slate-100 px-3.5 py-1.5 text-xs font-black text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+
+                    {profile.subjects.length}{" "}
+                    {profile.subjects.length > 1
+                      ? "matières"
+                      : "matière"}
+
+                  </div>
+
+                </div>
+
+                {profile.subjects.length > 0 ? (
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+
+                    {profile.subjects.map(
+                      (subject, index) => (
+                        <div
+                          key={`${subject}-${index}`}
+                          className="group flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5 transition hover:-translate-y-0.5 hover:border-indigo-200 hover:bg-indigo-50/50 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-indigo-900/60 dark:hover:bg-indigo-950/30"
+                        >
+
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 transition group-hover:bg-indigo-600 group-hover:text-white dark:bg-indigo-950/60 dark:text-indigo-400 dark:group-hover:bg-indigo-600 dark:group-hover:text-white">
+
+                            <BookOpen size={17} />
+
+                          </div>
+
+                          <span className="min-w-0 flex-1 text-sm font-bold text-slate-800 dark:text-slate-200">
+                            {subject}
+                          </span>
+
+                          <CheckCircle
+                            size={16}
+                            className="shrink-0 text-emerald-500 dark:text-emerald-400"
+                          />
+
+                        </div>
+                      )
+                    )}
+
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-5 dark:border-amber-900/60 dark:bg-amber-950/20">
+
+                    <div className="flex items-start gap-3">
+
+                      <AlertCircle
+                        size={20}
+                        className="mt-0.5 shrink-0 text-amber-500 dark:text-amber-400"
+                      />
+
+                      <div>
+
+                        <p className="font-black text-amber-800 dark:text-amber-300">
+                          Aucune matière déclarée
+                        </p>
+
+                        <p className="mt-1 text-sm leading-6 text-amber-700 dark:text-amber-200/80">
+                          Vous devez avoir au moins une matière
+                          déclarée pour pouvoir valider votre
+                          profil enseignant.
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                  </div>
+                )}
+
+              </div>
+
+              {/* =================================================
+                  MESSAGES
+              ================================================== */}
+
+              {error && (
+                <div className="mt-7 overflow-hidden rounded-2xl border border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/25">
+
+                  <div className="flex items-start gap-3 p-4">
+
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-100 dark:bg-red-500/10">
+
+                      <AlertCircle
+                        size={18}
+                        className="text-red-600 dark:text-red-400"
+                      />
+
+                    </div>
+
+                    <div>
+
+                      <p className="font-black text-red-800 dark:text-red-300">
+                        Attention
+                      </p>
+
+                      <p className="mt-1 text-sm leading-6 text-red-700 dark:text-red-200/80">
+                        {error}
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                </div>
+              )}
+
+              {success && (
+                <div className="mt-7 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/25">
+
+                  <div className="flex items-start gap-3 p-4">
+
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-500/10">
+
+                      <CheckCircle
+                        size={18}
+                        className="text-emerald-600 dark:text-emerald-400"
+                      />
+
+                    </div>
+
+                    <div>
+
+                      <p className="font-black text-emerald-800 dark:text-emerald-300">
+                        Félicitations !
+                      </p>
+
+                      <p className="mt-1 text-sm leading-6 text-emerald-700 dark:text-emerald-200/80">
+                        {success}
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                </div>
+              )}
+
+              {/* =================================================
+                  ACTIONS
+              ================================================== */}
+
+              <div className="mt-8 flex flex-col gap-5 border-t border-slate-200/80 pt-7 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
+
+                <div className="flex items-start gap-2 text-xs leading-5 text-slate-400 dark:text-slate-500">
+
+                  <ShieldCheck
+                    size={16}
+                    className="mt-0.5 shrink-0"
+                  />
+
+                  <span>
+                    Vos informations sont associées à votre
+                    compte enseignant.
+                  </span>
+
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row">
+
+                  {!profile.teacher_profile_validated && (
+                    <button
+                      type="button"
+                      onClick={handleSubmit}
+                      disabled={
+                        submitting ||
+                        !photo
+                      }
+                      className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                    >
+
+                      {submitting ? (
+                        <>
+                          <Loader2
+                            size={19}
+                            className="animate-spin"
+                          />
+
+                          Validation en cours...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle size={19} />
+
+                          Valider mon profil
+
+                          <ArrowRight
+                            size={17}
+                            className="transition group-hover:translate-x-1"
+                          />
+                        </>
+                      )}
+
+                    </button>
+                  )}
+
+                  {profile.teacher_profile_validated && (
+                    <button
+                      type="button"
+                      onClick={handleContinue}
+                      className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-emerald-500/20 transition hover:-translate-y-0.5 hover:from-emerald-700 hover:to-emerald-700 hover:shadow-xl"
+                    >
+
+                      Continuer vers mon espace enseignant
+
+                      <ArrowRight
+                        size={19}
+                        className="transition group-hover:translate-x-1"
+                      />
+
+                    </button>
+                  )}
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </section>
+
+        {/* =====================================================
+            NOTE BAS DE PAGE
+        ====================================================== */}
+
+        <div className="mt-5 flex flex-col items-center justify-center gap-2 text-center sm:flex-row">
+
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-400 dark:text-slate-500">
+
+            <CircleCheck
+              size={15}
+              className="text-emerald-500"
+            />
+
+            Profil associé à votre compte CODE
+
+          </div>
+
+          <span className="hidden text-slate-300 dark:text-slate-700 sm:inline">
+            •
+          </span>
+
+          <span className="text-xs text-slate-400 dark:text-slate-500">
+            Espace réservé aux enseignants actifs
+          </span>
+
+        </div>
+
+      </div>
+
+      {/* =======================================================
+          MODALE — CHOIX / GESTION DES ÉCOLES
+      ======================================================== */}
+
+      {schoolModalOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (
+              event.target === event.currentTarget &&
+              requestingSchoolId === null
+            ) {
+              handleCloseSchoolModal();
+            }
+          }}
+        >
+
+          <div
+            className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="school-modal-title"
+          >
+
+            {/* =================================================
+                EN-TÊTE
+            ================================================== */}
+
+            <div className="shrink-0 border-b border-slate-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50 px-5 py-5 dark:border-slate-800 dark:from-blue-950/60 dark:via-slate-950 dark:to-indigo-950/60 sm:px-7">
+
+              <div className="flex items-start justify-between gap-4">
+
+                <div className="flex items-start gap-3">
+
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">
+
+                    <Building2
+                      size={23}
+                    />
+
+                  </div>
+
+                  <div>
+
+                    <h2
+                      id="school-modal-title"
+                      className="text-xl font-black text-slate-900 dark:text-white"
+                    >
+                      Mes écoles
+                    </h2>
+
+                    <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                      Ajoutez les établissements dans lesquels
+                      vous enseignez.
+                    </p>
+
+                    {mySchoolInformation && (
+                      <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/50 dark:text-blue-300">
+
+                        <span>
+                          Année scolaire :
+                        </span>
+
+                        <span>
+                          {mySchoolInformation.academic_year}
+                        </span>
+
+                      </div>
+                    )}
+
+                  </div>
+
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCloseSchoolModal}
+                  disabled={
+                    requestingSchoolId !== null
+                  }
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-red-900/60 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+                  aria-label="Fermer"
+                >
+                  <X size={20} />
+                </button>
+
+              </div>
+
+              {/* =================================================
+                  RECHERCHE
+              ================================================== */}
+
+              <div className="relative mt-5">
+
+                <Search
+                  size={18}
+                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+
+                <input
+                  type="text"
+                  value={schoolSearch}
+                  onChange={(event) =>
+                    setSchoolSearch(
+                      event.target.value
+                    )
+                  }
+                  placeholder="Rechercher une école, une ville..."
+                  className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 dark:border-slate-800 dark:bg-slate-900 dark:text-white dark:focus:border-blue-700"
+                />
+
+              </div>
+
+            </div>
+
+            {/* =================================================
+                CONTENU
+            ================================================== */}
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-7">
+
+              {/* ERREUR */}
+
+              {schoolError && (
+                <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/25">
+
+                  <div className="flex items-start gap-3">
+
+                    <AlertCircle
+                      size={19}
+                      className="mt-0.5 shrink-0 text-red-600 dark:text-red-400"
+                    />
+
+                    <p className="text-sm font-semibold leading-6 text-red-700 dark:text-red-300">
+                      {schoolError}
+                    </p>
+
+                  </div>
+
+                </div>
+              )}
+
+              {/* SUCCÈS */}
+
+              {schoolSuccess && (
+                <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/25">
+
+                  <div className="flex items-start gap-3">
+
+                    <CheckCircle
+                      size={19}
+                      className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"
+                    />
+
+                    <p className="text-sm font-semibold leading-6 text-emerald-700 dark:text-emerald-300">
+                      {schoolSuccess}
+                    </p>
+
+                  </div>
+
+                </div>
+              )}
+
+              {/* CHARGEMENT */}
+
+              {schoolsLoading ? (
+                <div className="flex min-h-[280px] flex-col items-center justify-center">
+
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 dark:bg-blue-950/60">
+
+                    <Loader2
+                      size={27}
+                      className="animate-spin text-blue-600 dark:text-blue-400"
+                    />
+
+                  </div>
+
+                  <p className="mt-4 text-sm font-bold text-slate-700 dark:text-slate-200">
+                    Chargement des écoles...
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                    Veuillez patienter
+                  </p>
+
+                </div>
+              ) : filteredSchools.length === 0 ? (
+
+                <div className="flex min-h-[280px] flex-col items-center justify-center text-center">
+
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-900">
+
+                    <Building2
+                      size={29}
+                      className="text-slate-400 dark:text-slate-500"
+                    />
+
+                  </div>
+
+                  <h3 className="mt-5 text-lg font-black text-slate-900 dark:text-white">
+                    Aucune école trouvée
+                  </h3>
+
+                  <p className="mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">
+                    {schoolSearch
+                      ? "Aucune école ne correspond à votre recherche."
+                      : "Aucune école active n'est actuellement disponible."}
+                  </p>
+
+                </div>
+              ) : (
+
+                <div className="grid gap-4">
+
+                  {filteredSchools.map(
+                    (school) => {
+
+                      const membership =
+                        getSchoolMembership(
+                          school.id
+                        );
+
+                      const isPending =
+                        membership?.status ===
+                        "pending";
+
+                      const isApproved =
+                        membership?.status ===
+                        "approved";
+
+                      const isRejected =
+                        membership?.status ===
+                        "rejected";
+
+                      const isRequesting =
+                        requestingSchoolId ===
+                        school.id;
+
+                      return (
+                        <div
+                          key={school.id}
+                          className="group rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-blue-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-900/60"
+                        >
+
+                          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+                            {/* INFORMATIONS ÉCOLE */}
+
+                            <div className="flex min-w-0 items-start gap-4">
+
+                              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
+
+                                <Building2
+                                  size={22}
+                                />
+
+                              </div>
+
+                              <div className="min-w-0">
+
+                                <h3 className="truncate text-base font-black text-slate-900 dark:text-white">
+                                  {school.nom}
+                                </h3>
+
+                                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+
+                                  {school.ville && (
+                                    <span className="inline-flex items-center gap-1">
+
+                                      <MapPin
+                                        size={13}
+                                      />
+
+                                      {school.ville}
+
+                                    </span>
+                                  )}
+
+                                  {school.pays && (
+                                    <span>
+                                      {school.pays}
+                                    </span>
+                                  )}
+
+                                </div>
+
+                                {school.adresse && (
+                                  <p className="mt-1 truncate text-xs text-slate-400 dark:text-slate-500">
+                                    {school.adresse}
+                                  </p>
+                                )}
+
+                              </div>
+
+                            </div>
+
+                            {/* ACTION / STATUT */}
+
+                            <div className="shrink-0">
+
+                              {isApproved ? (
+
+                                <div className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-black text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
+
+                                  <CheckCircle
+                                    size={16}
+                                  />
+
+                                  École validée
+
+                                </div>
+
+                              ) : isPending ? (
+
+                                <div className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-black text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+
+                                  <Clock3
+                                    size={16}
+                                  />
+
+                                  En attente
+
+                                </div>
+
+                              ) : isRejected ? (
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleRequestSchool(
+                                      school
+                                    )
+                                  }
+                                  disabled={
+                                    requestingSchoolId !==
+                                    null
+                                  }
+                                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white shadow-md transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+
+                                  {isRequesting ? (
+                                    <>
+                                      <Loader2
+                                        size={16}
+                                        className="animate-spin"
+                                      />
+
+                                      Envoi...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Plus
+                                        size={16}
+                                      />
+
+                                      Demander à nouveau
+                                    </>
+                                  )}
+
+                                </button>
+
+                              ) : (
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleRequestSchool(
+                                      school
+                                    )
+                                  }
+                                  disabled={
+                                    requestingSchoolId !==
+                                    null
+                                  }
+                                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white shadow-md transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                                >
+
+                                  {isRequesting ? (
+                                    <>
+                                      <Loader2
+                                        size={16}
+                                        className="animate-spin"
+                                      />
+
+                                      Envoi...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Plus
+                                        size={16}
+                                      />
+
+                                      Ajouter cette école
+                                    </>
+                                  )}
+
+                                </button>
+
+                              )}
+
+                            </div>
+
+                          </div>
+
+                        </div>
+                      );
+                    }
+                  )}
+
+                </div>
+
+              )}
+
+            </div>
+
+            {/* =================================================
+                PIED DE LA MODALE
+            ================================================== */}
+
+            <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/70 sm:px-7">
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+                <div className="flex items-start gap-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+
+                  <ShieldCheck
+                    size={16}
+                    className="mt-0.5 shrink-0 text-blue-500"
+                  />
+
+                  <span>
+                    Chaque demande doit être validée par le
+                    directeur de l'établissement.
+                  </span>
+
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCloseSchoolModal}
+                  disabled={
+                    requestingSchoolId !== null
+                  }
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:border-slate-300 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  Fermer
+                </button>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
+    </div>
+  );
+};
+
+export default ProfilEnseignant;
