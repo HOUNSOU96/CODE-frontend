@@ -2367,7 +2367,7 @@ const Layout: React.FC<LayoutProps> = ({
                   </button>
 
                   {/* =============================================
-                      BIBLIOTHÈQUE
+                      BIBLIOTHÈQUE CODE
                       ============================================= */}
 
                   <button
@@ -2383,20 +2383,20 @@ const Layout: React.FC<LayoutProps> = ({
                       gap-3
                       rounded-xl
                       border
-                      border-indigo-100
-                      bg-indigo-50
+                      border-blue-100
+                      bg-blue-50
                       px-4
                       py-3.5
                       text-left
                       transition
-                      hover:border-indigo-200
-                      hover:bg-indigo-100
+                      hover:border-blue-200
+                      hover:bg-blue-100
                       focus:outline-none
                       focus:ring-2
-                      focus:ring-indigo-500
-                      dark:border-indigo-900/50
-                      dark:bg-indigo-950/40
-                      dark:hover:bg-indigo-900/50
+                      focus:ring-blue-500
+                      dark:border-blue-900/50
+                      dark:bg-blue-950/40
+                      dark:hover:bg-blue-900/50
                     "
                   >
                     <span
@@ -2408,7 +2408,7 @@ const Layout: React.FC<LayoutProps> = ({
                         items-center
                         justify-center
                         rounded-xl
-                        bg-indigo-600
+                        bg-blue-600
                         text-white
                         shadow-sm
                       "
@@ -2425,7 +2425,7 @@ const Layout: React.FC<LayoutProps> = ({
                           dark:text-white
                         "
                       >
-                        Bibliothèque
+                        Bibliothèque CODE
                       </span>
 
                       <span
@@ -2437,7 +2437,7 @@ const Layout: React.FC<LayoutProps> = ({
                           dark:text-slate-400
                         "
                       >
-                        Explorer les ressources éducatives
+                        Découvrir les documents publiés
                       </span>
                     </span>
 

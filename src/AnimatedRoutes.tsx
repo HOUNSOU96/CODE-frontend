@@ -70,6 +70,7 @@ import Projets from "./pages/Projets";
 
 import MesDocuments from "./pages/MesDocuments";
 import SecureDocument from "./pages/SecureDocument";
+import Bibliotheque from "./pages/Bibliotheque";
 
 // ==========================================================
 // PAGES PROTÉGÉES — ANCIENNE STRUCTURE
@@ -835,6 +836,15 @@ const AnimatedRoutes: React.FC = () => {
   }
 />
 
+
+<Route
+  path="/bibliotheque"
+  element={
+    <Layout>
+      <Bibliotheque />
+    </Layout>
+  }
+/>
 
 <Route
   path="/mes-documents"

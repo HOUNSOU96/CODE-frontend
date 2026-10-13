@@ -34,6 +34,20 @@ const AdminDocuments: React.FC = () => {
     useState("");
 
   // ============================================================
+  // ACTIONS SUR LE DOCUMENT ORIGINAL
+  // ============================================================
+
+  const [originalActionLoading, setOriginalActionLoading] =
+    useState(false);
+
+  const [originalActionMessage, setOriginalActionMessage] =
+    useState("");
+
+  const [originalActionError, setOriginalActionError] =
+    useState("");
+
+
+  // ============================================================
   // ÉTAT DE LA CONNEXION
   // ============================================================
 
@@ -169,6 +183,198 @@ const AdminDocuments: React.FC = () => {
 
   const handleRetry = () => {
     fetchDocuments();
+  };
+
+
+  // ============================================================
+  // LECTURE / TÉLÉCHARGEMENT DU DOCUMENT ORIGINAL
+  // ============================================================
+
+  const handleOriginalFile = async (
+    action: "read" | "download"
+  ) => {
+    setOriginalActionMessage("");
+    setOriginalActionError("");
+
+    if (!navigator.onLine) {
+      setOriginalActionError(
+        "Une connexion Internet est nécessaire."
+      );
+      return;
+    }
+
+    // Ouvrir la fenêtre avant l'appel asynchrone pour éviter
+    // le blocage des fenêtres contextuelles par le navigateur.
+    const previewWindow =
+      action === "read"
+        ? window.open("about:blank", "_blank")
+        : null;
+
+    if (action === "read" && !previewWindow) {
+      setOriginalActionError(
+        "Autorise l'ouverture des fenêtres contextuelles pour lire l'original."
+      );
+      return;
+    }
+
+    setOriginalActionLoading(true);
+
+    try {
+      const endpoint =
+        action === "read"
+          ? "/api/admin/original-document/read"
+          : "/api/admin/original-document/download";
+
+      const response = await api.get(endpoint, {
+        responseType: "blob",
+      });
+
+      const blobUrl = URL.createObjectURL(response.data);
+
+      if (action === "read" && previewWindow) {
+        previewWindow.location.href = blobUrl;
+
+        // Laisser le temps au navigateur de charger le PDF.
+        window.setTimeout(() => {
+          URL.revokeObjectURL(blobUrl);
+        }, 60000);
+      } else {
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = "CODE-MathsI-original.pdf";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        window.setTimeout(() => {
+          URL.revokeObjectURL(blobUrl);
+        }, 1000);
+      }
+
+      setOriginalActionMessage(
+        action === "read"
+          ? "Ouverture du document original demandée."
+          : "Téléchargement du document original demandé."
+      );
+    } catch (err) {
+      if (previewWindow && !previewWindow.closed) {
+        previewWindow.close();
+      }
+
+      console.error(
+        "Erreur sur le document original :",
+        err
+      );
+
+      setOriginalActionError(
+        "Impossible d'accéder au PDF original. Vérifie la connexion et les autorisations."
+      );
+    } finally {
+      setOriginalActionLoading(false);
+    }
+  };
+
+  // ============================================================
+  // DÉPUBLICATION / RÉVOCATION / SUPPRESSION DE L'ORIGINAL
+  // ============================================================
+
+  const handleOriginalMutation = async (
+    action: "unpublish" | "revoke" | "delete"
+  ) => {
+    setOriginalActionMessage("");
+    setOriginalActionError("");
+
+    if (!navigator.onLine) {
+      setOriginalActionError(
+        "Une connexion Internet est nécessaire."
+      );
+      return;
+    }
+
+    if (originalActionLoading) {
+      return;
+    }
+
+    if (action === "unpublish") {
+      const confirmed = window.confirm(
+        "Dépublier CODE Maths 1er cycle Tome I ? Le document ne sera plus proposé dans le catalogue public. Le PDF original et les activations seront conservés."
+      );
+
+      if (!confirmed) return;
+    }
+
+    if (action === "revoke") {
+      const confirmed = window.confirm(
+        "ATTENTION : cette action révoquera toutes les activations de CODE Maths 1er cycle Tome I et désactivera leurs accès sur les appareils. Les PDF personnalisés et les historiques seront conservés. Cette opération ne doit être effectuée que si tu souhaites réellement bloquer tous les bénéficiaires."
+      );
+
+      if (!confirmed) return;
+    }
+
+    if (action === "delete") {
+      const confirmation = window.prompt(
+        "SUPPRESSION DÉFINITIVE DU PDF ORIGINAL\n\nLe fichier partagé sera supprimé et le document dépublié. Les activations et PDF personnalisés seront conservés.\n\nPour confirmer, tape exactement : SUPPRIMER ORIGINAL"
+      );
+
+      if (confirmation !== "SUPPRIMER ORIGINAL") {
+        setOriginalActionMessage(
+          "Suppression annulée : la confirmation exacte n'a pas été saisie."
+        );
+        return;
+      }
+    }
+
+    const endpoints = {
+      unpublish: {
+        method: "post" as const,
+        url: "/api/admin/original-document/unpublish",
+      },
+      revoke: {
+        method: "post" as const,
+        url: "/api/admin/original-document/revoke-activations",
+      },
+      delete: {
+        method: "delete" as const,
+        url: "/api/admin/original-document",
+      },
+    };
+
+    const messages = {
+      unpublish:
+        "Document original dépublié. Le fichier et les activations ont été conservés.",
+      revoke:
+        "Révocation globale effectuée. Les PDF personnalisés n'ont pas été supprimés.",
+      delete:
+        "Le fichier original a été supprimé et le document dépublié. Les activations et PDF personnalisés ont été conservés.",
+    };
+
+    setOriginalActionLoading(true);
+
+    try {
+      const endpoint = endpoints[action];
+
+      if (endpoint.method === "post") {
+        await api.post(endpoint.url);
+      } else {
+        await api.delete(endpoint.url);
+      }
+
+      setOriginalActionMessage(messages[action]);
+
+      // Actualiser les données des activations affichées.
+      await fetchDocuments();
+    } catch (err) {
+      console.error(
+        "Erreur lors de l'action sur le document original :",
+        err
+      );
+
+      setOriginalActionError(
+        "L'action a échoué. Vérifie les autorisations, les journaux du backend et l'état du document avant de réessayer."
+      );
+    } finally {
+      setOriginalActionLoading(false);
+    }
   };
 
   // ============================================================
@@ -525,6 +731,98 @@ const AdminDocuments: React.FC = () => {
           </button>
 
         </div>
+
+
+        {/* ======================================================
+            DOCUMENT ORIGINAL — ACTIONS DISTINCTES
+        ====================================================== */}
+
+        <section className="bg-white dark:bg-gray-800 rounded-xl shadow p-5 mb-6">
+          <div className="mb-4">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+              📘 Document original
+            </h2>
+
+            <p className="mt-1 text-gray-600 dark:text-gray-300">
+              CODE Maths 1er cycle Tome I
+            </p>
+
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              Ces actions concernent le PDF original partagé, et non les PDF personnalisés des activations individuelles.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <button
+              type="button"
+              onClick={() => handleOriginalFile("read")}
+              disabled={originalActionLoading}
+              className="px-4 py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              📖 Lire l'original
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleOriginalFile("download")}
+              disabled={originalActionLoading}
+              className="px-4 py-3 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              📥 Télécharger l'original
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleOriginalMutation("unpublish")}
+              disabled={originalActionLoading}
+              className="px-4 py-3 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              🌐 Dépublier
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleOriginalMutation("revoke")}
+              disabled={originalActionLoading}
+              className="px-4 py-3 rounded-lg bg-orange-700 text-white font-semibold hover:bg-orange-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              🔒 Révoquer les activations
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleOriginalMutation("delete")}
+              disabled={originalActionLoading}
+              className="px-4 py-3 rounded-lg bg-red-700 text-white font-semibold hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              🗑️ Supprimer l'original
+            </button>
+          </div>
+
+          {originalActionLoading && (
+            <p className="mt-4 text-sm text-blue-600 dark:text-blue-300">
+              Opération en cours...
+            </p>
+          )}
+
+          {originalActionMessage && (
+            <p
+              role="status"
+              className="mt-4 rounded-lg bg-green-50 dark:bg-green-900/30 p-3 text-sm text-green-800 dark:text-green-200"
+            >
+              {originalActionMessage}
+            </p>
+          )}
+
+          {originalActionError && (
+            <p
+              role="alert"
+              className="mt-4 rounded-lg bg-red-50 dark:bg-red-900/30 p-3 text-sm text-red-800 dark:text-red-200"
+            >
+              {originalActionError}
+            </p>
+          )}
+        </section>
 
         {/* ======================================================
             STATISTIQUES
