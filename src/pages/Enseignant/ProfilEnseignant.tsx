@@ -1,4 +1,3 @@
-
 import React, {
   ChangeEvent,
   FormEvent,
@@ -58,6 +57,7 @@ type School = {
   pays: string | null;
   email: string | null;
   telephone: string | null;
+  is_active?: boolean;
 };
 
 type SchoolMembership = {
@@ -208,18 +208,38 @@ const ProfilEnseignant: React.FC = () => {
 
       const [schoolsResponse, mySchoolResponse] =
         await Promise.all([
-          api.get<{ schools: School[] }>(
-            "/api/schools"
-          ),
+          api.get<
+            | School[]
+            | {
+                schools: School[];
+              }
+          >("/api/schools"),
 
           api.get<MySchoolInformation>(
             "/api/schools/me"
           ),
         ]);
 
-      setSchools(
-        schoolsResponse.data?.schools || []
+      // --------------------------------------------------------
+      // LISTE DES ÉCOLES PRÉSENTES DANS LA BASE DE DONNÉES
+      // --------------------------------------------------------
+
+      const rawSchools = Array.isArray(
+        schoolsResponse.data
+      )
+        ? schoolsResponse.data
+        : schoolsResponse.data?.schools || [];
+
+      // --------------------------------------------------------
+      // NE PROPOSER QUE LES ÉCOLES ACTIVES
+      // --------------------------------------------------------
+
+      const activeSchools = rawSchools.filter(
+        (school) =>
+          school.is_active !== false
       );
+
+      setSchools(activeSchools);
 
       setMySchoolInformation(
         mySchoolResponse.data
