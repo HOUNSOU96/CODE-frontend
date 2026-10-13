@@ -2366,6 +2366,87 @@ const Layout: React.FC<LayoutProps> = ({
                     />
                   </button>
 
+                  {/* =============================================
+                      BIBLIOTHÈQUE
+                      ============================================= */}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigate("/bibliotheque");
+                    }}
+                    className="
+                      flex
+                      w-full
+                      items-center
+                      gap-3
+                      rounded-xl
+                      border
+                      border-indigo-100
+                      bg-indigo-50
+                      px-4
+                      py-3.5
+                      text-left
+                      transition
+                      hover:border-indigo-200
+                      hover:bg-indigo-100
+                      focus:outline-none
+                      focus:ring-2
+                      focus:ring-indigo-500
+                      dark:border-indigo-900/50
+                      dark:bg-indigo-950/40
+                      dark:hover:bg-indigo-900/50
+                    "
+                  >
+                    <span
+                      className="
+                        flex
+                        h-10
+                        w-10
+                        shrink-0
+                        items-center
+                        justify-center
+                        rounded-xl
+                        bg-indigo-600
+                        text-white
+                        shadow-sm
+                      "
+                    >
+                      <BookOpen size={21} />
+                    </span>
+
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className="
+                          block
+                          font-semibold
+                          text-slate-900
+                          dark:text-white
+                        "
+                      >
+                        Bibliothèque
+                      </span>
+
+                      <span
+                        className="
+                          mt-0.5
+                          block
+                          text-xs
+                          text-slate-500
+                          dark:text-slate-400
+                        "
+                      >
+                        Explorer les ressources éducatives
+                      </span>
+                    </span>
+
+                    <ChevronRight
+                      size={19}
+                      className="shrink-0 text-slate-400"
+                    />
+                  </button>
+
                 </div>
               </div>
 
