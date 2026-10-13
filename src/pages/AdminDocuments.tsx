@@ -5,7 +5,11 @@ import { motion } from "framer-motion";
 
 interface DocumentRecord {
   numero: number | string;
+  id?: number;
   document_name: string;
+  pdf_status?: "available" | "missing" | "pending";
+  pdf_filename?: string | null;
+  generation_status?: string | null;
   user_id?: number | null;
   nom?: string | null;
   prenom?: string | null;
@@ -22,6 +26,12 @@ const AdminDocuments: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
+  const [actionInProgress, setActionInProgress] =
+    useState<number | null>(null);
+  const [actionMessage, setActionMessage] =
+    useState("");
+  const [actionError, setActionError] =
+    useState("");
 
   // ============================================================
   // ÉTAT DE LA CONNEXION
@@ -159,6 +169,146 @@ const AdminDocuments: React.FC = () => {
 
   const handleRetry = () => {
     fetchDocuments();
+  };
+
+  // ============================================================
+  // ACTIONS ADMINISTRATIVES SUR LES DOCUMENTS
+  // ============================================================
+
+  const handleDownloadPdf = async (
+    doc: DocumentRecord
+  ) => {
+    if (!doc.id || doc.pdf_status !== "available") {
+      return;
+    }
+
+    setActionInProgress(doc.id);
+    setActionMessage("");
+    setActionError("");
+
+    try {
+      const response = await api.get(
+        `/api/admin/documents/${doc.id}/pdf`,
+        { responseType: "blob" }
+      );
+
+      const blobUrl = URL.createObjectURL(
+        new Blob([response.data], {
+          type: "application/pdf",
+        })
+      );
+
+      const filename =
+        doc.pdf_filename ||
+        (doc.document_name.toLowerCase().endsWith(".pdf")
+          ? doc.document_name
+          : `${doc.document_name}.pdf`);
+
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      window.setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+      }, 1000);
+
+      setActionMessage(
+        `Téléchargement lancé : ${doc.document_name}`
+      );
+    } catch (err) {
+      console.error("Erreur de téléchargement PDF :", err);
+      setActionError(
+        `Impossible de télécharger le PDF de « ${doc.document_name} ».`
+      );
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const handleRevokeAccess = async (
+    doc: DocumentRecord
+  ) => {
+    if (!doc.id) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Révoquer l'accès à « ${doc.document_name} » ?\n\n` +
+      "Le PDF sera conservé, mais l'accès sera désactivé."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setActionInProgress(doc.id);
+    setActionMessage("");
+    setActionError("");
+
+    try {
+      await api.post(
+        `/api/admin/documents/${doc.id}/revoke`
+      );
+
+      await fetchDocuments();
+
+      setActionMessage(
+        `Accès révoqué pour « ${doc.document_name} ». Le PDF est conservé.`
+      );
+    } catch (err) {
+      console.error("Erreur de révocation :", err);
+      setActionError(
+        `Impossible de révoquer l'accès à « ${doc.document_name} ».`
+      );
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const handleDeleteActivation = async (
+    doc: DocumentRecord
+  ) => {
+    if (!doc.id) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `ATTENTION : supprimer l'activation de « ${doc.document_name} » ?\n\n` +
+      "Cette opération supprimera l'activation, ses accès associés " +
+      "et le PDF personnalisé correspondant, s'il existe.\n\n" +
+      "Le document original partagé ne sera pas supprimé.\n\n" +
+      "Cette opération est irréversible."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setActionInProgress(doc.id);
+    setActionMessage("");
+    setActionError("");
+
+    try {
+      await api.delete(
+        `/api/admin/documents/${doc.id}`
+      );
+
+      await fetchDocuments();
+
+      setActionMessage(
+        `Activation supprimée : ${doc.document_name}`
+      );
+    } catch (err) {
+      console.error("Erreur de suppression :", err);
+      setActionError(
+        `Impossible de supprimer l'activation de « ${doc.document_name} ».`
+      );
+    } finally {
+      setActionInProgress(null);
+    }
   };
 
   // ============================================================
@@ -445,6 +595,28 @@ const AdminDocuments: React.FC = () => {
         </div>
 
         {/* ======================================================
+            RETOUR DES ACTIONS ADMINISTRATIVES
+        ====================================================== */}
+
+        {actionMessage && (
+          <div
+            role="status"
+            className="mb-4 rounded-xl border border-green-300 bg-green-50 px-4 py-3 text-green-800 dark:border-green-700 dark:bg-green-900/30 dark:text-green-200"
+          >
+            {actionMessage}
+          </div>
+        )}
+
+        {actionError && (
+          <div
+            role="alert"
+            className="mb-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-200"
+          >
+            {actionError}
+          </div>
+        )}
+
+        {/* ======================================================
             CHARGEMENT
         ====================================================== */}
 
@@ -537,6 +709,14 @@ const AdminDocuments: React.FC = () => {
                         État
                       </th>
 
+                      <th className="px-4 py-3 text-center">
+                        PDF
+                      </th>
+
+                      <th className="px-4 py-3 text-center">
+                        Actions
+                      </th>
+
                     </tr>
 
                   </thead>
@@ -550,6 +730,9 @@ const AdminDocuments: React.FC = () => {
                           doc.user_id ||
                             doc.email
                         );
+
+                        const actionBusy =
+                          actionInProgress === doc.id;
 
                         return (
                           <tr
@@ -650,6 +833,71 @@ const AdminDocuments: React.FC = () => {
 
                               )}
 
+                            </td>
+
+                            {/* STATUT DU PDF */}
+
+                            <td className="px-4 py-3 text-center">
+                              {doc.pdf_status === "available" ? (
+                                <span className="inline-block px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm font-semibold">
+                                  PDF disponible
+                                </span>
+                              ) : doc.pdf_status === "pending" ? (
+                                <span className="inline-block px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-sm font-semibold">
+                                  Génération en cours
+                                </span>
+                              ) : (
+                                <span className="inline-block px-3 py-1 rounded-full bg-gray-100 text-gray-600 text-sm font-semibold">
+                                  PDF manquant
+                                </span>
+                              )}
+                            </td>
+
+                            {/* ACTIONS ADMINISTRATIVES */}
+
+                            <td className="px-4 py-3">
+                              <div className="flex flex-col items-stretch gap-2 min-w-36">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadPdf(doc)}
+                                  disabled={
+                                    !doc.id ||
+                                    doc.pdf_status !== "available" ||
+                                    actionInProgress !== null
+                                  }
+                                  title="Télécharger le PDF personnalisé"
+                                  className="px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                  {actionBusy ? "Traitement..." : "Télécharger PDF"}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleRevokeAccess(doc)}
+                                  disabled={
+                                    !doc.id ||
+                                    !doc.is_activated ||
+                                    actionInProgress !== null
+                                  }
+                                  title="Désactiver l'accès sans supprimer le PDF"
+                                  className="px-3 py-2 rounded-lg bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                  Révoquer l'accès
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteActivation(doc)}
+                                  disabled={
+                                    !doc.id ||
+                                    actionInProgress !== null
+                                  }
+                                  title="Supprimer l'activation et son PDF personnalisé"
+                                  className="px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                  Supprimer
+                                </button>
+                              </div>
                             </td>
 
                           </tr>
