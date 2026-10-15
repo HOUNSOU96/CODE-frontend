@@ -116,23 +116,57 @@ const SecureDocument: React.FC =
 
             const deviceId =
               getDeviceId();
+            // Récupérer la version actuellement publiée.
+            const catalogResponse = await fetch(
+              `${API_URL}/api/document-versions/catalog`,
+              {
+                method: "GET",
+                headers: {
+                  Accept: "application/json",
+                },
+                cache: "no-store",
+              }
+            );
 
-            const response =
-              await fetch(
-                `${API_URL}/api/secure-documents/${encodeURIComponent(
-                  documentId
-                )}`,
-                {
-                  method: "GET",
-                  headers: {
-                    "X-Device-ID":
-                      deviceId,
-                    Accept:
-                      "application/pdf",
-                  },
-                  cache: "no-store",
-                }
+            if (!catalogResponse.ok) {
+              throw new Error(
+                "Impossible de retrouver le document original publié."
               );
+            }
+
+            const catalogData = await catalogResponse.json();
+            const publications = Array.isArray(catalogData?.documents)
+              ? catalogData.documents
+              : [];
+
+            const publication = publications.find(
+              (item: { id?: number | string; document_name?: string }) =>
+                item.document_name === "CODE Maths 1er cycle Tome I" &&
+                item.id !== undefined &&
+                item.id !== null
+            );
+
+            if (!publication) {
+              throw new Error(
+                "CODE-Maths 1er cycle Tome I n'est pas actuellement publié."
+              );
+            }
+
+            // Charger le PDF original en lecture, avec vérification
+            // des autorisations par le backend.
+            const response = await fetch(
+              `${API_URL}/api/document-versions/${encodeURIComponent(
+                String(publication.id)
+              )}/original`,
+              {
+                method: "GET",
+                headers: {
+                  "X-Device-ID": deviceId,
+                  Accept: "application/pdf",
+                },
+                cache: "no-store",
+              }
+            );
 
             if (!response.ok) {
               let message =
