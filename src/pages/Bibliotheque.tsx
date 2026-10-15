@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { BookOpen, ExternalLink, RefreshCw } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import {
+  BookOpen,
+  Download,
+  RefreshCw,
+  ShieldCheck,
+} from "lucide-react";
 import api from "@/utils/axios";
-
-const DEVICE_ID_KEY = "CODE_DEVICE_ID";
 
 interface DocumentVersion {
   id: number;
@@ -12,13 +16,62 @@ interface DocumentVersion {
   title: string;
   description: string;
   published_at: string | null;
+  allow_download: boolean;
 }
 
+type ActivationIntent = "read" | "download";
+
+const getDocumentDomain = (document: DocumentVersion): string => {
+  const name = `${document.document_name} ${document.title}`.toLowerCase();
+
+  if (
+    name.includes("math") ||
+    name.includes("algèbre") ||
+    name.includes("algebre") ||
+    name.includes("géométrie") ||
+    name.includes("geometrie")
+  ) {
+    return "Mathématiques";
+  }
+
+  if (
+    name.includes("physique") ||
+    name.includes("chimie") ||
+    name.includes("biologie") ||
+    name.includes("svt")
+  ) {
+    return "Sciences";
+  }
+
+  if (
+    name.includes("français") ||
+    name.includes("francais") ||
+    name.includes("anglais") ||
+    name.includes("littérature") ||
+    name.includes("litterature")
+  ) {
+    return "Langues et littérature";
+  }
+
+  if (
+    name.includes("informatique") ||
+    name.includes("programmation") ||
+    name.includes("numérique") ||
+    name.includes("numerique") ||
+    name.includes("technologie")
+  ) {
+    return "Informatique et technologies";
+  }
+
+  return "Autres ressources";
+};
+
 const Bibliotheque: React.FC = () => {
+  const navigate = useNavigate();
+
   const [documents, setDocuments] = useState<DocumentVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [openingDocumentId, setOpeningDocumentId] = useState<number | null>(null);
 
   const loadDocuments = async () => {
     setLoading(true);
@@ -26,7 +79,14 @@ const Bibliotheque: React.FC = () => {
 
     try {
       const response = await api.get("/api/document-versions/catalog");
-      setDocuments(response.data.documents ?? []);
+      const publications: DocumentVersion[] = response.data.documents ?? [];
+
+      setDocuments(
+        publications.map((document) => ({
+          ...document,
+          allow_download: document.allow_download === true,
+        }))
+      );
     } catch (err) {
       console.error("Erreur de chargement de la bibliothèque :", err);
       setError(
@@ -41,104 +101,17 @@ const Bibliotheque: React.FC = () => {
     void loadDocuments();
   }, []);
 
-  const openOriginalDocument = async (
-    document: DocumentVersion
+  const openActivation = (
+    document: DocumentVersion,
+    intent: ActivationIntent
   ) => {
-    // Ouvrir la fenêtre immédiatement pour éviter le blocage du navigateur.
-    const popup = window.open("about:blank", "_blank");
-
-    if (!popup) {
-      setError(
-        "Le navigateur a bloqué la fenêtre. Autorise les fenêtres contextuelles puis réessaie."
-      );
-      return;
-    }
-
-    const deviceId = localStorage.getItem(DEVICE_ID_KEY);
-
-    if (!deviceId) {
-      popup.close();
-      setError(
-        "Cet appareil n'est pas identifié. Active d'abord ton document sur cet appareil."
-      );
-      return;
-    }
-
-    setOpeningDocumentId(document.id);
-    setError("");
-
-    try {
-      const baseURL = (api.defaults.baseURL || "").replace(/\/+$/, "");
-
-      const response = await fetch(
-        `${baseURL}/api/document-versions/${document.id}/original`,
-        {
-          method: "GET",
-          headers: {
-            "X-Device-ID": deviceId,
-            Accept: "application/pdf",
-          },
-          cache: "no-store",
-        }
-      );
-
-      if (!response.ok) {
-        let detail = "";
-
-        try {
-          const data = await response.json();
-          detail = data?.detail || data?.message || "";
-        } catch {
-          // La réponse ne contient pas de JSON exploitable.
-        }
-
-        if (response.status === 403) {
-          throw new Error(
-            "Accès refusé : vérifie que ce téléphone ou cette tablette est enregistré et que l'activation du document est toujours valide."
-          );
-        }
-
-        if (response.status === 404) {
-          throw new Error(
-            "Le manuel original n'est pas disponible actuellement."
-          );
-        }
-
-        throw new Error(
-          detail || `Impossible d'ouvrir le manuel (HTTP ${response.status}).`
-        );
-      }
-
-      const contentType = response.headers.get("content-type") || "";
-
-      if (!contentType.toLowerCase().includes("application/pdf")) {
-        throw new Error(
-          "Le serveur n'a pas renvoyé un document PDF valide."
-        );
-      }
-
-      const blob = await response.blob();
-
-      if (blob.size === 0) {
-        throw new Error("Le PDF reçu est vide.");
-      }
-
-      const objectUrl = URL.createObjectURL(blob);
-      popup.location.href = objectUrl;
-
-      // Laisser au lecteur PDF le temps de charger le document.
-      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
-    } catch (err) {
-      popup.close();
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Une erreur est survenue lors de l'ouverture du manuel."
-      );
-    } finally {
-      setOpeningDocumentId(null);
-    }
+    navigate("/activation", {
+      state: {
+        documentName: document.document_name,
+        versionId: document.id,
+        intent,
+      },
+    });
   };
 
   const formatDate = (date: string | null) => {
@@ -153,6 +126,32 @@ const Bibliotheque: React.FC = () => {
       year: "numeric",
     });
   };
+
+  const groupedDocuments = documents.reduce<
+    Record<string, DocumentVersion[]>
+  >((groups, document) => {
+    const domain = getDocumentDomain(document);
+
+    if (!groups[domain]) {
+      groups[domain] = [];
+    }
+
+    groups[domain].push(document);
+
+    return groups;
+  }, {});
+
+  const domainOrder = [
+    "Mathématiques",
+    "Sciences",
+    "Langues et littérature",
+    "Informatique et technologies",
+    "Autres ressources",
+  ];
+
+  const orderedDomains = Object.keys(groupedDocuments).sort(
+    (a, b) => domainOrder.indexOf(a) - domainOrder.indexOf(b)
+  );
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6 lg:px-8">
@@ -171,8 +170,9 @@ const Bibliotheque: React.FC = () => {
           </h1>
 
           <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-600">
-            Retrouvez les ouvrages et ressources publiés sur CODE.
-            Consultez les versions disponibles directement dans votre navigateur.
+            Découvrez les ouvrages et ressources publiés sur CODE,
+            classés par domaine. L’accès aux documents nécessite une
+            activation préalable.
           </p>
         </header>
 
@@ -188,12 +188,13 @@ const Bibliotheque: React.FC = () => {
             role="alert"
           >
             <p className="text-red-700">{error}</p>
+
             <button
               type="button"
               onClick={() => void loadDocuments()}
               className="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
-              <RefreshCw size={16} />
+              <RefreshCw size={16} aria-hidden="true" />
               Réessayer
             </button>
           </div>
@@ -206,70 +207,84 @@ const Bibliotheque: React.FC = () => {
         )}
 
         {!loading && !error && documents.length > 0 && (
-          <section
-            aria-label="Publications disponibles"
-            className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
-          >
-            {documents.map((document) => {
-              return (
-                <article
-                  key={document.id}
-                  className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-                >
-                  <div className="flex min-h-44 items-center justify-center bg-gradient-to-br from-blue-900 to-slate-800 p-6 text-center text-white">
-                    <div>
-                      <BookOpen
-                        className="mx-auto mb-3"
-                        size={42}
-                        aria-hidden="true"
-                      />
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">
-                        Publication CODE
-                      </p>
-                      <h2 className="mt-2 text-xl font-bold">
-                        {document.title || document.document_name}
-                      </h2>
-                    </div>
-                  </div>
+          <div className="space-y-12">
+            {orderedDomains.map((domain) => (
+              <section key={domain} aria-label={domain}>
+                <div className="mb-5 border-b border-slate-200 pb-3">
+                  <h2 className="text-xl font-bold text-slate-900">
+                    {domain}
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {groupedDocuments[domain].length} publication
+                    {groupedDocuments[domain].length > 1 ? "s" : ""}
+                  </p>
+                </div>
 
-                  <div className="flex flex-1 flex-col p-6">
-                    <div className="mb-3 flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">
-                        Édition {document.version_label}
-                      </span>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
-                        Lecture en ligne
-                      </span>
-                    </div>
-
-                    <p className="flex-1 whitespace-pre-line text-sm leading-6 text-slate-600">
-                      {document.description ||
-                        "Consultez cette publication directement dans votre navigateur."}
-                    </p>
-
-                    {document.published_at && (
-                      <p className="mt-4 text-xs text-slate-500">
-                        Publié le {formatDate(document.published_at)}
-                      </p>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => void openOriginalDocument(document)}
-                      disabled={openingDocumentId === document.id}
-                      className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-3 text-center font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {groupedDocuments[domain].map((document) => (
+                    <article
+                      key={document.id}
+                      className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md"
                     >
-                      <BookOpen size={18} aria-hidden="true" />
-                      {openingDocumentId === document.id
-                        ? "Ouverture en cours..."
-                        : "Lire le manuel"}
-                      <ExternalLink size={16} aria-hidden="true" />
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </section>
+                      <div className="flex items-center justify-center overflow-hidden bg-slate-100 p-4 dark:bg-slate-800">
+                        <img
+                          src="/images/code-mathsI-preview.jpg"
+                          alt={`Première page de ${document.title || document.document_name}`}
+                          loading="lazy"
+                          decoding="async"
+                          className="h-72 w-full max-w-xs rounded-lg object-contain shadow-md"
+                        />
+                      </div>
+
+                      <div className="flex flex-1 flex-col p-6">
+                        <div className="mb-3 flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">
+                            Édition {document.version_label}
+                          </span>
+
+                          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
+                            <ShieldCheck size={13} aria-hidden="true" />
+                            Activation requise
+                          </span>
+                        </div>
+
+                        <p className="flex-1 whitespace-pre-line text-sm leading-6 text-slate-600">
+                          {document.description ||
+                            "Consultez les informations de cette publication et activez votre accès."}
+                        </p>
+
+                        {document.published_at && (
+                          <p className="mt-4 text-xs text-slate-500">
+                            Publié le {formatDate(document.published_at)}
+                          </p>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => openActivation(document, "read")}
+                          className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-3 text-center font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        >
+                          <BookOpen size={18} aria-hidden="true" />
+                          Lire le manuel
+                        </button>
+
+                        {document.allow_download && (
+                          <button
+                            type="button"
+                            onClick={() => openActivation(document, "download")}
+                            className="mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-4 py-3 text-center font-semibold text-blue-800 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                          >
+                            <Download size={18} aria-hidden="true" />
+                            Télécharger
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
         )}
 
         <footer className="mt-12 border-t border-slate-200 pt-6 text-center text-sm text-slate-500">

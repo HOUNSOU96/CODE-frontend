@@ -456,6 +456,36 @@ const MesDocuments: React.FC = () => {
         )}
 
         {/* ==================================================
+            ACTION COMMUNE : ACTIVER UN DOCUMENT
+        ================================================== */}
+
+        {!loading && (
+          <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm dark:border-emerald-900/60 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div>
+              <h3 className="font-bold text-slate-900 dark:text-white">
+                Ajouter un document
+              </h3>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                Activez un nouveau document pour votre bibliothèque personnelle.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => navigate("/activation")}
+              className="group inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+            >
+              <Download size={18} />
+              Activer un document
+              <ChevronRight
+                size={17}
+                className="transition-transform group-hover:translate-x-0.5"
+              />
+            </button>
+          </div>
+        )}
+
+        {/* ==================================================
             AUCUN DOCUMENT
         ================================================== */}
 
@@ -490,22 +520,7 @@ const MesDocuments: React.FC = () => {
                     bibliothèque personnelle.
                   </p>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      navigate("/activation")
-                    }
-                    className="group mt-7 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-xl hover:shadow-emerald-600/25 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:focus:ring-offset-slate-900"
-                  >
-                    <Download size={18} />
 
-                    Activer un document
-
-                    <ChevronRight
-                      size={17}
-                      className="transition-transform group-hover:translate-x-0.5"
-                    />
-                  </button>
 
                 </div>
 
@@ -597,17 +612,23 @@ const MesDocuments: React.FC = () => {
 
                         <div className="p-5 sm:p-6">
 
-                          <div className="flex items-start justify-between gap-4">
+                          {/* Couverture du document */}
+                          <div className="flex items-center justify-center overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800">
+                            <img
+                              src="/images/code-mathsI-preview.jpg"
+                              alt={`Première page de ${documentName}`}
+                              loading="lazy"
+                              decoding="async"
+                              className="h-72 w-full max-w-xs object-contain p-3"
+                            />
+                          </div>
 
-                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-emerald-100 bg-emerald-50 text-emerald-600 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/50 dark:text-emerald-400">
-                              <FileText size={27} />
-                            </div>
-
+                          {/* Statut d'autorisation */}
+                          <div className="mt-4 flex justify-end">
                             <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-400">
                               <ShieldCheck size={13} />
                               Autorisé
                             </div>
-
                           </div>
 
                           <div className="mt-5">

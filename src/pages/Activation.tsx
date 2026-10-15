@@ -4,7 +4,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowRight,
@@ -103,6 +103,12 @@ interface DocumentInfo {
   name: string;
 }
 
+interface ActivationNavigationState {
+  documentName?: string;
+  versionId?: number;
+  intent?: "read" | "download";
+}
+
 interface UserInfo {
   id?: number;
   nom: string;
@@ -122,6 +128,22 @@ interface UserInfo {
 // ============================================================
 
 const Activation: React.FC = () => {
+  // Informations de navigation transmises par la bibliothèque.
+  const location = useLocation();
+  const navigationState = (
+    location.state ?? null
+  ) as ActivationNavigationState | null;
+
+  const selectedDocumentName =
+    typeof navigationState?.documentName === "string"
+      ? navigationState.documentName.trim()
+      : "";
+
+  const activationIntent =
+    navigationState?.intent === "download"
+      ? "download"
+      : "read";
+
   // ==========================================================
   // INTRODUCTION VIDÉO
   // ==========================================================
@@ -158,6 +180,8 @@ const Activation: React.FC = () => {
   // DOCUMENT
   // ==========================================================
 
+  // Document confirmé par le serveur après vérification du code.
+  // Le manuel sélectionné dans la bibliothèque est géré séparément.
   const [document, setDocument] =
     useState<DocumentInfo | null>(null);
 
@@ -2357,24 +2381,30 @@ const goBack = () => {
                 Activation de votre document
               </h1>
 
+              {selectedDocumentName && (
+                <div className="mt-2 space-y-1">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    Manuel sélectionné :
+                    {" "}
+                    <span className="font-extrabold text-blue-700 dark:text-blue-400">
+                      {selectedDocumentName}
+                    </span>
+                  </p>
+
+                  {activationIntent === "download" && (
+                    <p className="text-xs leading-5 text-gray-600 dark:text-gray-400">
+                      Vous avez choisi le téléchargement. Celui-ci reste soumis
+                      aux autorisations applicables et à la vérification du code.
+                    </p>
+                  )}
+                </div>
+              )}
+
               {document && (
-                <p
-                  className="
-                    mt-1
-                    text-sm
-                    text-gray-700
-                    dark:text-gray-300
-                  "
-                >
-                  Document :
+                <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+                  Document confirmé :
                   {" "}
-                  <span
-                    className="
-                      font-extrabold
-                      text-blue-700
-                      dark:text-blue-400
-                    "
-                  >
+                  <span className="font-extrabold text-blue-700 dark:text-blue-400">
                     {document.name}
                   </span>
                 </p>

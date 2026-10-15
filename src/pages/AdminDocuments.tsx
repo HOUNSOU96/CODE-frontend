@@ -19,10 +19,29 @@ interface DocumentRecord {
   activation_code?: string | null;
 }
 
+interface PublishedDocumentVersion {
+  id: number;
+  document_name: string;
+  version_code: number;
+  version_label: string;
+  title: string | null;
+  description: string | null;
+  published_at: string | null;
+  allow_download: boolean;
+}
+
 const AdminDocuments: React.FC = () => {
   const navigate = useNavigate();
 
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  const [publishedVersions, setPublishedVersions] =
+    useState<PublishedDocumentVersion[]>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [versionActionId, setVersionActionId] =
+    useState<number | null>(null);
+  const [versionActionMessage, setVersionActionMessage] = useState("");
+  const [versionActionError, setVersionActionError] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
@@ -175,6 +194,98 @@ const AdminDocuments: React.FC = () => {
 
   useEffect(() => {
     fetchDocuments();
+  }, []);
+
+  // ============================================================
+  // VERSIONS PUBLIÉES ET AUTORISATION DE TÉLÉCHARGEMENT
+  // ============================================================
+
+  const fetchPublishedVersions = async () => {
+    setVersionsLoading(true);
+    setVersionActionError("");
+
+    try {
+      const response = await api.get(
+        "/api/document-versions/catalog"
+      );
+
+      const items = response.data?.documents;
+
+      setPublishedVersions(
+        Array.isArray(items) ? items : []
+      );
+    } catch (err) {
+      console.error(
+        "Erreur de chargement des versions publiées :",
+        err
+      );
+      setVersionActionError(
+        "Impossible de charger les versions publiées. Vérifie la connexion et les droits d'administration."
+      );
+    } finally {
+      setVersionsLoading(false);
+    }
+  };
+
+  const handleDownloadPermission = async (
+    version: PublishedDocumentVersion
+  ) => {
+    setVersionActionMessage("");
+    setVersionActionError("");
+
+    if (versionActionId !== null) return;
+
+    const newValue = !version.allow_download;
+
+    const confirmed = window.confirm(
+      newValue
+        ? `Autoriser le téléchargement pour « ${version.document_name} », version ${version.version_label} ?`
+        : `Interdire le téléchargement pour « ${version.document_name} », version ${version.version_label} ?`
+    );
+
+    if (!confirmed) return;
+
+    setVersionActionId(version.id);
+
+    try {
+      const response = await api.put(
+        `/api/document-versions/${version.id}/download-permission`,
+        { allow_download: newValue }
+      );
+
+      const savedValue = Boolean(
+        response.data?.allow_download
+      );
+
+      setPublishedVersions((current) =>
+        current.map((item) =>
+          item.id === version.id
+            ? { ...item, allow_download: savedValue }
+            : item
+        )
+      );
+
+      setVersionActionMessage(
+        savedValue
+          ? "Le téléchargement est maintenant autorisé pour cette version."
+          : "Le téléchargement est maintenant désactivé pour cette version."
+      );
+    } catch (err) {
+      console.error(
+        "Erreur de modification de la permission :",
+        err
+      );
+
+      setVersionActionError(
+        "Impossible d'enregistrer cette permission. Vérifie que la migration de la base est appliquée et que ton compte est administrateur."
+      );
+    } finally {
+      setVersionActionId(null);
+    }
+  };
+
+  useEffect(() => {
+    fetchPublishedVersions();
   }, []);
 
   // ============================================================
@@ -732,6 +843,100 @@ const AdminDocuments: React.FC = () => {
 
         </div>
 
+
+        {/* ======================================================
+            PERMISSION DE TÉLÉCHARGEMENT DES VERSIONS PUBLIÉES
+        ====================================================== */}
+
+        <section className="bg-white dark:bg-gray-800 rounded-xl shadow p-5 mb-6">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+            Autorisation de téléchargement des documents publiés
+          </h2>
+
+          <p className="mt-2 mb-4 text-sm text-gray-600 dark:text-gray-300">
+            Ce réglage concerne le téléchargement du document par les utilisateurs.
+            Il est distinct du téléchargement administratif du PDF original.
+          </p>
+
+          {versionsLoading ? (
+            <p className="text-gray-600 dark:text-gray-300">
+              Chargement des versions publiées…
+            </p>
+          ) : publishedVersions.length === 0 ? (
+            <div>
+              <p className="text-gray-600 dark:text-gray-300">
+                Aucune version publiée disponible dans le catalogue.
+              </p>
+              <button
+                type="button"
+                onClick={fetchPublishedVersions}
+                className="mt-3 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Actualiser
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {publishedVersions.map((version) => (
+                <div
+                  key={version.id}
+                  className="flex flex-col gap-3 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:flex-row md:items-center md:justify-between"
+                >
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">
+                      {version.title || version.document_name}
+                    </h3>
+                    <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                      {version.document_name} · Version {version.version_label}
+                    </p>
+                    <p className="mt-1 text-sm">
+                      <span className="font-medium">Téléchargement : </span>
+                      <span className={
+                        version.allow_download
+                          ? "text-green-700 dark:text-green-300"
+                          : "text-amber-700 dark:text-amber-300"
+                      }>
+                        {version.allow_download
+                          ? "Autorisé"
+                          : "Désactivé"}
+                      </span>
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadPermission(version)}
+                    disabled={versionActionId !== null}
+                    className={
+                      "rounded-lg px-4 py-2 font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 " +
+                      (version.allow_download
+                        ? "bg-amber-600 hover:bg-amber-700"
+                        : "bg-green-600 hover:bg-green-700")
+                    }
+                  >
+                    {versionActionId === version.id
+                      ? "Enregistrement…"
+                      : version.allow_download
+                      ? "Désactiver le téléchargement"
+                      : "Autoriser le téléchargement"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {versionActionMessage && (
+            <p role="status" className="mt-4 rounded-lg bg-green-50 dark:bg-green-900/30 p-3 text-sm text-green-800 dark:text-green-200">
+              {versionActionMessage}
+            </p>
+          )}
+
+          {versionActionError && (
+            <p role="alert" className="mt-4 rounded-lg bg-red-50 dark:bg-red-900/30 p-3 text-sm text-red-800 dark:text-red-200">
+              {versionActionError}
+            </p>
+          )}
+        </section>
 
         {/* ======================================================
             DOCUMENT ORIGINAL — ACTIONS DISTINCTES
