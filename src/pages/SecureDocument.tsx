@@ -5,7 +5,7 @@ import React, {
 } from "react";
 import {
   useNavigate,
-  useParams,
+
 } from "react-router-dom";
 import {
   ArrowLeft,
@@ -74,10 +74,6 @@ const SecureDocument: React.FC =
   () => {
     const navigate = useNavigate();
 
-    const { documentId } =
-      useParams<{
-        documentId: string;
-      }>();
 
     const [pdfUrl, setPdfUrl] =
       useState<string | null>(
@@ -108,11 +104,6 @@ const SecureDocument: React.FC =
             setLoading(true);
             setError("");
 
-            if (!documentId) {
-              throw new Error(
-                "Identifiant du document manquant."
-              );
-            }
 
             const deviceId =
               getDeviceId();
@@ -290,7 +281,7 @@ const SecureDocument: React.FC =
           );
         }
       };
-    }, [documentId]);
+    }, []);
 
     /**
      * Recharge la page complète.

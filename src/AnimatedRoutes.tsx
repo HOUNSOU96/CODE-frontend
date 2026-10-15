@@ -856,6 +856,12 @@ const AnimatedRoutes: React.FC = () => {
 
 
 <Route
+  path="/secure-document"
+  element={
+    <SecureDocument />
+  }
+/>
+<Route
   path="/secure-document/:documentId"
   element={
     <SecureDocument />

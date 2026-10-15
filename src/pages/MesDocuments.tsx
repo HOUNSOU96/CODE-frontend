@@ -189,29 +189,8 @@ const MesDocuments: React.FC = () => {
    * SecureDocument.tsx demandera le fichier au backend
    * avec le même X-Device-ID.
    */
-  const openDocument = (
-    document: SecureDocument
-  ) => {
-    const documentId =
-      document.document_id ??
-      document.id;
-
-    if (
-      documentId === undefined ||
-      documentId === null ||
-      String(documentId).trim() === ""
-    ) {
-      setError(
-        "Impossible d'identifier ce document."
-      );
-      return;
-    }
-
-    navigate(
-      `/secure-document/${encodeURIComponent(
-        String(documentId)
-      )}`
-    );
+  const openDocument = (_document: SecureDocument) => {
+    navigate("/secure-document");
   };
 
   return (
