@@ -217,24 +217,53 @@ const SecureDocument: React.FC =
             }
 
             /*
-             * Le backend renvoie directement
-             * le PDF.
+             * Vérifier que le serveur a réellement renvoyé
+             * un PDF, et non du texte ou un identifiant.
              */
+            const contentType =
+              (response.headers.get("content-type") || "")
+                .toLowerCase();
+
             const blob =
               await response.blob();
 
-            if (
-              !blob ||
-              blob.size === 0
-            ) {
+            if (!blob || blob.size === 0) {
               throw new Error(
                 "Le document PDF reçu est vide."
               );
             }
 
+            if (
+              contentType &&
+              !contentType.includes("application/pdf") &&
+              !contentType.includes("application/octet-stream")
+            ) {
+              throw new Error(
+                `Le serveur n'a pas renvoyé un PDF (type reçu : ${contentType}).`
+              );
+            }
+
+            const signature = new Uint8Array(
+              await blob.slice(0, 5).arrayBuffer()
+            );
+
+            const signatureText = String.fromCharCode(...signature);
+
+            if (signatureText !== "%PDF-") {
+              throw new Error(
+                "La réponse du serveur n'est pas un fichier PDF valide. " +
+                "Le document n'a pas été affiché. Réessaie plus tard ou contacte l'administrateur."
+              );
+            }
+
+            const pdfBlob = new Blob(
+              [blob],
+              { type: "application/pdf" }
+            );
+
             objectUrl =
               URL.createObjectURL(
-                blob
+                pdfBlob
               );
 
             setPdfUrl(objectUrl);
