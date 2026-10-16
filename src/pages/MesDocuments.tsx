@@ -79,6 +79,9 @@ const MesDocuments: React.FC = () => {
   const [deviceId, setDeviceId] =
     useState("");
 
+  const [readingError, setReadingError] =
+    useState("");
+
   useEffect(() => {
     const id = getDeviceId();
 
@@ -183,14 +186,116 @@ const MesDocuments: React.FC = () => {
   }, []);
 
   /**
-   * Ouvre le document sécurisé.
-   *
-   * Le PDF lui-même n'est pas chargé ici.
-   * SecureDocument.tsx demandera le fichier au backend
-   * avec le même X-Device-ID.
+   * Récupère et ouvre directement le PDF original.
+   * Le backend conserve la responsabilité de vérifier
+   * les autorisations liées à cet appareil.
    */
-  const openDocument = (_document: SecureDocument) => {
-    navigate("/secure-document");
+  const handleReadDocument = async (
+    documentId: number | string | undefined
+  ) => {
+    setReadingError("");
+
+    if (
+      documentId === undefined ||
+      documentId === null ||
+      String(documentId).trim() === ""
+    ) {
+      setReadingError(
+        "Impossible d'identifier ce document. Son identifiant est manquant."
+      );
+      return;
+    }
+
+    // Ouvrir l'onglet immédiatement depuis le clic de l'utilisateur.
+    const viewer = window.open("about:blank", "_blank");
+
+    if (!viewer) {
+      setReadingError(
+        "Le navigateur a bloqué le nouvel onglet. Autorise les fenêtres surgissantes pour lire le document."
+      );
+      return;
+    }
+
+    try {
+      viewer.document.title = "Ouverture du document CODE";
+
+      const response = await fetch(
+        `${API_URL}/api/document-versions/${encodeURIComponent(String(documentId))}/original`,
+        {
+          method: "GET",
+          headers: {
+            "X-Device-ID": getDeviceId(),
+            Accept: "application/pdf",
+          },
+          cache: "no-store",
+        }
+      );
+
+      if (!response.ok) {
+        const responseText = await response.text();
+        let message = `Impossible d'ouvrir le document (HTTP ${response.status}).`;
+
+        try {
+          const data = JSON.parse(responseText);
+          const detail = data?.detail ?? data?.message;
+
+          if (typeof detail === "string") {
+            message = detail;
+          } else if (detail) {
+            message = JSON.stringify(detail);
+          }
+        } catch {
+          if (responseText.trim()) {
+            message = `${message} ${responseText.slice(0, 300)}`;
+          }
+        }
+
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
+
+      if (blob.size === 0) {
+        throw new Error("Le serveur a renvoyé un fichier vide.");
+      }
+
+      // Vérifier la signature réelle du fichier, pas seulement son type MIME.
+      const bytes = new Uint8Array(
+        await blob.slice(0, 5).arrayBuffer()
+      );
+
+      const signature = String.fromCharCode(...bytes);
+
+      if (signature !== "%PDF-") {
+        throw new Error(
+          "La réponse du serveur n'est pas un PDF valide. Le document n'a pas été ouvert."
+        );
+      }
+
+      const pdfBlob = new Blob([blob], {
+        type: "application/pdf",
+      });
+
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+
+      viewer.location.href = pdfUrl;
+
+      viewer.addEventListener(
+        "beforeunload",
+        () => URL.revokeObjectURL(pdfUrl),
+        { once: true }
+      );
+    } catch (err) {
+      console.error("Erreur de lecture du document :", err);
+
+      viewer.close();
+
+      setReadingError(
+        err instanceof Error
+          ? err.message
+          : "Une erreur est survenue lors de l'ouverture du document."
+      );
+    }
   };
 
   return (
@@ -256,6 +361,27 @@ const MesDocuments: React.FC = () => {
       ====================================================== */}
 
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+
+        {readingError && (
+          <div
+            role="alert"
+            className="mb-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+          >
+            <AlertCircle
+              size={20}
+              className="mt-0.5 shrink-0"
+            />
+            <div className="min-w-0">
+              <p className="font-bold">
+                Lecture du document impossible
+              </p>
+              <p className="mt-1 break-words">
+                {readingError}
+              </p>
+            </div>
+          </div>
+        )}
+
 
         {/* ==================================================
             HERO
@@ -647,9 +773,7 @@ const MesDocuments: React.FC = () => {
                           <button
                             type="button"
                             onClick={() =>
-                              openDocument(
-                                document
-                              )
+                              void handleReadDocument(document.id)
                             }
                             className="group/button mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-bold text-white shadow-md shadow-emerald-600/15 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:focus:ring-offset-slate-900"
                           >
