@@ -82,6 +82,12 @@ const MesDocuments: React.FC = () => {
   const [readingError, setReadingError] =
     useState("");
 
+  const [pdfViewerUrl, setPdfViewerUrl] =
+    useState("");
+
+  const [pdfViewerTitle, setPdfViewerTitle] =
+    useState("");
+
   useEffect(() => {
     const id = getDeviceId();
 
@@ -186,9 +192,8 @@ const MesDocuments: React.FC = () => {
   }, []);
 
   /**
-   * Récupère et ouvre directement le PDF original.
-   * Le backend conserve la responsabilité de vérifier
-   * les autorisations liées à cet appareil.
+   * Récupère le PDF original et l'affiche dans la page actuelle.
+   * Le backend reste responsable du contrôle des autorisations.
    */
   const handleReadDocument = async (
     documentId: number | string | undefined
@@ -206,19 +211,7 @@ const MesDocuments: React.FC = () => {
       return;
     }
 
-    // Ouvrir l'onglet immédiatement depuis le clic de l'utilisateur.
-    const viewer = window.open("about:blank", "_blank");
-
-    if (!viewer) {
-      setReadingError(
-        "Le navigateur a bloqué le nouvel onglet. Autorise les fenêtres surgissantes pour lire le document."
-      );
-      return;
-    }
-
     try {
-      viewer.document.title = "Ouverture du document CODE";
-
       const response = await fetch(
         `${API_URL}/api/document-versions/${encodeURIComponent(String(documentId))}/original`,
         {
@@ -259,7 +252,6 @@ const MesDocuments: React.FC = () => {
         throw new Error("Le serveur a renvoyé un fichier vide.");
       }
 
-      // Vérifier la signature réelle du fichier, pas seulement son type MIME.
       const bytes = new Uint8Array(
         await blob.slice(0, 5).arrayBuffer()
       );
@@ -278,17 +270,17 @@ const MesDocuments: React.FC = () => {
 
       const pdfUrl = URL.createObjectURL(pdfBlob);
 
-      viewer.location.href = pdfUrl;
+      setPdfViewerTitle("CODE Maths 1er cycle — Tome I");
+      setPdfViewerUrl(pdfUrl);
 
-      viewer.addEventListener(
-        "beforeunload",
-        () => URL.revokeObjectURL(pdfUrl),
-        { once: true }
-      );
+      // Amener l'utilisateur au lecteur intégré dans la page.
+      window.requestAnimationFrame(() => {
+        document
+          .getElementById("code-pdf-viewer")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
     } catch (err) {
       console.error("Erreur de lecture du document :", err);
-
-      viewer.close();
 
       setReadingError(
         err instanceof Error
@@ -297,6 +289,23 @@ const MesDocuments: React.FC = () => {
       );
     }
   };
+
+  const closePdfViewer = () => {
+    if (pdfViewerUrl) {
+      URL.revokeObjectURL(pdfViewerUrl);
+    }
+
+    setPdfViewerUrl("");
+    setPdfViewerTitle("");
+  };
+
+  useEffect(() => {
+    return () => {
+      if (pdfViewerUrl) {
+        URL.revokeObjectURL(pdfViewerUrl);
+      }
+    };
+  }, [pdfViewerUrl]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100">
@@ -361,6 +370,46 @@ const MesDocuments: React.FC = () => {
       ====================================================== */}
 
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+
+        {pdfViewerUrl && (
+          <section
+            id="code-pdf-viewer"
+            className="mb-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-900"
+            aria-label="Lecteur du document PDF"
+          >
+            <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
+              <div className="flex min-w-0 items-center gap-3">
+                <FileText
+                  size={22}
+                  className="shrink-0 text-emerald-600 dark:text-emerald-400"
+                />
+                <div className="min-w-0">
+                  <h2 className="font-bold text-slate-900 dark:text-white">
+                    {pdfViewerTitle}
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Lecture du document original
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={closePdfViewer}
+                className="inline-flex shrink-0 items-center justify-center rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                Fermer le lecteur
+              </button>
+            </div>
+
+            <iframe
+              title={pdfViewerTitle}
+              src={pdfViewerUrl}
+              className="block h-[75vh] min-h-[480px] w-full bg-slate-100 dark:bg-slate-950"
+              style={{ border: 0 }}
+            />
+          </section>
+        )}
 
         {readingError && (
           <div
