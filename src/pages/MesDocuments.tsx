@@ -1,5 +1,7 @@
 
 import React, { useEffect, useState } from "react";
+import { setDocumentScreenSecurity } from "../utils/screenSecurity";
+import { isMobileOrTabletDevice } from "../utils/deviceAccess";
 import { useNavigate } from "react-router-dom";
 import PdfJsViewer from "../components/PdfJsViewer";
 import {
@@ -201,6 +203,13 @@ const MesDocuments: React.FC = () => {
   ) => {
     setReadingError("");
 
+    if (!isMobileOrTabletDevice()) {
+      setReadingError(
+        "La lecture de ce document est réservée aux téléphones et aux tablettes."
+      );
+      return;
+    }
+
     if (
       documentId === undefined ||
       documentId === null ||
@@ -304,6 +313,18 @@ const MesDocuments: React.FC = () => {
     return () => {
       if (pdfViewerUrl) {
         URL.revokeObjectURL(pdfViewerUrl);
+      }
+    };
+  }, [pdfViewerUrl]);
+
+  useEffect(() => {
+    const secure = Boolean(pdfViewerUrl);
+
+    void setDocumentScreenSecurity(secure);
+
+    return () => {
+      if (secure) {
+        void setDocumentScreenSecurity(false);
       }
     };
   }, [pdfViewerUrl]);

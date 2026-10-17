@@ -3,6 +3,8 @@ import React, {
   useEffect,
   useState,
 } from "react";
+import { setDocumentScreenSecurity } from "../utils/screenSecurity";
+import { isMobileOrTabletDevice } from "../utils/deviceAccess";
 import {
   useNavigate,
 
@@ -101,6 +103,14 @@ const SecureDocument: React.FC =
       const loadDocument =
         async () => {
           try {
+            if (!isMobileOrTabletDevice()) {
+              setError(
+                "La lecture de ce document est réservée aux téléphones et aux tablettes."
+              );
+              setLoading(false);
+              return;
+            }
+
             setLoading(true);
             setError("");
 
@@ -311,6 +321,18 @@ const SecureDocument: React.FC =
         }
       };
     }, []);
+
+    useEffect(() => {
+      const secure = Boolean(pdfUrl);
+
+      void setDocumentScreenSecurity(secure);
+
+      return () => {
+        if (secure) {
+          void setDocumentScreenSecurity(false);
+        }
+      };
+    }, [pdfUrl]);
 
     /**
      * Recharge la page complète.
