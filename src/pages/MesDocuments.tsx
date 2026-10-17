@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import PdfJsViewer from "../components/PdfJsViewer";
 import {
   BookOpen,
   Download,
@@ -402,12 +403,7 @@ const MesDocuments: React.FC = () => {
               </button>
             </div>
 
-            <iframe
-              title={pdfViewerTitle}
-              src={pdfViewerUrl}
-              className="block h-[75vh] min-h-[480px] w-full bg-slate-100 dark:bg-slate-950"
-              style={{ border: 0 }}
-            />
+            <PdfJsViewer fileUrl={pdfViewerUrl} />
           </section>
         )}
 
